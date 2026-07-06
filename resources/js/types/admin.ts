@@ -87,11 +87,21 @@ export type ActiveConversation = {
         email?: string | null;
         source?: string | null;
         status?: string | null;
+        tags?: string[];
+        lastInboundAt?: string | null;
         identities?: {
             id: string;
             provider: string;
             displayName?: string | null;
             providerUserId: string;
+        }[];
+        leads?: { id: string; title: string; status: string }[];
+        pinnedNotes?: { id: string; body: string }[];
+        otherConversations?: {
+            id: string;
+            channel?: string | null;
+            status: string;
+            lastMessageAt?: string | null;
         }[];
     } | null;
     owner?: {
@@ -104,12 +114,12 @@ export type ActiveConversation = {
     messages: {
         id: string;
         direction: 'INBOUND' | 'OUTBOUND';
-        senderType: string;
+        senderType?: string;
         senderId?: string | null;
         body?: string | null;
         messageType?: string | null;
         attachmentUrl?: string | null;
-        status: string;
+        status?: string;
         outboxStatus?: string | null;
         outboxError?: string | null;
         timeLabel?: string | null;

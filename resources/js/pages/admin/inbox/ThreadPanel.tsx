@@ -12,12 +12,12 @@ import {
     Send,
     Smile,
     UserRoundCheck,
-    Wifi,
     X,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/admin/status-badge';
+import { TagEditor } from '@/components/admin/tag-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,8 @@ export function ThreadPanel({
     replyImage,
     replyError,
     replyProcessing,
+    composerMode,
+    onComposerModeChange,
     transferTo,
     focusMode,
     onToggleFocus,
@@ -87,6 +89,8 @@ export function ThreadPanel({
     replyImage: File | null;
     replyError?: string;
     replyProcessing: boolean;
+    composerMode: 'reply' | 'comment';
+    onComposerModeChange: (mode: 'reply' | 'comment') => void;
     transferTo: string;
     focusMode: boolean;
     onToggleFocus: () => void;
@@ -94,7 +98,7 @@ export function ThreadPanel({
     onReplyImageChange: (image: File | null) => void;
     onSubmitReply: (event: FormEvent) => void;
     onTransferToChange: (agentId: string) => void;
-    onSubmitTransfer: () => void;
+    onSubmitTransfer: (userId?: string) => void;
     onCloseConversation: () => void;
 }) {
     // Hooks must run unconditionally (before any early return).
@@ -284,6 +288,34 @@ export function ThreadPanel({
                 <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={activeConversation.priority} />
                     <StatusBadge status={activeConversation.status} />
+                    {/* Inline assign — HubSpot puts the owner picker on the header. */}
+                    <Select
+                        value={
+                            activeConversation.owner
+                                ? String(activeConversation.owner.id)
+                                : ''
+                        }
+                        onValueChange={(id) => {
+                            onTransferToChange(id);
+                            onSubmitTransfer(id);
+                        }}
+                    >
+                        <SelectTrigger className="h-9 w-40">
+                            <SelectValue placeholder="Chưa gán" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                {agents.map((agent) => (
+                                    <SelectItem
+                                        key={agent.id}
+                                        value={String(agent.id)}
+                                    >
+                                        {agent.display_name ?? agent.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
                     <Button
                         type="button"
                         variant="outline"
@@ -418,6 +450,33 @@ export function ThreadPanel({
                     </ScrollArea>
 
                     <form onSubmit={onSubmitReply} className="relative shrink-0 border-t p-3">
+                        {/* Reply (to customer) vs Comment (internal note). */}
+                        <div className="mb-2 inline-flex rounded-md border p-0.5 text-sm">
+                            <button
+                                type="button"
+                                onClick={() => onComposerModeChange('reply')}
+                                className={cn(
+                                    'rounded px-3 py-1 font-medium',
+                                    composerMode === 'reply'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'text-muted-foreground',
+                                )}
+                            >
+                                Trả lời
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onComposerModeChange('comment')}
+                                className={cn(
+                                    'rounded px-3 py-1 font-medium',
+                                    composerMode === 'comment'
+                                        ? '[background-color:var(--status-warn-fg)] text-white'
+                                        : 'text-muted-foreground',
+                                )}
+                            >
+                                Ghi chú khách
+                            </button>
+                        </div>
                         {/* Emoji picker: toggled by the smile button. */}
                         {showEmoji && (
                             <div className="absolute bottom-full right-3 z-10 mb-1 grid max-w-72 grid-cols-10 gap-0.5 rounded-lg border bg-popover p-2 shadow-md">
@@ -497,10 +556,18 @@ export function ThreadPanel({
                         <FieldGroup className="gap-3">
                             <Field data-invalid={!!replyError}>
                                 <FieldLabel htmlFor="reply-body">
-                                    Trả lời{' '}
-                                    <span className="text-xs font-normal text-muted-foreground">
-                                        (gõ / để chèn mẫu)
-                                    </span>
+                                    {composerMode === 'comment' ? (
+                                        <span className="[color:var(--status-warn-fg)]">
+                                            Ghi chú khách (lưu vào hồ sơ, chỉ nhân viên thấy)
+                                        </span>
+                                    ) : (
+                                        <>
+                                            Trả lời{' '}
+                                            <span className="text-xs font-normal text-muted-foreground">
+                                                (gõ / để chèn mẫu)
+                                            </span>
+                                        </>
+                                    )}
                                 </FieldLabel>
                                 <InputGroup className="items-stretch">
                                     <InputGroupTextarea
@@ -532,20 +599,26 @@ export function ThreadPanel({
                                             }
                                         }}
                                         aria-invalid={!!replyError}
-                                        placeholder="Nhập tin — Enter gửi, Shift+Enter xuống dòng"
+                                        placeholder={
+                                            composerMode === 'comment'
+                                                ? 'Ghi chú cho đồng nghiệp — không gửi cho khách'
+                                                : 'Nhập tin — Enter gửi, Shift+Enter xuống dòng'
+                                        }
                                     />
                                     <InputGroupAddon align="inline-end">
-                                        <InputGroupButton
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon-xs"
-                                            onClick={() =>
-                                                fileInputRef.current?.click()
-                                            }
-                                            aria-label="Đính kèm ảnh"
-                                        >
-                                            <ImagePlus />
-                                        </InputGroupButton>
+                                        {composerMode === 'reply' && (
+                                            <InputGroupButton
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                onClick={() =>
+                                                    fileInputRef.current?.click()
+                                                }
+                                                aria-label="Đính kèm ảnh"
+                                            >
+                                                <ImagePlus />
+                                            </InputGroupButton>
+                                        )}
                                         <InputGroupButton
                                             type="button"
                                             variant="ghost"
@@ -562,7 +635,8 @@ export function ThreadPanel({
                                             disabled={
                                                 replyProcessing ||
                                                 (!replyBody.trim() &&
-                                                    !replyImage)
+                                                    (composerMode === 'comment' ||
+                                                        !replyImage))
                                             }
                                         >
                                             {replyProcessing ? (
@@ -570,7 +644,9 @@ export function ThreadPanel({
                                             ) : (
                                                 <Send data-icon="inline-start" />
                                             )}
-                                            Gửi
+                                            {composerMode === 'comment'
+                                                ? 'Lưu ghi chú'
+                                                : 'Gửi'}
                                         </InputGroupButton>
                                     </InputGroupAddon>
                                 </InputGroup>
@@ -590,77 +666,246 @@ export function ThreadPanel({
                         focusMode ? 'hidden' : 'hidden xl:flex',
                     )}
                 >
-                    <div className="flex flex-col gap-3 border-b p-3">
-                        <div className="flex items-center gap-2">
-                            <Wifi />
-                            <h3 className="text-sm font-medium">Trạng thái</h3>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <StatusBadge status={activeConversation.status} />
-                            <StatusBadge status={activeConversation.priority} />
-                        </div>
-                        <Separator />
-                        <div className="flex flex-col gap-1 text-sm">
-                            <span className="text-muted-foreground">Liên hệ</span>
-                            <span className="truncate">
-                                {activeConversation.contact?.phone ??
-                                    activeConversation.contact?.email ??
-                                    'Chưa có liên hệ'}
-                            </span>
-                        </div>
-                        {activeConversation.contact?.id && (
-                            <Button asChild variant="outline" size="sm">
-                                <Link
-                                    href={`/admin/contacts/${activeConversation.contact.id}`}
-                                >
-                                    <UserRoundCheck data-icon="inline-start" />
-                                    Xem hồ sơ khách
-                                </Link>
-                            </Button>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-3 p-3">
-                        <FieldGroup>
-                            <Field>
-                                <FieldLabel>Chuyển cho</FieldLabel>
-                                <div className="flex gap-2">
-                                    <Select
-                                        value={transferTo}
-                                        onValueChange={onTransferToChange}
-                                    >
-                                        <SelectTrigger className="min-w-0 flex-1">
-                                            <SelectValue placeholder="Chọn nhân viên" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectGroup>
-                                                {agents.map((agent) => (
-                                                    <SelectItem
-                                                        key={agent.id}
-                                                        value={String(agent.id)}
-                                                    >
-                                                        {agent.display_name ??
-                                                            agent.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectGroup>
-                                        </SelectContent>
-                                    </Select>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={onSubmitTransfer}
-                                        disabled={!transferTo}
-                                    >
-                                        <UserRoundCheck data-icon="inline-start" />
-                                        Chuyển
-                                    </Button>
+                    <ScrollArea className="min-h-0 flex-1">
+                        <div className="flex flex-col gap-4 p-3">
+                            {/* About contact — HubSpot right-rail. */}
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <Avatar className="size-16">
+                                    {activeConversation.contact?.avatarUrl && (
+                                        <AvatarImage
+                                            src={
+                                                activeConversation.contact
+                                                    .avatarUrl
+                                            }
+                                            alt={name}
+                                        />
+                                    )}
+                                    <AvatarFallback className="text-lg">
+                                        {initials(name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                    <p className="truncate font-semibold">
+                                        {name}
+                                    </p>
+                                    {activeConversation.contact?.source && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Nguồn:{' '}
+                                            {activeConversation.contact.source}
+                                        </p>
+                                    )}
                                 </div>
-                            </Field>
-                        </FieldGroup>
-                    </div>
+                                {activeConversation.contact?.id && (
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full"
+                                    >
+                                        <Link
+                                            href={`/admin/contacts/${activeConversation.contact.id}`}
+                                        >
+                                            <UserRoundCheck data-icon="inline-start" />
+                                            Xem hồ sơ đầy đủ
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+
+                            <PanelSection title="Thông tin">
+                                <PanelRow
+                                    label="SĐT"
+                                    value={
+                                        activeConversation.contact?.phone ?? '—'
+                                    }
+                                />
+                                <PanelRow
+                                    label="Email"
+                                    value={
+                                        activeConversation.contact?.email ?? '—'
+                                    }
+                                />
+                                <PanelRow
+                                    label="Tin gần nhất"
+                                    value={
+                                        activeConversation.contact
+                                            ?.lastInboundAt ?? '—'
+                                    }
+                                />
+                            </PanelSection>
+
+                            {activeConversation.contact?.id && (
+                                <PanelSection title="Tag">
+                                    <TagEditor
+                                        contactId={activeConversation.contact.id}
+                                        tags={
+                                            activeConversation.contact.tags ?? []
+                                        }
+                                    />
+                                </PanelSection>
+                            )}
+
+                            {!!activeConversation.contact?.identities?.length && (
+                                <PanelSection title="Định danh kênh">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {activeConversation.contact.identities.map(
+                                            (id) => (
+                                                <Badge
+                                                    key={id.id}
+                                                    variant="outline"
+                                                    className={cn(
+                                                        'max-w-full truncate',
+                                                        providerClass(
+                                                            id.provider,
+                                                        ),
+                                                    )}
+                                                    title={id.providerUserId}
+                                                >
+                                                    {providerLabel(id.provider)}
+                                                </Badge>
+                                            ),
+                                        )}
+                                    </div>
+                                </PanelSection>
+                            )}
+
+                            {!!activeConversation.contact?.leads?.length && (
+                                <PanelSection title="Cơ hội / Lead">
+                                    {activeConversation.contact.leads.map(
+                                        (lead) => (
+                                            <div
+                                                key={lead.id}
+                                                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
+                                            >
+                                                <span className="truncate">
+                                                    {lead.title}
+                                                </span>
+                                                <StatusBadge
+                                                    status={lead.status}
+                                                    className="shrink-0"
+                                                />
+                                            </div>
+                                        ),
+                                    )}
+                                </PanelSection>
+                            )}
+
+                            {!!activeConversation.contact?.pinnedNotes
+                                ?.length && (
+                                <PanelSection title="Ghi chú ghim">
+                                    {activeConversation.contact.pinnedNotes.map(
+                                        (note) => (
+                                            <p
+                                                key={note.id}
+                                                className="rounded-md border px-2 py-1.5 text-sm [background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)]"
+                                            >
+                                                {note.body}
+                                            </p>
+                                        ),
+                                    )}
+                                </PanelSection>
+                            )}
+
+                            {!!activeConversation.contact?.otherConversations
+                                ?.length && (
+                                <PanelSection title="Hội thoại khác">
+                                    {activeConversation.contact.otherConversations.map(
+                                        (c) => (
+                                            <Link
+                                                key={c.id}
+                                                href={`/admin/inbox?conversation=${c.id}`}
+                                                preserveScroll
+                                                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-accent"
+                                            >
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        'shrink-0',
+                                                        providerClass(c.channel),
+                                                    )}
+                                                >
+                                                    {providerLabel(c.channel)}
+                                                </Badge>
+                                                <span className="truncate text-xs text-muted-foreground">
+                                                    {c.lastMessageAt ?? ''}
+                                                </span>
+                                            </Link>
+                                        ),
+                                    )}
+                                </PanelSection>
+                            )}
+
+                            <Separator />
+
+                            <FieldGroup>
+                                <Field>
+                                    <FieldLabel>Chuyển cho</FieldLabel>
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={transferTo}
+                                            onValueChange={onTransferToChange}
+                                        >
+                                            <SelectTrigger className="min-w-0 flex-1">
+                                                <SelectValue placeholder="Chọn nhân viên" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectGroup>
+                                                    {agents.map((agent) => (
+                                                        <SelectItem
+                                                            key={agent.id}
+                                                            value={String(
+                                                                agent.id,
+                                                            )}
+                                                        >
+                                                            {agent.display_name ??
+                                                                agent.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => onSubmitTransfer()}
+                                            disabled={!transferTo}
+                                        >
+                                            <UserRoundCheck data-icon="inline-start" />
+                                            Chuyển
+                                        </Button>
+                                    </div>
+                                </Field>
+                            </FieldGroup>
+                        </div>
+                    </ScrollArea>
                 </aside>
             </div>
         </section>
+    );
+}
+
+function PanelSection({
+    title,
+    children,
+}: {
+    title: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {title}
+            </p>
+            {children}
+        </div>
+    );
+}
+
+function PanelRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="min-w-0 truncate text-right">{value}</span>
+        </div>
     );
 }

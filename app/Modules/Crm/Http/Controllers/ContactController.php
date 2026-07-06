@@ -99,6 +99,29 @@ class ContactController extends Controller
         return back()->with('success', 'Đã cập nhật hồ sơ Zalo.');
     }
 
+    /** Set the tags on a contact (free-form, agent-controlled). */
+    public function updateTags(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+        $data = $request->validate([
+            'tags' => ['present', 'array', 'max:20'],
+            'tags.*' => ['nullable', 'string', 'max:30'], // empty strings become null via middleware
+        ]);
+
+        // Trim, drop blanks, de-dup (case-insensitive), cap the list.
+        $tags = collect($data['tags'])
+            ->map(fn ($t) => trim((string) $t))
+            ->filter()
+            ->unique(fn ($t) => mb_strtolower($t))
+            ->take(20)
+            ->values()
+            ->all();
+
+        $contact->forceFill(['tags' => $tags])->save();
+
+        return back()->with('success', 'Đã cập nhật tag.');
+    }
+
     /** Add a CSKH note to a contact. */
     public function storeNote(Request $request, Contact $contact): RedirectResponse
     {

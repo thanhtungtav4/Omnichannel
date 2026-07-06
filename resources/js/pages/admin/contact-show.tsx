@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import { type FormEvent } from 'react';
 import { StatusBadge } from '@/components/admin/status-badge';
+import { TagEditor } from '@/components/admin/tag-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,6 +53,7 @@ type Props = {
         email?: string | null;
         source: string;
         status: string;
+        tags?: string[];
         owner?: string | null;
         lastInboundAt?: string | null;
         hasZalo?: boolean;
@@ -201,6 +203,12 @@ export default function ContactShow({
                             <StatusBadge status={contact.status} />
                             <StatusBadge status={contact.source} />
                             <span>Owner: {contact.owner ?? 'Unassigned'}</span>
+                        </div>
+                        <div className="mt-2">
+                            <TagEditor
+                                contactId={contact.id}
+                                tags={contact.tags ?? []}
+                            />
                         </div>
                     </div>
                     {contact.hasZalo && (

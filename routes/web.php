@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('api/admin/contacts/{contact}', [ContactController::class, 'update'])->name('admin.contacts.update');
     Route::delete('api/admin/contacts/{contact}', [ContactController::class, 'destroy'])->name('admin.contacts.destroy');
     Route::post('api/admin/contacts/{contact}/refresh-profile', [ContactController::class, 'refreshProfile'])->name('admin.contacts.refresh-profile');
+    Route::put('api/admin/contacts/{contact}/tags', [ContactController::class, 'updateTags'])->name('admin.contacts.tags');
     Route::post('api/admin/contacts/{contact}/notes', [ContactController::class, 'storeNote'])->name('admin.contacts.notes.store');
     Route::delete('api/admin/contact-notes/{note}', [ContactController::class, 'destroyNote'])->name('admin.contacts.notes.destroy');
     Route::get('admin/leads', [AdminController::class, 'leads'])->name('admin.leads');
@@ -35,6 +36,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('api/admin/mock/inbound', MockInboundController::class)->name('admin.mock-inbound');
     Route::post('api/admin/conversations/{conversation}/reply', [ConversationActionController::class, 'reply'])->name('admin.conversations.reply');
+    Route::post('api/admin/conversations/{conversation}/comment', [ConversationActionController::class, 'comment'])->name('admin.conversations.comment');
     Route::post('api/admin/conversations/{conversation}/transfer', [ConversationActionController::class, 'transfer'])->name('admin.conversations.transfer');
     Route::post('api/admin/conversations/{conversation}/close', [ConversationActionController::class, 'close'])->name('admin.conversations.close');
 

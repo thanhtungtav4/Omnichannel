@@ -20,6 +20,7 @@ class Contact extends Model
         return [
             'last_contacted_at' => 'datetime',
             'last_inbound_at' => 'datetime',
+            'tags' => 'array',
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Channels\Jobs\SendChannelMessageJob;
 use App\Modules\Channels\Models\OutboxMessage;
 use App\Modules\Crm\Models\ExternalIdentity;
+use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Inbox\Models\MessageAttachment;
@@ -100,6 +101,34 @@ class ConversationActionController extends Controller
         SendChannelMessageJob::dispatch($outbox->id);
 
         return back()->with('success', 'Reply queued for provider delivery.');
+    }
+
+    /**
+     * Note about the customer (HubSpot "Comment"): NEVER sent to the customer.
+     * There is ONE note store — contact_notes. A note typed from a conversation
+     * keeps conversation_id so it shows inline in that thread, and also appears
+     * on the contact record (all of the customer's notes in one place). Any
+     * workspace agent can note — it's collaboration, not a customer reply.
+     */
+    public function comment(Request $request, Conversation $conversation): RedirectResponse
+    {
+        $this->authorizeWorkspace($request, $conversation);
+        abort_unless($conversation->contact_id, 422, 'Hội thoại chưa gắn khách để lưu ghi chú.');
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:4000'],
+            'pinned' => ['sometimes', 'boolean'],
+        ]);
+
+        ContactNote::create([
+            'workspace_id' => $conversation->workspace_id,
+            'contact_id' => $conversation->contact_id,
+            'conversation_id' => $conversation->id,
+            'author_id' => $request->user()->id,
+            'body' => $data['body'],
+            'pinned' => (bool) ($data['pinned'] ?? false),
+        ]);
+
+        return back()->with('success', 'Đã thêm ghi chú.');
     }
 
     public function transfer(Request $request, Conversation $conversation, AssignmentService $assignmentService): RedirectResponse

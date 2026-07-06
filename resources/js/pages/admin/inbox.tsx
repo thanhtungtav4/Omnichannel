@@ -64,6 +64,10 @@ export default function Inbox({
         body: '',
         image: null,
     });
+    // 'reply' = sent to the customer; 'comment' = internal note between agents.
+    const [composerMode, setComposerMode] = useState<'reply' | 'comment'>(
+        'reply',
+    );
     const currentOwnerId = activeConversation?.owner?.id;
 
     // Esc exits focus mode.
@@ -152,6 +156,25 @@ export default function Inbox({
     function submitReply(event: FormEvent) {
         event.preventDefault();
         if (!activeConversation) return;
+
+        // Comment mode = internal note (no image, not sent to the customer).
+        if (composerMode === 'comment') {
+            if (!replyForm.data.body.trim()) return;
+            router.post(
+                `/api/admin/conversations/${activeConversation.id}/comment`,
+                { body: replyForm.data.body },
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        replyForm.reset();
+                        toast.success('Đã thêm ghi chú nội bộ');
+                    },
+                    onError: () => toast.error('Lỗi thêm ghi chú'),
+                },
+            );
+            return;
+        }
+
         if (!replyForm.data.body.trim() && !replyForm.data.image) return;
         replyForm.post(reply.url(activeConversation.id), {
             preserveScroll: true,
@@ -164,11 +187,12 @@ export default function Inbox({
         });
     }
 
-    function submitTransfer() {
-        if (!activeConversation || !transferTo) return;
+    function submitTransfer(userId?: string) {
+        const target = userId ?? transferTo;
+        if (!activeConversation || !target) return;
         router.post(
             transfer.url(activeConversation.id),
-            { user_id: transferTo },
+            { user_id: target },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -369,6 +393,8 @@ export default function Inbox({
                         replyImage={replyForm.data.image}
                         replyError={replyForm.errors.body}
                         replyProcessing={replyForm.processing}
+                        composerMode={composerMode}
+                        onComposerModeChange={setComposerMode}
                         transferTo={transferTo}
                         onReplyBodyChange={(body) =>
                             replyForm.setData('body', body)

@@ -36,7 +36,13 @@ class AdminController extends Controller
         $workspaceId = $this->workspaceId($request);
         $conversationQuery = Conversation::query()
             ->where('workspace_id', $workspaceId)
-            ->with(['contact.identities', 'owner', 'channelAccount']);
+            ->with([
+                'contact.identities',
+                'contact.leads',
+                'contact.notes' => fn ($q) => $q->where('pinned', true)->latest(),
+                'owner',
+                'channelAccount',
+            ]);
         $conversation = $request->query('conversation')
             ? (clone $conversationQuery)->whereKey($request->query('conversation'))->first()
             : null;
@@ -66,6 +72,7 @@ class AdminController extends Controller
                 ->whereIn('message_id', $threadMessages->pluck('id'))
                 ->get()
                 ->keyBy('message_id');
+
         }
 
         return Inertia::render('admin/inbox', [
@@ -103,12 +110,40 @@ class AdminController extends Controller
                     'email' => $conversation->contact->email,
                     'source' => $conversation->contact->source,
                     'status' => $conversation->contact->status,
+                    'tags' => $conversation->contact->tags ?? [],
+                    'lastInboundAt' => $conversation->contact->last_inbound_at?->diffForHumans(),
                     'identities' => $conversation->contact->identities->map(fn ($identity) => [
                         'id' => $identity->id,
                         'provider' => $identity->provider,
                         'displayName' => $identity->display_name,
                         'providerUserId' => $identity->provider_user_id,
                     ]),
+                    // Open leads for this contact — the HubSpot right-rail "deals".
+                    'leads' => $conversation->contact->leads
+                        ->whereNotIn('status', ['WON', 'LOST'])
+                        ->map(fn ($lead) => [
+                            'id' => $lead->id,
+                            'title' => $lead->title,
+                            'status' => $lead->status,
+                        ])->values(),
+                    // Pinned CSKH notes — quick context without opening the record.
+                    'pinnedNotes' => $conversation->contact->notes->map(fn ($note) => [
+                        'id' => $note->id,
+                        'body' => $note->body,
+                    ])->values(),
+                    // Other conversations this contact has had (channel history).
+                    'otherConversations' => $conversation->contact->conversations()
+                        ->where('id', '!=', $conversation->id)
+                        ->with('channelAccount')
+                        ->latest('last_message_at')
+                        ->limit(8)
+                        ->get()
+                        ->map(fn ($c) => [
+                            'id' => $c->id,
+                            'channel' => $c->channelAccount?->provider,
+                            'status' => $c->status,
+                            'lastMessageAt' => $c->last_message_at?->diffForHumans(),
+                        ]),
                 ] : null,
                 'owner' => $conversation->owner ? [
                     'id' => $conversation->owner->id,
@@ -135,7 +170,7 @@ class AdminController extends Controller
                     'outboxError' => $outboxByMessageId->get($message->id)?->last_error_message,
                     'timeLabel' => $message->created_at?->format('H:i'),
                     'dateIso' => $message->created_at?->toDateString(),
-                ]),
+                ])->values(),
             ] : null,
             'agents' => User::query()
                 ->where('workspace_id', $workspaceId)
@@ -290,6 +325,7 @@ class AdminController extends Controller
                 'email' => $contact->email,
                 'source' => $contact->source,
                 'status' => $contact->status,
+                'tags' => $contact->tags ?? [],
                 'owner' => $contact->owner?->display_name ?: $contact->owner?->name,
                 'lastInboundAt' => $contact->last_inbound_at?->diffForHumans(),
                 // Whether a Zalo identity exists — the "refresh Zalo profile" button.
