@@ -1,0 +1,161 @@
+<?php
+
+namespace App\Modules\Crm\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Modules\Crm\Models\Contact;
+use App\Modules\Crm\Models\ExternalIdentity;
+use App\Modules\Platform\Models\Workspace;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\Rule;
+
+class ContactController extends Controller
+{
+    public function store(Request $request): RedirectResponse
+    {
+        $workspaceId = $this->workspaceId($request);
+        $data = $this->validated($request);
+
+        $contact = Contact::create([
+            'workspace_id' => $workspaceId,
+            'owner_id' => $request->user()->id,
+            'source' => 'MANUAL',
+            'status' => 'ACTIVE',
+            ...$data,
+        ]);
+
+        return redirect()->route('admin.contacts.show', $contact)
+            ->with('success', 'Contact created.');
+    }
+
+    public function update(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+        $contact->update($this->validated($request, $contact));
+
+        return back()->with('success', 'Contact updated.');
+    }
+
+    public function destroy(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+        // owner/admin only — deleting a contact cascades its identities & links.
+        abort_unless(in_array($request->user()->role, ['owner', 'admin'], true), 403);
+
+        $contact->delete();
+
+        return redirect()->route('admin.contacts')->with('success', 'Contact deleted.');
+    }
+
+    /**
+     * Pull a Zalo contact's real name + avatar from the sidecar (getUserInfo)
+     * and update the contact + its Zalo identity. Fixes contacts whose name is
+     * still the raw UID because the thread started with an outbound message.
+     */
+    public function refreshProfile(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+
+        $identity = ExternalIdentity::query()
+            ->where('workspace_id', $contact->workspace_id)
+            ->where('contact_id', $contact->id)
+            ->where('provider', 'ZALO_PERSONAL')
+            ->first();
+
+        if (! $identity) {
+            return back()->with('error', 'Liên hệ này không có định danh Zalo.');
+        }
+
+        $base = rtrim((string) config('services.zalo_sidecar.url', env('ZALO_SIDECAR_URL', 'http://127.0.0.1:4501')), '/');
+        $token = (string) config('services.zalo_sidecar.token', env('ZALO_SIDECAR_TOKEN', ''));
+
+        try {
+            $res = Http::withHeaders(['x-sidecar-token' => $token])
+                ->timeout(15)
+                ->get("{$base}/accounts/{$identity->provider_account_id}/user/{$identity->provider_user_id}");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Không kết nối được sidecar Zalo.');
+        }
+
+        if (! $res->successful() || $res->json('ok') !== true) {
+            return back()->with('error', 'Không lấy được hồ sơ Zalo: '.(string) $res->json('error'));
+        }
+
+        $name = $res->json('displayName');
+        $avatar = $res->json('avatar');
+
+        $contact->forceFill(array_filter([
+            'full_name' => $name ?: null,
+            'avatar_url' => $avatar ?: null,
+        ]))->save();
+
+        $identity->forceFill(array_filter([
+            'display_name' => $name ?: null,
+            'avatar_url' => $avatar ?: null,
+        ]))->save();
+
+        return back()->with('success', 'Đã cập nhật hồ sơ Zalo.');
+    }
+
+    /** Add a CSKH note to a contact. */
+    public function storeNote(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:4000'],
+            'pinned' => ['sometimes', 'boolean'],
+        ]);
+
+        $contact->notes()->create([
+            'workspace_id' => $contact->workspace_id,
+            'author_id' => $request->user()->id,
+            'body' => $data['body'],
+            'pinned' => (bool) ($data['pinned'] ?? false),
+        ]);
+
+        return back()->with('success', 'Đã thêm ghi chú.');
+    }
+
+    /** Delete a contact note (author or owner/admin). */
+    public function destroyNote(Request $request, \App\Modules\Crm\Models\ContactNote $note): RedirectResponse
+    {
+        abort_unless($note->workspace_id === $this->workspaceId($request), 403);
+        abort_unless(
+            $note->author_id === $request->user()->id
+                || in_array($request->user()->role, ['owner', 'admin', 'support_lead'], true),
+            403,
+        );
+
+        $note->delete();
+
+        return back()->with('success', 'Đã xoá ghi chú.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validated(Request $request, ?Contact $contact = null): array
+    {
+        return $request->validate([
+            'full_name' => ['required', 'string', 'max:160'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:160'],
+            'status' => ['sometimes', Rule::in(['ACTIVE', 'ARCHIVED', 'BLOCKED'])],
+        ]);
+    }
+
+    private function workspaceId(Request $request): string
+    {
+        if (! $request->user()->workspace_id) {
+            $ws = Workspace::query()->firstOrCreate(
+                ['slug' => 'default'],
+                ['name' => 'CRM Demo Workspace', 'status' => 'ACTIVE'],
+            );
+            $request->user()->forceFill(['workspace_id' => $ws->id, 'status' => 'ACTIVE'])->save();
+        }
+
+        return (string) $request->user()->workspace_id;
+    }
+}

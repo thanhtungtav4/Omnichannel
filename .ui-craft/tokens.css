@@ -1,0 +1,149 @@
+/*
+ * CRM Contact Center — Token Spine
+ * ---------------------------------
+ * shadcn/ui is the upstream design system. This file EXTENDS shadcn's
+ * semantic token contract — it does NOT create a parallel system.
+ *
+ * On scaffold: paste the :root / .dark blocks into resources/css/app.css
+ * (Tailwind v4 @theme / shadcn init output). shadcn's own tokens
+ * (--background, --foreground, --primary, --muted, --border, --ring, etc.)
+ * are produced by `npx shadcn@latest init` — keep those, and add the
+ * status / operational / dense tokens below that shadcn does not ship.
+ *
+ * Brief principle 1: "Status over decoration." Accent is restrained;
+ * color is spent on operational state (SLA, delivery, channel, assignment).
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── shadcn base (Graphite neutral + restrained blue accent) ──
+     These override the defaults shadcn init writes. OKLCH, warm-neutral. */
+  --background:          oklch(98.5% 0.003 250);
+  --foreground:          oklch(20%   0.010 250);
+  --card:                oklch(100%  0     0);
+  --card-foreground:     oklch(20%   0.010 250);
+  --popover:             oklch(100%  0     0);
+  --popover-foreground:  oklch(20%   0.010 250);
+  --primary:             oklch(52%   0.16  250);
+  --primary-foreground:  oklch(99%   0     0);
+  --secondary:           oklch(96%   0.004 250);
+  --secondary-foreground:oklch(28%   0.010 250);
+  --muted:               oklch(96.5% 0.004 250);
+  --muted-foreground:    oklch(50%   0.010 250);
+  --accent:              oklch(96%   0.006 250);
+  --accent-foreground:   oklch(28%   0.010 250);
+  --destructive:         oklch(55%   0.20  25);
+  --destructive-foreground: oklch(99% 0    0);
+  --border:              oklch(90%   0.005 250);
+  --input:               oklch(90%   0.005 250);
+  --ring:                oklch(52%   0.16  250);
+  --radius:              0.5rem;
+
+  /* ── Operational status tokens (shadcn ships none of these) ──
+     One token per meaning. Every badge/dot references these, never raw color.
+     bg = subtle fill · fg = text/icon · border = ring/dot */
+
+  /* OK / healthy / online / delivered / sent */
+  --status-ok-bg:        oklch(95%  0.04 150);
+  --status-ok-fg:        oklch(48%  0.15 150);
+  --status-ok-border:    oklch(72%  0.16 150);
+
+  /* Warn / due-soon / degraded / token-near-expiry / retrying / away */
+  --status-warn-bg:      oklch(96%  0.05 75);
+  --status-warn-fg:      oklch(52%  0.13 75);
+  --status-warn-border:  oklch(76%  0.15 75);
+
+  /* Danger / SLA-breached / failed / offline / disabled / error */
+  --status-danger-bg:    oklch(96%  0.04 25);
+  --status-danger-fg:    oklch(52%  0.20 25);
+  --status-danger-border:oklch(70%  0.19 25);
+
+  /* Info / queued / sending / neutral-active / waiting */
+  --status-info-bg:      oklch(95%  0.04 250);
+  --status-info-fg:      oklch(50%  0.15 250);
+  --status-info-border:  oklch(70%  0.15 250);
+
+  /* Idle / draft / closed / archived (neutral, no alarm) */
+  --status-idle-bg:      oklch(96%  0.004 250);
+  --status-idle-fg:      oklch(50%  0.010 250);
+  --status-idle-border:  oklch(85%  0.006 250);
+
+  /* ── Channel provider accents (badge identity only, not decoration) ── */
+  --channel-telegram:    oklch(60% 0.13 235);
+  --channel-zalo:        oklch(58% 0.15 250);
+
+  /* ── Dense / operational sizing (brief principle 2: queue is the product) ── */
+  --row-height:          40px;   /* table row — dense; 44px comfortable */
+  --sidebar-width:       240px;
+  --sidebar-width-icon:  56px;
+  --topbar-height:       56px;
+  --content-pad:         1rem;   /* 16px — dense content padding */
+  --status-dot:          6px;    /* status dots in tables */
+
+  /* ── Tabular numbers — every metric/count/amount uses this ── */
+  --font-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+}
+
+/* ── Dark: intentional, not inverted ──
+   Canvas = tinted near-black (not #000). Accent chroma dropped ~12%.
+   Shadows replaced by border rings (handled in shadcn card component). */
+.dark {
+  --background:          oklch(16%   0.008 250);  /* tinted near-black */
+  --foreground:          oklch(96%   0.006 250);  /* warm off-white, not #fff */
+  --card:                oklch(20%   0.009 250);
+  --card-foreground:     oklch(96%   0.006 250);
+  --popover:             oklch(22%   0.010 250);
+  --popover-foreground:  oklch(96%   0.006 250);
+  --primary:             oklch(65%   0.14  250);  /* chroma reduced for dark */
+  --primary-foreground:  oklch(16%   0.008 250);
+  --secondary:           oklch(26%   0.008 250);
+  --secondary-foreground:oklch(92%   0.006 250);
+  --muted:               oklch(24%   0.007 250);
+  --muted-foreground:    oklch(66%   0.010 250);
+  --accent:              oklch(28%   0.008 250);
+  --accent-foreground:   oklch(92%   0.006 250);
+  --destructive:         oklch(62%   0.18  25);
+  --destructive-foreground: oklch(98% 0    0);
+  --border:              oklch(100%  0     0 / 0.10);
+  --input:               oklch(100%  0     0 / 0.12);
+  --ring:                oklch(65%   0.14  250);
+
+  /* Status tokens — dark rebalance: darker fills, brighter fg for contrast */
+  --status-ok-bg:        oklch(30%  0.06 150 / 0.4);
+  --status-ok-fg:        oklch(78%  0.15 150);
+  --status-ok-border:    oklch(55%  0.14 150);
+
+  --status-warn-bg:      oklch(32%  0.07 75 / 0.4);
+  --status-warn-fg:      oklch(82%  0.14 75);
+  --status-warn-border:  oklch(60%  0.14 75);
+
+  --status-danger-bg:    oklch(32%  0.08 25 / 0.4);
+  --status-danger-fg:    oklch(75%  0.18 25);
+  --status-danger-border:oklch(58%  0.17 25);
+
+  --status-info-bg:      oklch(30%  0.07 250 / 0.4);
+  --status-info-fg:      oklch(78%  0.14 250);
+  --status-info-border:  oklch(58%  0.14 250);
+
+  --status-idle-bg:      oklch(26%  0.006 250);
+  --status-idle-fg:      oklch(66%  0.010 250);
+  --status-idle-border:  oklch(38%  0.008 250);
+
+  --channel-telegram:    oklch(68% 0.12 235);
+  --channel-zalo:        oklch(66% 0.14 250);
+}
+
+/*
+ * Usage rules (bake into component build):
+ *  - Numbers/counts/amounts: font-variant-numeric: tabular-nums; font-family: var(--font-mono).
+ *  - Status = ONE of the five status token sets. Never a raw palette utility.
+ *  - Sidebar tinted via --secondary, never pure black (except explicit Dark Premium).
+ *  - Accent (--primary) ≤5 placements per viewport — everything else neutral.
+ *  - Enum → token map:
+ *      ACTIVE/ONLINE/SENT/DELIVERED/OK      → status-ok
+ *      DEGRADED/DUE_SOON/RETRYING/AWAY/WARN → status-warn
+ *      FAILED/BREACHED/OFFLINE/DISABLED     → status-danger
+ *      QUEUED/SENDING/WAITING/PROCESSING    → status-info
+ *      DRAFT/CLOSED/ARCHIVED/IDLE           → status-idle
+ */

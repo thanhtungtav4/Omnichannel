@@ -1,0 +1,5 @@
+[     327ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://127.0.0.1:5173/resources/css/app.css:0
+[     327ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://127.0.0.1:5173/@vite/client:0
+[     327ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://127.0.0.1:5173/resources/js/app.tsx:0
+[     327ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://127.0.0.1:5173/resources/js/pages/auth/login.tsx:0
+[     327ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://127.0.0.1:5173/@react-refresh:0
