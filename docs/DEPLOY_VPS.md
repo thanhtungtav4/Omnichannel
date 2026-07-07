@@ -221,6 +221,14 @@ cd /var/www/crm
 sudo -u www-data php8.4 artisan config:clear
 ```
 
+6. **Bypass Cloudflare WAF / Loopback Configuration**:
+   If your domains (e.g., `qrf.vn`, `*.qrf.vn`) are proxied behind Cloudflare, the sidecar's webhook POST requests to `https://qrf.vn/webhooks/zalo/...` will be blocked by Cloudflare's Bot Management WAF (returning a 403 Forbidden challenge page).
+   To bypass Cloudflare and route webhook traffic locally on the VPS, map your domains directly to `127.0.0.1` in the VPS's `/etc/hosts` file:
+   ```bash
+   echo "127.0.0.1 qrf.vn admin.qrf.vn nhakhoa.qrf.vn" | sudo tee -a /etc/hosts
+   ```
+
+
 #### Option B: Running under Supervisor
 
 `/etc/supervisor/conf.d/crm-sidecar.conf`:
