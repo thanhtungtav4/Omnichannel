@@ -200,6 +200,27 @@ sudo systemctl enable zalo-sidecar
 sudo systemctl start zalo-sidecar
 ```
 
+4. Verify the service is running and healthy:
+```bash
+# Check service status
+sudo systemctl status zalo-sidecar
+
+# Query local health check endpoint (should return ok: true)
+curl http://127.0.0.1:4501/health
+```
+
+5. Integrate with the main Laravel application:
+Make sure the following variables are configured in `/var/www/crm/.env` to link the main app to the Zalo sidecar:
+```ini
+ZALO_SIDECAR_URL=http://127.0.0.1:4501
+ZALO_SIDECAR_TOKEN="YOUR_SHARED_ZALO_SIDECAR_TOKEN" # Must match SIDECAR_TOKEN in the service file
+```
+Clear the config cache afterwards so Laravel picks up the settings:
+```bash
+cd /var/www/crm
+sudo -u www-data php8.4 artisan config:clear
+```
+
 #### Option B: Running under Supervisor
 
 `/etc/supervisor/conf.d/crm-sidecar.conf`:
