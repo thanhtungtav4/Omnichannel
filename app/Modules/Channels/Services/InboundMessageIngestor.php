@@ -13,8 +13,8 @@ use App\Modules\Crm\Models\TimelineActivity;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Inbox\Models\MessageAttachment;
-use App\Modules\Routing\Models\AgentPresence;
 use App\Modules\Routing\Services\AssignmentService;
+use App\Modules\Routing\Services\PresenceService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +25,7 @@ class InboundMessageIngestor
     public function __construct(
         private readonly AssignmentService $assignmentService,
         private readonly ChannelAdapterRegistry $adapterRegistry,
+        private readonly PresenceService $presence,
     ) {
     }
 
@@ -209,10 +210,7 @@ class InboundMessageIngestor
             if ($conversation && $conversation->status === 'CLOSED' && ! $isSelf) {
                 $conversation->forceFill(['closed_at' => null])->save();
                 if ($conversation->owner_id) {
-                    AgentPresence::query()
-                        ->where('workspace_id', $conversation->workspace_id)
-                        ->where('user_id', $conversation->owner_id)
-                        ->increment('active_conversation_count');
+                    $this->presence->conversationAssigned($conversation->workspace_id, $conversation->owner_id);
                 }
             }
 

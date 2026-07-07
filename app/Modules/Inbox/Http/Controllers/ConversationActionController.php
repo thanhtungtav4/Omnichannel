@@ -11,14 +11,18 @@ use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Inbox\Models\MessageAttachment;
-use App\Modules\Routing\Models\AgentPresence;
 use App\Modules\Routing\Services\AssignmentService;
+use App\Modules\Routing\Services\PresenceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class ConversationActionController extends Controller
 {
+    public function __construct(private readonly PresenceService $presence)
+    {
+    }
+
     public function reply(Request $request, Conversation $conversation, AssignmentService $assignmentService): RedirectResponse
     {
         $this->authorizeWorkspace($request, $conversation);
@@ -177,11 +181,7 @@ class ConversationActionController extends Controller
                 ->update(['status' => 'CANCELLED', 'next_attempt_at' => null]);
 
             if ($fresh->owner_id) {
-                AgentPresence::query()
-                    ->where('workspace_id', $fresh->workspace_id)
-                    ->where('user_id', $fresh->owner_id)
-                    ->where('active_conversation_count', '>', 0)
-                    ->decrement('active_conversation_count');
+                $this->presence->conversationReleased($fresh->workspace_id, $fresh->owner_id);
             }
         });
 
@@ -202,10 +202,7 @@ class ConversationActionController extends Controller
             // that close() decremented.
             $fresh->forceFill(['status' => 'WAITING_AGENT', 'closed_at' => null])->save();
             if ($fresh->owner_id) {
-                AgentPresence::query()
-                    ->where('workspace_id', $fresh->workspace_id)
-                    ->where('user_id', $fresh->owner_id)
-                    ->increment('active_conversation_count');
+                $this->presence->conversationAssigned($fresh->workspace_id, $fresh->owner_id);
             }
         });
 
