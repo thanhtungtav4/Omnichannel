@@ -71,7 +71,9 @@ sudo chown -R www-data:www-data /var/www/crm
 cd /var/www/crm
 cp .env.production.example .env
 # Edit .env: set APP_URL=https://crm.example.com, DB_PASSWORD, REDIS_PASSWORD,
-# ZALO_SIDECAR_TOKEN, SESSION_DOMAIN=crm.example.com
+# ZALO_SIDECAR_TOKEN=your_secure_shared_token,
+# ZALO_SIDECAR_URL=http://127.0.0.1:4501,
+# SESSION_DOMAIN=crm.example.com
 sudo -u www-data composer install --no-dev --optimize-autoloader
 sudo -u www-data php artisan key:generate
 sudo -u www-data php artisan migrate --force
@@ -160,10 +162,45 @@ stopwaitsecs=3600
 
 Only needed if you use ZALO_PERSONAL channels.
 
+#### Option A: Running as a systemd service (Recommended, native on Ubuntu)
+
+1. Install Node.js dependencies:
 ```bash
 cd /var/www/crm/sidecar
-sudo -u www-data npm ci --omit=dev 2>/dev/null || true  # no deps yet; installs zca-js when wired
+sudo npm install --production
 ```
+
+2. Create the systemd service file at `/etc/systemd/system/zalo-sidecar.service`:
+```ini
+[Unit]
+Description=CRM Zalo Personal Sidecar Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/crm/sidecar
+Environment=PORT=4501
+Environment=SIDECAR_TOKEN="YOUR_SHARED_ZALO_SIDECAR_TOKEN"
+Environment=CRM_WEBHOOK_BASE="http://127.0.0.1"
+Environment=CRM_WEBHOOK_SECRET="YOUR_SHARED_ZALO_SIDECAR_TOKEN"
+Environment=ZALO_STUB=0
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. Enable and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable zalo-sidecar
+sudo systemctl start zalo-sidecar
+```
+
+#### Option B: Running under Supervisor
 
 `/etc/supervisor/conf.d/crm-sidecar.conf`:
 ```ini
@@ -171,18 +208,18 @@ sudo -u www-data npm ci --omit=dev 2>/dev/null || true  # no deps yet; installs 
 command=node /var/www/crm/sidecar/server.js
 directory=/var/www/crm/sidecar
 user=www-data
-environment=PORT="4501",SIDECAR_TOKEN="SAME_AS_ZALO_SIDECAR_TOKEN",CRM_WEBHOOK_BASE="https://crm.example.com",CRM_WEBHOOK_SECRET="PER_ACCOUNT_WEBHOOK_SECRET",ZALO_STUB="1"
+environment=PORT="4501",SIDECAR_TOKEN="YOUR_SHARED_ZALO_SIDECAR_TOKEN",CRM_WEBHOOK_BASE="http://127.0.0.1",CRM_WEBHOOK_SECRET="YOUR_SHARED_ZALO_SIDECAR_TOKEN",ZALO_STUB="0"
 autostart=true
 autorestart=true
 stdout_logfile=/var/log/crm-sidecar.log
 ```
-Set `ZALO_STUB="0"` once real zca-js is wired (see specs/10 Task 5b). Keep the
-sidecar bound to 127.0.0.1 only — never expose :4501 publicly.
 
 Load the supervisor services:
 ```bash
-sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl start all
+sudo supervisorctl reread && sudo supervisorctl update && sudo supervisorctl start crm-sidecar
 ```
+
+*Note: Always keep the Zalo sidecar bound to localhost (port 4501) and never expose it to the internet.*
 
 ## 10. Scheduler (token refresh, cron jobs)
 
@@ -215,6 +252,8 @@ sudo -u www-data php artisan migrate --force
 sudo -u www-data npm ci && sudo -u www-data npm run build
 sudo -u www-data php artisan config:cache && sudo -u www-data php artisan route:cache && sudo -u www-data php artisan view:cache
 sudo supervisorctl restart all
+# If using systemd for Zalo sidecar, restart it:
+sudo systemctl restart zalo-sidecar
 ```
 
 ## Rollback
