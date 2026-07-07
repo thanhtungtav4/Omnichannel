@@ -3,12 +3,16 @@ import {
     ArrowLeft,
     CheckCircle2,
     ChevronDown,
+    Copy,
     InboxIcon,
+    Info,
     LoaderCircle,
+    Mail,
     Maximize2,
     MessageCirclePlus,
     ImagePlus,
     Minimize2,
+    Phone,
     RotateCcw,
     Search,
     Send,
@@ -44,6 +48,14 @@ import {
     InputGroupTextarea,
 } from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 import {
     Select,
     SelectContent,
@@ -249,6 +261,7 @@ export function ThreadPanel({
     }
 
     const name = customerName(activeConversation);
+    const contact = activeConversation.contact;
 
     return (
         <section className="flex min-h-0 flex-col overflow-hidden">
@@ -341,6 +354,72 @@ export function ThreadPanel({
                             </SelectGroup>
                         </SelectContent>
                     </Select>
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="size-11 sm:size-9 lg:hidden"
+                                title="Thông tin khách"
+                                aria-label="Thông tin khách"
+                            >
+                                <Info />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-[300px] p-0">
+                            <SheetHeader className="border-b">
+                                <SheetTitle>Thông tin khách</SheetTitle>
+                                <SheetDescription className="sr-only">
+                                    Chi tiết liên hệ và hành động nhanh
+                                </SheetDescription>
+                            </SheetHeader>
+                            <div className="flex flex-col gap-3 overflow-y-auto p-4 text-sm">
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="size-12">
+                                        {contact?.avatarUrl && (
+                                            <AvatarImage src={contact.avatarUrl} alt={name} />
+                                        )}
+                                        <AvatarFallback>{initials(name)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                        <p className="truncate font-semibold" title={name}>
+                                            {name}
+                                        </p>
+                                        {contact?.source && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Nguồn: {contact.source}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                <ContactInfoRow
+                                    icon={<Phone className="size-3.5" />}
+                                    label="SĐT"
+                                    value={contact?.phone}
+                                    href={contact?.phone ? `tel:${contact.phone}` : undefined}
+                                />
+                                <ContactInfoRow
+                                    icon={<Mail className="size-3.5" />}
+                                    label="Email"
+                                    value={contact?.email}
+                                    href={contact?.email ? `mailto:${contact.email}` : undefined}
+                                />
+                                <PanelRow
+                                    label="Tin gần nhất"
+                                    value={contact?.lastInboundAt ?? '—'}
+                                />
+                                {contact?.id && (
+                                    <Button asChild variant="outline" size="sm" className="mt-2">
+                                        <Link href={`/admin/contacts/${contact.id}`}>
+                                            <UserRoundCheck data-icon="inline-start" />
+                                            Xem hồ sơ đầy đủ
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
                     <Button
                         type="button"
                         variant="outline"
@@ -390,7 +469,7 @@ export function ThreadPanel({
                     'grid min-h-0 flex-1',
                     focusMode
                         ? 'grid-cols-1'
-                        : 'xl:grid-cols-[minmax(0,1fr)_320px]',
+                        : 'lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]',
                 )}
             >
                 <div className="relative flex min-h-0 min-w-0 flex-col">
@@ -703,8 +782,8 @@ export function ThreadPanel({
 
                 <aside
                     className={cn(
-                        'min-h-0 flex-col border-l bg-muted/20 w-[320px] shrink-0',
-                        focusMode ? 'hidden' : 'hidden xl:flex',
+                        'min-h-0 flex-col border-l bg-muted/20 shrink-0 lg:w-[300px] xl:w-[320px]',
+                        focusMode ? 'hidden' : 'hidden lg:flex',
                     )}
                 >
                     <ScrollArea className="min-h-0 flex-1">
@@ -754,16 +833,24 @@ export function ThreadPanel({
                             </div>
 
                             <PanelSection title="Thông tin">
-                                <PanelRow
+                                <ContactInfoRow
+                                    icon={<Phone className="size-3.5" />}
                                     label="SĐT"
-                                    value={
-                                        activeConversation.contact?.phone ?? '—'
+                                    value={activeConversation.contact?.phone}
+                                    href={
+                                        activeConversation.contact?.phone
+                                            ? `tel:${activeConversation.contact.phone}`
+                                            : undefined
                                     }
                                 />
-                                <PanelRow
+                                <ContactInfoRow
+                                    icon={<Mail className="size-3.5" />}
                                     label="Email"
-                                    value={
-                                        activeConversation.contact?.email ?? '—'
+                                    value={activeConversation.contact?.email}
+                                    href={
+                                        activeConversation.contact?.email
+                                            ? `mailto:${activeConversation.contact.email}`
+                                            : undefined
                                     }
                                 />
                                 <PanelRow
@@ -951,6 +1038,67 @@ function PanelRow({ label, value }: { label: string; value: string }) {
         <div className="flex items-center justify-between gap-2 text-sm">
             <span className="text-muted-foreground">{label}</span>
             <span className="min-w-0 truncate text-right">{value}</span>
+        </div>
+    );
+}
+
+/**
+ * Contact detail row with a tappable value (call / mail) and a copy button —
+ * lets an agent act on a phone/email without leaving the inbox.
+ */
+function ContactInfoRow({
+    icon,
+    label,
+    value,
+    href,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    value?: string | null;
+    href?: string;
+}) {
+    if (!value) {
+        return (
+            <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                    {icon}
+                    {label}
+                </span>
+                <span className="text-muted-foreground">—</span>
+            </div>
+        );
+    }
+    return (
+        <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+                {icon}
+                {label}
+            </span>
+            <span className="flex min-w-0 items-center gap-1">
+                {href ? (
+                    <a
+                        href={href}
+                        className="min-w-0 truncate text-primary hover:underline"
+                        title={value}
+                    >
+                        {value}
+                    </a>
+                ) : (
+                    <span className="min-w-0 truncate">{value}</span>
+                )}
+                <button
+                    type="button"
+                    onClick={() => {
+                        navigator.clipboard?.writeText(value);
+                        toast.success(`Đã copy ${label}`);
+                    }}
+                    className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-accent"
+                    aria-label={`Copy ${label}`}
+                    title={`Copy ${label}`}
+                >
+                    <Copy className="size-3" />
+                </button>
+            </span>
         </div>
     );
 }

@@ -77,6 +77,15 @@ export default function Inbox({
     );
     const currentOwnerId = activeConversation?.owner?.id;
 
+    // On mobile the list and the thread are separate screens. The backend
+    // auto-selects the most recent conversation, so opening /admin/inbox with
+    // no ?conversation should still land on the LIST first — only show the
+    // thread once a row is explicitly tapped (URL carries ?conversation).
+    const hasExplicitConversation =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).has('conversation');
+    const showThread = !!activeConversation && hasExplicitConversation;
+
     // ⌘K / Ctrl+K opens the command palette (jump to any conversation).
     const [paletteOpen, setPaletteOpen] = useState(false);
     useEffect(() => {
@@ -352,7 +361,7 @@ export default function Inbox({
                     {!focusMode && (
                         <aside className={cn(
                             "flex min-h-0 flex-col border-b lg:border-r lg:border-b-0 bg-muted/20",
-                            activeConversation ? "hidden lg:flex" : "flex w-full"
+                            showThread ? "hidden lg:flex" : "flex w-full"
                         )}>
                             <div className="flex items-start justify-between gap-3 border-b p-3">
                                 <div className="min-w-0">
@@ -368,6 +377,7 @@ export default function Inbox({
                                     type="button"
                                     variant="outline"
                                     size="icon"
+                                    className="size-11 sm:size-9"
                                     onClick={refreshNow}
                                     aria-label="Làm mới"
                                     disabled={isRefreshing}
@@ -518,6 +528,7 @@ export default function Inbox({
                     )}
 
                     {activeConversation && (
+                        <div className={cn('min-h-0 min-w-0 grid grid-rows-1 [&>section]:min-h-0', showThread ? 'grid' : 'hidden lg:grid')}>
                         <ThreadPanel
                             focusMode={focusMode}
                             onToggleFocus={() => setFocusMode((v) => !v)}
@@ -542,6 +553,7 @@ export default function Inbox({
                             onCloseConversation={closeConversation}
                             onReopenConversation={reopenConversation}
                         />
+                        </div>
                     )}
                 </section>
             </main>

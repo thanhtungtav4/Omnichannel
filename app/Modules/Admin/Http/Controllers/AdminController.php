@@ -34,6 +34,7 @@ class AdminController extends Controller
     public function inbox(Request $request): Response
     {
         $workspaceId = $this->workspaceId($request);
+        $displayTz = config('app.display_timezone');
         $conversationQuery = Conversation::query()
             ->where('workspace_id', $workspaceId)
             ->with([
@@ -172,8 +173,8 @@ class AdminController extends Controller
                     'status' => $message->status,
                     'outboxStatus' => $outboxByMessageId->get($message->id)?->status,
                     'outboxError' => $outboxByMessageId->get($message->id)?->last_error_message,
-                    'timeLabel' => $message->created_at?->format('H:i'),
-                    'dateIso' => $message->created_at?->toDateString(),
+                    'timeLabel' => $message->created_at?->timezone($displayTz)->format('H:i'),
+                    'dateIso' => $message->created_at?->timezone($displayTz)->toDateString(),
                 ])->values(),
             ] : null,
             'agents' => User::query()
@@ -230,6 +231,7 @@ class AdminController extends Controller
     public function messagesOlder(Request $request, Conversation $conversation): \Illuminate\Http\JsonResponse
     {
         abort_unless($conversation->workspace_id === $this->workspaceId($request), 403);
+        $displayTz = config('app.display_timezone');
         $beforeId = $request->query('before');
         $before = $beforeId ? Message::find($beforeId) : null;
 
@@ -268,8 +270,8 @@ class AdminController extends Controller
                     'status' => $m->status,
                     'outboxStatus' => $outbox->get($m->id)?->status,
                     'outboxError' => $outbox->get($m->id)?->last_error_message,
-                    'timeLabel' => $m->created_at?->format('H:i'),
-                    'dateIso' => $m->created_at?->toDateString(),
+                    'timeLabel' => $m->created_at?->timezone($displayTz)->format('H:i'),
+                    'dateIso' => $m->created_at?->timezone($displayTz)->toDateString(),
                 ]),
         ]);
     }

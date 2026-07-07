@@ -46,7 +46,7 @@ export function QueueTabTrigger({
     count: number;
 }) {
     return (
-        <TabsTrigger value={value} className="min-w-0 gap-1">
+        <TabsTrigger value={value} className="min-w-0 gap-1 min-h-10 sm:min-h-0">
             <span className="truncate">{label}</span>
             <span className="[font-family:var(--font-mono)] tabular-nums text-muted-foreground">
                 {count}
