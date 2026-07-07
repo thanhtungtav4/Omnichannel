@@ -12,9 +12,11 @@ class ProviderWebhookController extends Controller
 {
     public function telegram(Request $request, ChannelAccount $channelAccount, InboundMessageIngestor $ingestor): JsonResponse
     {
-        $secret = $request->header('X-Telegram-Bot-Api-Secret-Token');
+        $secret = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
 
-        if ($channelAccount->webhook_secret && $secret !== $channelAccount->webhook_secret) {
+        // hash_equals: constant-time compare so the secret can't be guessed by
+        // measuring response timing.
+        if ($channelAccount->webhook_secret && ! hash_equals((string) $channelAccount->webhook_secret, $secret)) {
             return response()->json(['error' => ['code' => 'INVALID_WEBHOOK_SECRET', 'message' => 'Invalid webhook secret.']], 401);
         }
 
@@ -37,14 +39,25 @@ class ProviderWebhookController extends Controller
 
     public function zalo(Request $request, ChannelAccount $channelAccount, InboundMessageIngestor $ingestor): JsonResponse
     {
-        // ZALO_PERSONAL events arrive from the Node sidecar, authenticated by a
-        // shared token stored as the channel account's webhook_secret. ZALO_OA
-        // events arrive from Zalo's servers (verified per spec 05). If a secret
-        // is configured, require it either way.
-        $secret = $request->header('X-Sidecar-Token') ?? $request->header('X-Zalo-Signature');
-
-        if ($channelAccount->webhook_secret && $secret !== $channelAccount->webhook_secret) {
-            return response()->json(['error' => ['code' => 'INVALID_WEBHOOK_SECRET', 'message' => 'Invalid webhook secret.']], 401);
+        // ZALO_OA events come from Zalo's servers, signed HMAC-SHA256 over the
+        // raw body with the OA app_secret (spec 05). Verify the signature.
+        if ($channelAccount->provider === 'ZALO_OA') {
+            $appSecret = (string) data_get($channelAccount->credentials, 'app_secret', '');
+            if ($appSecret === '') {
+                return response()->json(['error' => ['code' => 'MISSING_APP_SECRET', 'message' => 'OA app secret not configured.']], 401);
+            }
+            $sig = (string) $request->header('X-Zalo-Signature', '');
+            $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $appSecret);
+            if (! hash_equals($expected, $sig)) {
+                return response()->json(['error' => ['code' => 'INVALID_SIGNATURE', 'message' => 'Invalid Zalo signature.']], 401);
+            }
+        } else {
+            // ZALO_PERSONAL events arrive from the Node sidecar, authenticated by
+            // a shared token stored as the channel account's webhook_secret.
+            $secret = (string) $request->header('X-Sidecar-Token', '');
+            if ($channelAccount->webhook_secret && ! hash_equals((string) $channelAccount->webhook_secret, $secret)) {
+                return response()->json(['error' => ['code' => 'INVALID_WEBHOOK_SECRET', 'message' => 'Invalid webhook secret.']], 401);
+            }
         }
 
         $result = $ingestor->ingest($channelAccount, $request->all(), $request->headers->all());

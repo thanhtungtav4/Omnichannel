@@ -18,6 +18,7 @@ class ChannelAccount extends Model
     {
         return [
             'credentials' => EncryptedJsonArray::class,
+            'webhook_secret' => 'encrypted',
             'settings' => 'array',
             'last_webhook_at' => 'datetime',
             'last_health_check_at' => 'datetime',

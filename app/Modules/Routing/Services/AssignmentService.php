@@ -98,6 +98,47 @@ class AssignmentService
         });
     }
 
+    /**
+     * An agent claims an unassigned conversation by replying to it. No queue
+     * eligibility check — reply permission was already verified upstream, and
+     * a manual pickup should never be blocked by max-active caps. If someone
+     * else claimed it first (owner_id set), we leave their ownership intact.
+     */
+    public function claim(Conversation $conversation, User $agent): User
+    {
+        return DB::transaction(function () use ($conversation, $agent) {
+            $fresh = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
+
+            if ($fresh->owner_id !== null) {
+                return $fresh->owner; // already claimed by someone else
+            }
+
+            DB::table('conversation_assignments')->insert([
+                'id' => (string) str()->uuid(),
+                'workspace_id' => $fresh->workspace_id,
+                'conversation_id' => $fresh->id,
+                'from_user_id' => null,
+                'to_user_id' => $agent->id,
+                'routing_queue_id' => $fresh->routing_queue_id,
+                'reason' => 'MANUAL_CLAIM',
+                'metadata' => json_encode([]),
+                'created_at' => now(),
+            ]);
+
+            $fresh->forceFill([
+                'owner_id' => $agent->id,
+                'status' => 'ASSIGNED',
+            ])->save();
+
+            AgentPresence::query()
+                ->where('workspace_id', $fresh->workspace_id)
+                ->where('user_id', $agent->id)
+                ->increment('active_conversation_count');
+
+            return $agent;
+        });
+    }
+
     public function transfer(Conversation $conversation, User $target, ?User $actor = null): User
     {
         return DB::transaction(function () use ($conversation, $target, $actor) {

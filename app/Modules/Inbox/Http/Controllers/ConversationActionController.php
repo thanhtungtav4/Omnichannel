@@ -19,10 +19,18 @@ use Illuminate\Http\Request;
 
 class ConversationActionController extends Controller
 {
-    public function reply(Request $request, Conversation $conversation): RedirectResponse
+    public function reply(Request $request, Conversation $conversation, AssignmentService $assignmentService): RedirectResponse
     {
         $this->authorizeWorkspace($request, $conversation);
         $this->authorizeReply($request, $conversation);
+
+        // Picking up an unassigned conversation: the replying agent claims it.
+        // Without this the conversation stays owner-less, so a second agent can
+        // reply to the same customer and the presence/queue counters never move.
+        if ($conversation->owner_id === null) {
+            $assignmentService->claim($conversation, $request->user());
+            $conversation->refresh();
+        }
         // Body optional when an image is attached; one of the two is required.
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:4000'],
@@ -160,6 +168,14 @@ class ConversationActionController extends Controller
             }
             $fresh->forceFill(['status' => 'CLOSED', 'closed_at' => now()])->save();
 
+            // Cancel replies still waiting to be sent so we don't message a
+            // customer after closing. Only not-yet-picked-up outbox rows; a
+            // SENDING row is already at the provider and must run to completion.
+            OutboxMessage::query()
+                ->where('conversation_id', $fresh->id)
+                ->whereIn('status', ['QUEUED', 'RETRYING'])
+                ->update(['status' => 'CANCELLED', 'next_attempt_at' => null]);
+
             if ($fresh->owner_id) {
                 AgentPresence::query()
                     ->where('workspace_id', $fresh->workspace_id)
@@ -170,6 +186,30 @@ class ConversationActionController extends Controller
         });
 
         return back()->with('success', 'Conversation closed.');
+    }
+
+    public function reopen(Request $request, Conversation $conversation): RedirectResponse
+    {
+        $this->authorizeWorkspace($request, $conversation);
+        $this->authorizeReply($request, $conversation);
+
+        DB::transaction(function () use ($conversation) {
+            $fresh = Conversation::query()->lockForUpdate()->findOrFail($conversation->id);
+            if ($fresh->status !== 'CLOSED') {
+                return; // already open
+            }
+            // Reopen as needing an agent; restore the owner's workload counter
+            // that close() decremented.
+            $fresh->forceFill(['status' => 'WAITING_AGENT', 'closed_at' => null])->save();
+            if ($fresh->owner_id) {
+                AgentPresence::query()
+                    ->where('workspace_id', $fresh->workspace_id)
+                    ->where('user_id', $fresh->owner_id)
+                    ->increment('active_conversation_count');
+            }
+        });
+
+        return back()->with('success', 'Đã mở lại hội thoại.');
     }
 
     private function authorizeWorkspace(Request $request, Conversation $conversation): void

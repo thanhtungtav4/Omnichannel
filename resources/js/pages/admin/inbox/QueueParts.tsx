@@ -87,8 +87,8 @@ export function ConversationRow({
             href={`/admin/inbox?conversation=${conversation.id}`}
             preserveScroll
             className={cn(
-                'flex min-h-[104px] flex-col gap-2 border-b px-3 py-3 transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none',
-                active && 'bg-accent',
+                'flex min-h-[104px] flex-col gap-2 border-b px-3 py-3 transition-all focus-visible:outline-none border-l-4 border-l-transparent',
+                active ? 'bg-background border-l-primary shadow-sm' : 'hover:bg-background/40',
                 conversation.isUnanswered && !active && 'bg-primary/5',
             )}
         >

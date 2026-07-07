@@ -65,13 +65,13 @@ export function TagEditor({
                         }
                     }}
                     placeholder="Thêm tag…"
-                    className="h-7 w-24 text-xs"
+                    className="h-9 w-24 text-xs sm:h-7"
                 />
                 <button
                     type="button"
                     onClick={add}
                     aria-label="Thêm tag"
-                    className="rounded-md border p-1 text-muted-foreground hover:bg-accent"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-accent sm:size-7"
                 >
                     <Plus className="size-3.5" />
                 </button>

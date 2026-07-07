@@ -6,7 +6,7 @@ import {
     RefreshCcw,
     Search,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
     Alert,
@@ -35,7 +35,6 @@ import {
 } from './inbox/lib';
 import {
     ConversationRow,
-    Metric,
     QueueSkeleton,
     QueueTabTrigger,
 } from './inbox/QueueParts';
@@ -88,6 +87,48 @@ export default function Inbox({
         }, 3000);
         return () => window.clearInterval(interval);
     }, []);
+
+    // Notify on a NEW inbound message. Snapshot each conversation's last inbound
+    // text; when a poll brings a different inbound line (new thread, or a new
+    // customer message on an existing thread), play a short beep + toast. The
+    // first render only seeds the snapshot so we don't ping on page load.
+    const seenInbound = useRef<Map<string, string> | null>(null);
+    useEffect(() => {
+        const snapshot = new Map<string, string>();
+        for (const c of conversations) {
+            if (c.lastDirection === 'INBOUND') {
+                snapshot.set(c.id, c.lastMessage ?? '');
+            }
+        }
+
+        const prev = seenInbound.current;
+        seenInbound.current = snapshot;
+        if (prev === null) return; // seed only, no ping on first load
+
+        const hasNew = [...snapshot].some(
+            ([id, text]) => prev.get(id) !== text,
+        );
+        if (!hasNew) return;
+
+        toast('Tin nhắn mới');
+        try {
+            const AudioCtx =
+                window.AudioContext ??
+                (window as unknown as { webkitAudioContext: typeof AudioContext })
+                    .webkitAudioContext;
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+        } catch {
+            // Audio blocked (no user gesture yet) — the toast still shows.
+        }
+    }, [conversations]);
 
     // Presence heartbeat: mark the agent ONLINE every 20s while the inbox is open
     // so auto-assignment only routes to agents who are actually present.
@@ -217,6 +258,19 @@ export default function Inbox({
         );
     }
 
+    function reopenConversation() {
+        if (!activeConversation) return;
+        router.post(
+            `/api/admin/conversations/${activeConversation.id}/reopen`,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Đã mở lại hội thoại'),
+                onError: () => toast.error('Mở lại thất bại'),
+            },
+        );
+    }
+
     function refreshNow() {
         setIsRefreshing(true);
         router.reload({
@@ -230,52 +284,22 @@ export default function Inbox({
             <Head title="Hộp thư đa kênh" />
 
             <main className="flex h-[calc(100vh-var(--topbar-height))] flex-col gap-3 overflow-hidden bg-background p-3 md:p-4">
-                <section className="grid shrink-0 gap-2 md:grid-cols-4">
-                    <Metric label="Đang mở" value={stats.open} status="OPEN" />
-                    <Metric
-                        label="Chờ trả lời"
-                        value={stats.waitingAgent}
-                        status="WAITING_AGENT"
-                    />
-                    <Metric
-                        label="Chưa gán"
-                        value={stats.unassigned}
-                        status={stats.unassigned > 0 ? 'DUE_SOON' : 'OK'}
-                    />
-                    <Metric
-                        label="Gửi lỗi"
-                        value={stats.failedOutbox}
-                        status={stats.failedOutbox > 0 ? 'FAILED' : 'OK'}
-                    />
-                </section>
-
-                {(stats.failedOutbox > 0 || stats.unassigned > 0) && (
-                    <Alert className="shrink-0 py-2">
-                        <AlertTriangle />
-                        <AlertTitle>Cần xử lý</AlertTitle>
-                        <AlertDescription>
-                            {stats.failedOutbox > 0 && (
-                                <span>{stats.failedOutbox} tin gửi lỗi. </span>
-                            )}
-                            {stats.unassigned > 0 && (
-                                <span>
-                                    {stats.unassigned} hội thoại chưa gán.
-                                </span>
-                            )}
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 <section
                     className={cn(
                         'grid min-h-0 flex-1 overflow-hidden rounded-lg border bg-card',
                         focusMode
                             ? 'grid-cols-1'
-                            : 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]',
+                            : activeConversation
+                              ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)] grid-cols-1'
+                              : 'grid-cols-1',
                     )}
                 >
                     {!focusMode && (
-                        <aside className="flex min-h-0 flex-col border-b lg:border-r lg:border-b-0">
+                        <aside className={cn(
+                            "flex min-h-0 flex-col border-b lg:border-r lg:border-b-0 bg-muted/20",
+                            activeConversation ? "hidden lg:flex" : "flex w-full"
+                        )}>
                             <div className="flex items-start justify-between gap-3 border-b p-3">
                                 <div className="min-w-0">
                                     <h1 className="truncate text-base font-semibold">
@@ -303,6 +327,21 @@ export default function Inbox({
                             </div>
 
                             <div className="flex flex-col gap-3 border-b p-3">
+                                {(stats.failedOutbox > 0 || stats.unassigned > 0) && (
+                                    <Alert className="shrink-0 py-2 [background-color:var(--status-danger-bg)] [color:var(--status-danger-fg)] [border-color:var(--status-danger-border)]">
+                                        <AlertTriangle className="size-4" />
+                                        <AlertTitle className="text-xs font-semibold">Cần xử lý</AlertTitle>
+                                        <AlertDescription className="text-xs">
+                                            {stats.failedOutbox > 0 && (
+                                                <span>{stats.failedOutbox} tin gửi lỗi. </span>
+                                            )}
+                                            {stats.unassigned > 0 && (
+                                                <span>{stats.unassigned} cuộc chưa gán.</span>
+                                            )}
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
                                 <InputGroup>
                                     <InputGroupInput
                                         value={query}
@@ -335,7 +374,7 @@ export default function Inbox({
                                         />
                                         <QueueTabTrigger
                                             value="waiting"
-                                            label="Chờ trả lời"
+                                            label="Chờ"
                                             count={tabCounts.waiting}
                                         />
                                         <QueueTabTrigger
@@ -345,6 +384,36 @@ export default function Inbox({
                                         />
                                     </TabsList>
                                 </Tabs>
+
+                                <div className="flex items-center justify-between gap-1.5 text-xs select-none">
+                                    <span className="flex items-center gap-1 rounded border px-2 py-0.5 [background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]" title="Tổng số hội thoại đang mở">
+                                        Mở: <strong className="font-semibold">{stats.open}</strong>
+                                    </span>
+                                    <span className={cn(
+                                        "flex items-center gap-1 rounded border px-2 py-0.5",
+                                        stats.waitingAgent > 0
+                                            ? "[background-color:var(--status-info-bg)] [color:var(--status-info-fg)] [border-color:var(--status-info-border)]"
+                                            : "[background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]"
+                                    )} title="Hội thoại chờ nhân viên trả lời">
+                                        Chờ: <strong className="font-semibold">{stats.waitingAgent}</strong>
+                                    </span>
+                                    <span className={cn(
+                                        "flex items-center gap-1 rounded border px-2 py-0.5",
+                                        stats.unassigned > 0
+                                            ? "[background-color:var(--status-warn-bg)] [color:var(--status-warn-fg)] [border-color:var(--status-warn-border)] font-medium"
+                                            : "[background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]"
+                                    )} title="Hội thoại chưa gán cho ai">
+                                        Chưa gán: <strong className="font-semibold">{stats.unassigned}</strong>
+                                    </span>
+                                    <span className={cn(
+                                        "flex items-center gap-1 rounded border px-2 py-0.5",
+                                        stats.failedOutbox > 0
+                                            ? "[background-color:var(--status-danger-bg)] [color:var(--status-danger-fg)] [border-color:var(--status-danger-border)] font-bold animate-pulse"
+                                            : "[background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]"
+                                    )} title="Tin nhắn gửi đi gặp lỗi">
+                                        Lỗi: <strong className="font-semibold">{stats.failedOutbox}</strong>
+                                    </span>
+                                </div>
                             </div>
 
                             <ScrollArea className="min-h-0 flex-1">
@@ -384,29 +453,32 @@ export default function Inbox({
                         </aside>
                     )}
 
-                    <ThreadPanel
-                        focusMode={focusMode}
-                        onToggleFocus={() => setFocusMode((v) => !v)}
-                        activeConversation={activeConversation}
-                        agents={agents}
-                        replyBody={replyForm.data.body}
-                        replyImage={replyForm.data.image}
-                        replyError={replyForm.errors.body}
-                        replyProcessing={replyForm.processing}
-                        composerMode={composerMode}
-                        onComposerModeChange={setComposerMode}
-                        transferTo={transferTo}
-                        onReplyBodyChange={(body) =>
-                            replyForm.setData('body', body)
-                        }
-                        onReplyImageChange={(image) =>
-                            replyForm.setData('image', image)
-                        }
-                        onSubmitReply={submitReply}
-                        onTransferToChange={setTransferTo}
-                        onSubmitTransfer={submitTransfer}
-                        onCloseConversation={closeConversation}
-                    />
+                    {activeConversation && (
+                        <ThreadPanel
+                            focusMode={focusMode}
+                            onToggleFocus={() => setFocusMode((v) => !v)}
+                            activeConversation={activeConversation}
+                            agents={agents}
+                            replyBody={replyForm.data.body}
+                            replyImage={replyForm.data.image}
+                            replyError={replyForm.errors.body}
+                            replyProcessing={replyForm.processing}
+                            composerMode={composerMode}
+                            onComposerModeChange={setComposerMode}
+                            transferTo={transferTo}
+                            onReplyBodyChange={(body) =>
+                                replyForm.setData('body', body)
+                            }
+                            onReplyImageChange={(image) =>
+                                replyForm.setData('image', image)
+                            }
+                            onSubmitReply={submitReply}
+                            onTransferToChange={setTransferTo}
+                            onSubmitTransfer={submitTransfer}
+                            onCloseConversation={closeConversation}
+                            onReopenConversation={reopenConversation}
+                        />
+                    )}
                 </section>
             </main>
         </>

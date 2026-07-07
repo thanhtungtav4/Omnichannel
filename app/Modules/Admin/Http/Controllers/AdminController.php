@@ -39,7 +39,9 @@ class AdminController extends Controller
             ->with([
                 'contact.identities',
                 'contact.leads',
-                'contact.notes' => fn ($q) => $q->where('pinned', true)->latest(),
+                // Recent notes for the right rail — pinned first, then newest.
+                // Not pinned-only, so a note just typed in the composer shows up.
+                'contact.notes' => fn ($q) => $q->orderByDesc('pinned')->latest()->limit(10),
                 'owner',
                 'channelAccount',
             ]);
@@ -126,10 +128,12 @@ class AdminController extends Controller
                             'title' => $lead->title,
                             'status' => $lead->status,
                         ])->values(),
-                    // Pinned CSKH notes — quick context without opening the record.
-                    'pinnedNotes' => $conversation->contact->notes->map(fn ($note) => [
+                    // Recent CSKH notes (pinned first) — quick context without
+                    // opening the full record.
+                    'notes' => $conversation->contact->notes->map(fn ($note) => [
                         'id' => $note->id,
                         'body' => $note->body,
+                        'pinned' => (bool) $note->pinned,
                     ])->values(),
                     // Other conversations this contact has had (channel history).
                     'otherConversations' => $conversation->contact->conversations()

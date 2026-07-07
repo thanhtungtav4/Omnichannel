@@ -161,7 +161,7 @@ export default function Overview({
                                     activity.
                                 </CardDescription>
                             </div>
-                            <Button asChild variant="outline" size="sm">
+                            <Button asChild variant="outline" size="sm" className="min-h-9 sm:min-h-8">
                                 <Link href="/admin/inbox">
                                     View all
                                     <ArrowRight data-icon="inline-end" />
@@ -346,7 +346,7 @@ export default function Overview({
                                         {queue.requiresOnline ? 'yes' : 'no'}
                                     </span>
                                 </div>
-                                <Button asChild variant="outline" size="sm">
+                                <Button asChild variant="outline" size="sm" className="min-h-9 sm:min-h-8">
                                     <Link href="/admin/routing">
                                         Configure
                                         <ArrowRight data-icon="inline-end" />

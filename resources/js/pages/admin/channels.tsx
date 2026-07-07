@@ -96,7 +96,7 @@ function DeleteChannelButton({
                 <Button
                     variant="outline"
                     size="sm"
-                    className="[color:var(--status-danger-fg)]"
+                    className="[color:var(--status-danger-fg)] min-h-9 sm:min-h-8"
                 >
                     <Trash2 data-icon="inline-start" />
                     Delete
@@ -196,7 +196,7 @@ function EditChannelDialog({ channel }: { channel: ChannelSummary }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="min-h-9 sm:min-h-8">
                     <Pencil data-icon="inline-start" />
                     Edit
                 </Button>
@@ -489,7 +489,7 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="min-h-9 sm:min-h-8">
                     <Wand2 data-icon="inline-start" />
                     Setup
                 </Button>

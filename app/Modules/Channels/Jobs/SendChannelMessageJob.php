@@ -29,7 +29,7 @@ class SendChannelMessageJob implements ShouldQueue
     public function handle(ChannelAdapterRegistry $registry): void
     {
         $outbox = OutboxMessage::query()
-            ->with(['channelAccount', 'message'])
+            ->with(['channelAccount', 'message', 'conversation'])
             ->findOrFail($this->outboxMessageId);
 
         if (in_array($outbox->status, ['SENT', 'CANCELLED'], true)) {
@@ -117,6 +117,14 @@ class SendChannelMessageJob implements ShouldQueue
         $outbox->message?->forceFill([
             'status' => $shouldRetry ? 'QUEUED' : 'FAILED',
         ])->save();
+
+        // Permanent failure: the reply never reached the customer, but the
+        // conversation was optimistically flipped to WAITING_CUSTOMER when the
+        // agent hit send. Flip it back so the thread resurfaces as needing an
+        // agent instead of looking answered. (Retries stay WAITING_CUSTOMER.)
+        if (! $shouldRetry) {
+            $outbox->conversation?->forceFill(['status' => 'WAITING_AGENT'])->save();
+        }
 
         if ($shouldRetry && $this->job) {
             $this->release($nextDelay);

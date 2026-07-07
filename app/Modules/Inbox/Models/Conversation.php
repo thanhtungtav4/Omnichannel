@@ -25,6 +25,7 @@ class Conversation extends Model
             'last_agent_message_at' => 'datetime',
             'first_response_due_at' => 'datetime',
             'next_response_due_at' => 'datetime',
+            'sla_breached_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
     }

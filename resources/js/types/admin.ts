@@ -96,7 +96,7 @@ export type ActiveConversation = {
             providerUserId: string;
         }[];
         leads?: { id: string; title: string; status: string }[];
-        pinnedNotes?: { id: string; body: string }[];
+        notes?: { id: string; body: string; pinned: boolean }[];
         otherConversations?: {
             id: string;
             channel?: string | null;

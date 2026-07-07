@@ -94,7 +94,7 @@ export function MessageBubble({
                 ) : null}
                 <div
                     className={cn(
-                        'flex items-center justify-end gap-2 text-[11px]',
+                        'flex items-center justify-end gap-2 text-xs sm:text-[11px]',
                         isOutbound && !failed
                             ? 'text-primary-foreground/70'
                             : 'text-muted-foreground',

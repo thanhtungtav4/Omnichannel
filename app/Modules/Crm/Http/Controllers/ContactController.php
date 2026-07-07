@@ -71,10 +71,19 @@ class ContactController extends Controller
         $base = rtrim((string) config('services.zalo_sidecar.url', env('ZALO_SIDECAR_URL', 'http://127.0.0.1:4501')), '/');
         $token = (string) config('services.zalo_sidecar.token', env('ZALO_SIDECAR_TOKEN', ''));
 
+        // Defence in depth: these ids come from webhook-ingested data, not the
+        // request, but reject path separators anyway so a poisoned identity
+        // can't rewrite the sidecar URL path (traversal / SSRF).
+        $accountId = (string) $identity->provider_account_id;
+        $userId = (string) $identity->provider_user_id;
+        if (preg_match('#[/\\\\]#', $accountId.$userId)) {
+            return back()->with('error', 'Định danh Zalo không hợp lệ.');
+        }
+
         try {
             $res = Http::withHeaders(['x-sidecar-token' => $token])
                 ->timeout(15)
-                ->get("{$base}/accounts/{$identity->provider_account_id}/user/{$identity->provider_user_id}");
+                ->get("{$base}/accounts/".rawurlencode($accountId).'/user/'.rawurlencode($userId));
         } catch (\Throwable $e) {
             return back()->with('error', 'Không kết nối được sidecar Zalo.');
         }

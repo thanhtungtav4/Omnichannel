@@ -13,10 +13,12 @@ use App\Modules\Crm\Models\TimelineActivity;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Inbox\Models\MessageAttachment;
+use App\Modules\Routing\Models\AgentPresence;
 use App\Modules\Routing\Services\AssignmentService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InboundMessageIngestor
 {
@@ -192,13 +194,27 @@ class InboundMessageIngestor
                 ]);
             }
 
+            // Reuse the most recent thread for this contact, INCLUDING a closed
+            // one — a customer messaging again reopens the same conversation
+            // instead of spawning a fresh ticket every time.
             $conversation = Conversation::query()
                 ->where('workspace_id', $account->workspace_id)
                 ->where('channel_account_id', $account->id)
                 ->where('contact_id', $contact->id)
-                ->where('status', '!=', 'CLOSED')
                 ->latest('last_message_at')
                 ->first();
+
+            // Reopening a closed thread: restore the owner's active-conversation
+            // count that close() decremented, so the workload counter stays true.
+            if ($conversation && $conversation->status === 'CLOSED' && ! $isSelf) {
+                $conversation->forceFill(['closed_at' => null])->save();
+                if ($conversation->owner_id) {
+                    AgentPresence::query()
+                        ->where('workspace_id', $conversation->workspace_id)
+                        ->where('user_id', $conversation->owner_id)
+                        ->increment('active_conversation_count');
+                }
+            }
 
             if (! $conversation) {
                 $conversation = Conversation::create([
@@ -299,7 +315,17 @@ class InboundMessageIngestor
             return compact('conversation', 'message', 'contact', 'lead');
         });
 
-        $this->assignmentService->assign($result['conversation'], $result['contact']->owner, 'AUTO_STICKY_OWNER');
+        // Assign runs AFTER the ingest transaction commits, so a failure here
+        // must not lose the message. Swallow + log: the conversation is left
+        // WAITING_AGENT and the minutely SLA sweep re-attempts assignment.
+        try {
+            $this->assignmentService->assign($result['conversation'], $result['contact']->owner, 'AUTO_STICKY_OWNER');
+        } catch (\Throwable $e) {
+            Log::warning('Auto-assign failed after ingest; left for SLA sweep retry.', [
+                'conversation_id' => $result['conversation']->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return ['duplicate' => false, 'webhook_event' => $webhookEvent] + $result;
     }

@@ -80,7 +80,7 @@ export default function Leads({ columns, leadsByStatus }: Props) {
                                 onDragLeave={() => setDragOver(null)}
                                 onDrop={(e) => onDrop(e, status)}
                                 className={cn(
-                                    'flex min-h-[200px] flex-col gap-2 rounded-lg border bg-muted/30 p-2',
+                                    'flex min-h-[200px] min-w-0 flex-col gap-2 rounded-lg border bg-muted/30 p-2',
                                     dragOver === status && 'ring-2 ring-primary',
                                 )}
                             >
@@ -101,15 +101,15 @@ export default function Leads({ columns, leadsByStatus }: Props) {
                                             e.dataTransfer.setData('text/lead-id', lead.id);
                                             e.dataTransfer.setData('text/lead-status', lead.status);
                                         }}
-                                        className="flex cursor-grab flex-col gap-2 rounded-md border bg-card p-3 shadow-sm active:cursor-grabbing"
+                                        className="flex min-w-0 cursor-grab flex-col gap-2 rounded-md border bg-card p-3 shadow-sm active:cursor-grabbing"
                                     >
-                                        <div className="flex items-start gap-2">
+                                        <div className="flex min-w-0 items-start gap-2">
                                             <GripVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                                            <span className="line-clamp-2 text-sm font-medium">
+                                            <span className="line-clamp-2 min-w-0 break-words text-sm font-medium">
                                                 {lead.title}
                                             </span>
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                             {lead.source && <StatusBadge status={lead.source} />}
                                             <span className="[font-family:var(--font-mono)] tabular-nums">
                                                 {money(lead.valueAmount)}
@@ -118,12 +118,12 @@ export default function Leads({ columns, leadsByStatus }: Props) {
                                         {lead.contactId ? (
                                             <Link
                                                 href={`/admin/contacts/${lead.contactId}`}
-                                                className="truncate text-xs text-primary hover:underline"
+                                                className="block min-w-0 truncate py-1.5 text-xs text-primary hover:underline"
                                             >
                                                 {lead.contact ?? 'Contact'}
                                             </Link>
                                         ) : (
-                                            <span className="truncate text-xs text-muted-foreground">
+                                            <span className="block min-w-0 truncate text-xs text-muted-foreground">
                                                 {lead.contact ?? '—'}
                                             </span>
                                         )}

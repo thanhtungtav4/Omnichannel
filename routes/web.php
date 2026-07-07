@@ -35,10 +35,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/routing', [AdminController::class, 'routing'])->name('admin.routing');
 
     Route::post('api/admin/mock/inbound', MockInboundController::class)->name('admin.mock-inbound');
-    Route::post('api/admin/conversations/{conversation}/reply', [ConversationActionController::class, 'reply'])->name('admin.conversations.reply');
-    Route::post('api/admin/conversations/{conversation}/comment', [ConversationActionController::class, 'comment'])->name('admin.conversations.comment');
-    Route::post('api/admin/conversations/{conversation}/transfer', [ConversationActionController::class, 'transfer'])->name('admin.conversations.transfer');
-    Route::post('api/admin/conversations/{conversation}/close', [ConversationActionController::class, 'close'])->name('admin.conversations.close');
+
+    // Cap per-user write bursts on conversation actions (60/min is generous for
+    // a human agent, but stops a runaway client from spamming the provider).
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('api/admin/conversations/{conversation}/reply', [ConversationActionController::class, 'reply'])->name('admin.conversations.reply');
+        Route::post('api/admin/conversations/{conversation}/comment', [ConversationActionController::class, 'comment'])->name('admin.conversations.comment');
+        Route::post('api/admin/conversations/{conversation}/transfer', [ConversationActionController::class, 'transfer'])->name('admin.conversations.transfer');
+        Route::post('api/admin/conversations/{conversation}/close', [ConversationActionController::class, 'close'])->name('admin.conversations.close');
+        Route::post('api/admin/conversations/{conversation}/reopen', [ConversationActionController::class, 'reopen'])->name('admin.conversations.reopen');
+    });
 
     Route::post('api/admin/channels', [ChannelAccountController::class, 'store'])->name('admin.channels.store');
     Route::put('api/admin/channels/{channelAccount}', [ChannelAccountController::class, 'update'])->name('admin.channels.update');
@@ -49,9 +55,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('api/admin/channels/{channelAccount}', [ChannelAccountController::class, 'destroy'])->name('admin.channels.destroy');
 });
 
-Route::post('webhooks/telegram/{channelAccount}', [ProviderWebhookController::class, 'telegram'])->name('webhooks.telegram');
-Route::post('webhooks/zalo/{channelAccount}', [ProviderWebhookController::class, 'zalo'])->name('webhooks.zalo');
-Route::get('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebookVerify'])->name('webhooks.facebook.verify');
-Route::post('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebook'])->name('webhooks.facebook');
+// Throttle inbound webhooks per IP so a spammer can't flood ingest / bloat the
+// DB with fake contacts. 600/min is well above any real provider's send rate.
+Route::middleware('throttle:600,1')->group(function () {
+    Route::post('webhooks/telegram/{channelAccount}', [ProviderWebhookController::class, 'telegram'])->name('webhooks.telegram');
+    Route::post('webhooks/zalo/{channelAccount}', [ProviderWebhookController::class, 'zalo'])->name('webhooks.zalo');
+    Route::get('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebookVerify'])->name('webhooks.facebook.verify');
+    Route::post('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebook'])->name('webhooks.facebook');
+});
 
 require __DIR__.'/settings.php';

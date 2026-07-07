@@ -250,9 +250,9 @@ export default function ContactShow({
                     </Button>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
                     {/* Profile */}
-                    <Card>
+                    <Card className="min-w-0">
                         <CardHeader>
                             <CardTitle>Profile</CardTitle>
                             <CardDescription>Contact details & channel identities.</CardDescription>
@@ -268,9 +268,9 @@ export default function ContactShow({
                                 {contact.identities.length ? (
                                     <div className="flex flex-col gap-2">
                                         {contact.identities.map((id, i) => (
-                                            <div key={i} className="flex items-center justify-between gap-2">
-                                                <StatusBadge status={id.provider} />
-                                                <span className="truncate text-xs text-muted-foreground">
+                                            <div key={i} className="flex min-w-0 items-center justify-between gap-2">
+                                                <StatusBadge status={id.provider} className="shrink-0" />
+                                                <span className="min-w-0 truncate text-xs text-muted-foreground">
                                                     {id.displayName ?? id.providerUserId}
                                                 </span>
                                             </div>
@@ -283,7 +283,7 @@ export default function ContactShow({
                         </CardContent>
                     </Card>
 
-                    <div className="flex flex-col gap-4">
+                    <div className="flex min-w-0 flex-col gap-4">
                         <NotesSection contactId={contact.id} notes={notes} />
 
                         {/* Conversations */}
@@ -366,7 +366,11 @@ export default function ContactShow({
                                         <TableBody>
                                             {leads.map((l) => (
                                                 <TableRow key={l.id}>
-                                                    <TableCell className="max-w-[240px] truncate">{l.title}</TableCell>
+                                                    <TableCell className="max-w-[240px]">
+                                                        <span className="block truncate" title={l.title}>
+                                                            {l.title}
+                                                        </span>
+                                                    </TableCell>
                                                     <TableCell>
                                                         <StatusBadge status={l.status} />
                                                     </TableCell>
@@ -404,9 +408,9 @@ export default function ContactShow({
 
 function Row({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">{label}</span>
-            <span className="truncate font-medium">{value}</span>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+            <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+            <span className="min-w-0 truncate font-medium">{value}</span>
         </div>
     );
 }

@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import {
+    ArrowLeft,
     CheckCircle2,
     ChevronDown,
     InboxIcon,
@@ -8,6 +9,7 @@ import {
     MessageCirclePlus,
     ImagePlus,
     Minimize2,
+    RotateCcw,
     Search,
     Send,
     Smile,
@@ -82,6 +84,7 @@ export function ThreadPanel({
     onTransferToChange,
     onSubmitTransfer,
     onCloseConversation,
+    onReopenConversation,
 }: {
     activeConversation: ActiveConversation | null;
     agents: AgentOption[];
@@ -100,6 +103,7 @@ export function ThreadPanel({
     onTransferToChange: (agentId: string) => void;
     onSubmitTransfer: (userId?: string) => void;
     onCloseConversation: () => void;
+    onReopenConversation: () => void;
 }) {
     // Hooks must run unconditionally (before any early return).
     const threadEndRef = useRef<HTMLDivElement>(null);
@@ -107,10 +111,19 @@ export function ThreadPanel({
     const activeId = activeConversation?.id;
     const prevCountRef = useRef(messageCount);
 
-    // Auto-scroll to newest only on open or when a NEW message arrives at the
-    // bottom — not when older messages are prepended on scroll-up.
+    // Auto-scroll to the newest message. On opening a conversation jump
+    // instantly (auto); a later new message glides (smooth). rAF waits for the
+    // messages to paint so the scroll lands at the true bottom.
+    const justOpenedRef = useRef(true);
     useEffect(() => {
-        threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        justOpenedRef.current = true;
+    }, [activeId]);
+    useEffect(() => {
+        const behavior = justOpenedRef.current ? 'auto' : 'smooth';
+        justOpenedRef.current = false;
+        requestAnimationFrame(() => {
+            threadEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+        });
     }, [messageCount, activeId]);
 
     // Toast when a new inbound message arrives.
@@ -125,13 +138,16 @@ export function ThreadPanel({
     }, [messageCount, activeConversation]);
 
     // Show a "scroll to bottom" button when the end marker isn't visible.
+    // The observer root must be the ScrollArea's scroll viewport, not the
+    // browser window, or "at bottom" is measured against the wrong container.
     const [atBottom, setAtBottom] = useState(true);
     useEffect(() => {
         const el = threadEndRef.current;
         if (!el) return;
+        const root = el.closest('[data-radix-scroll-area-viewport]');
         const io = new IntersectionObserver(
             ([entry]) => setAtBottom(entry.isIntersecting),
-            { threshold: 0.1 },
+            { root, threshold: 0.1 },
         );
         io.observe(el);
         return () => io.disconnect();
@@ -238,6 +254,15 @@ export function ThreadPanel({
         <section className="flex min-h-0 flex-col overflow-hidden">
             <header className="flex shrink-0 flex-col gap-3 border-b p-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
+                    <Link
+                        href="/admin/inbox"
+                        preserveScroll={false}
+                        className="mr-1 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted lg:hidden"
+                        title="Quay lại danh sách"
+                        aria-label="Quay lại danh sách"
+                    >
+                        <ArrowLeft className="size-5" />
+                    </Link>
                     <Avatar className="size-10">
                         {activeConversation.contact?.avatarUrl && (
                             <AvatarImage
@@ -320,6 +345,7 @@ export function ThreadPanel({
                         type="button"
                         variant="outline"
                         size="icon"
+                        className="size-11 sm:size-9"
                         onClick={() => setShowSearch((v) => !v)}
                         title="Tìm trong hội thoại"
                         aria-label="Search in thread"
@@ -330,20 +356,32 @@ export function ThreadPanel({
                         type="button"
                         variant="outline"
                         size="icon"
+                        className="size-11 sm:size-9"
                         onClick={onToggleFocus}
                         title={focusMode ? 'Thoát toàn màn (Esc)' : 'Toàn màn hình'}
                         aria-label={focusMode ? 'Exit focus mode' : 'Focus mode'}
                     >
                         {focusMode ? <Minimize2 /> : <Maximize2 />}
                     </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onCloseConversation}
-                    >
-                        <CheckCircle2 data-icon="inline-start" />
-                        Đóng
-                    </Button>
+                    {activeConversation.status === 'CLOSED' ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onReopenConversation}
+                        >
+                            <RotateCcw data-icon="inline-start" />
+                            Mở lại
+                        </Button>
+                    ) : (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onCloseConversation}
+                        >
+                            <CheckCircle2 data-icon="inline-start" />
+                            Đóng
+                        </Button>
+                    )}
                 </div>
             </header>
 
@@ -352,7 +390,7 @@ export function ThreadPanel({
                     'grid min-h-0 flex-1',
                     focusMode
                         ? 'grid-cols-1'
-                        : 'xl:grid-cols-[minmax(0,1fr)_280px]',
+                        : 'xl:grid-cols-[minmax(0,1fr)_320px]',
                 )}
             >
                 <div className="relative flex min-h-0 min-w-0 flex-col">
@@ -393,7 +431,7 @@ export function ThreadPanel({
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-full shadow-md"
+                            className="absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-full shadow-md min-h-11 sm:min-h-8"
                             onClick={() =>
                                 threadEndRef.current?.scrollIntoView({
                                     behavior: 'smooth',
@@ -456,7 +494,7 @@ export function ThreadPanel({
                                 type="button"
                                 onClick={() => onComposerModeChange('reply')}
                                 className={cn(
-                                    'rounded px-3 py-1 font-medium',
+                                    'rounded px-3 py-1.5 font-medium min-h-9 sm:min-h-0 sm:py-1',
                                     composerMode === 'reply'
                                         ? 'bg-primary text-primary-foreground'
                                         : 'text-muted-foreground',
@@ -468,7 +506,7 @@ export function ThreadPanel({
                                 type="button"
                                 onClick={() => onComposerModeChange('comment')}
                                 className={cn(
-                                    'rounded px-3 py-1 font-medium',
+                                    'rounded px-3 py-1.5 font-medium min-h-9 sm:min-h-0 sm:py-1',
                                     composerMode === 'comment'
                                         ? '[background-color:var(--status-warn-fg)] text-white'
                                         : 'text-muted-foreground',
@@ -611,6 +649,7 @@ export function ThreadPanel({
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon-xs"
+                                                className="size-11 sm:size-6"
                                                 onClick={() =>
                                                     fileInputRef.current?.click()
                                                 }
@@ -623,6 +662,7 @@ export function ThreadPanel({
                                             type="button"
                                             variant="ghost"
                                             size="icon-xs"
+                                            className="size-11 sm:size-6"
                                             onClick={() =>
                                                 setShowEmoji((v) => !v)
                                             }
@@ -632,6 +672,7 @@ export function ThreadPanel({
                                         </InputGroupButton>
                                         <InputGroupButton
                                             type="submit"
+                                            className="min-h-11 sm:min-h-0"
                                             disabled={
                                                 replyProcessing ||
                                                 (!replyBody.trim() &&
@@ -662,14 +703,14 @@ export function ThreadPanel({
 
                 <aside
                     className={cn(
-                        'min-h-0 flex-col border-l',
+                        'min-h-0 flex-col border-l bg-muted/20 w-[320px] shrink-0',
                         focusMode ? 'hidden' : 'hidden xl:flex',
                     )}
                 >
                     <ScrollArea className="min-h-0 flex-1">
-                        <div className="flex flex-col gap-4 p-3">
+                        <div className="flex flex-col gap-4 p-3 w-full min-w-0 overflow-hidden">
                             {/* About contact — HubSpot right-rail. */}
-                            <div className="flex flex-col items-center gap-2 text-center">
+                            <div className="flex flex-col items-center gap-2 text-center w-full min-w-0">
                                 <Avatar className="size-16">
                                     {activeConversation.contact?.avatarUrl && (
                                         <AvatarImage
@@ -684,8 +725,8 @@ export function ThreadPanel({
                                         {initials(name)}
                                     </AvatarFallback>
                                 </Avatar>
-                                <div className="min-w-0">
-                                    <p className="truncate font-semibold">
+                                <div className="min-w-0 w-full px-4 text-center">
+                                    <p className="truncate text-base font-semibold" title={name}>
                                         {name}
                                     </p>
                                     {activeConversation.contact?.source && (
@@ -775,9 +816,9 @@ export function ThreadPanel({
                                         (lead) => (
                                             <div
                                                 key={lead.id}
-                                                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
+                                                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm min-w-0 overflow-hidden"
                                             >
-                                                <span className="truncate">
+                                                <span className="min-w-0 truncate" title={lead.title}>
                                                     {lead.title}
                                                 </span>
                                                 <StatusBadge
@@ -790,14 +831,18 @@ export function ThreadPanel({
                                 </PanelSection>
                             )}
 
-                            {!!activeConversation.contact?.pinnedNotes
-                                ?.length && (
-                                <PanelSection title="Ghi chú ghim">
-                                    {activeConversation.contact.pinnedNotes.map(
+                            {!!activeConversation.contact?.notes?.length && (
+                                <PanelSection title="Ghi chú">
+                                    {activeConversation.contact.notes.map(
                                         (note) => (
                                             <p
                                                 key={note.id}
-                                                className="rounded-md border px-2 py-1.5 text-sm [background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)]"
+                                                className={cn(
+                                                    'rounded-md border px-2 py-1.5 text-sm',
+                                                    note.pinned
+                                                        ? '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)]'
+                                                        : 'bg-muted/40',
+                                                )}
                                             >
                                                 {note.body}
                                             </p>
@@ -840,7 +885,7 @@ export function ThreadPanel({
                             <FieldGroup>
                                 <Field>
                                     <FieldLabel>Chuyển cho</FieldLabel>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 w-full min-w-0">
                                         <Select
                                             value={transferTo}
                                             onValueChange={onTransferToChange}

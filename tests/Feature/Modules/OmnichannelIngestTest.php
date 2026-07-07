@@ -67,6 +67,41 @@ class OmnichannelIngestTest extends TestCase
         $this->assertDatabaseCount('webhook_events', 1);
     }
 
+    public function test_inbound_reopens_a_closed_conversation_instead_of_creating_a_new_one(): void
+    {
+        [$workspace] = $this->seedRoutingContext();
+        $telegram = ChannelAccount::create([
+            'workspace_id' => $workspace->id, 'provider' => 'TELEGRAM',
+            'name' => 'Bot', 'status' => 'ACTIVE', 'webhook_secret' => 's',
+        ]);
+        $msg = fn (int $id) => [
+            'update_id' => $id,
+            'message' => [
+                'message_id' => $id, 'date' => now()->timestamp,
+                'from' => ['id' => 6001, 'first_name' => 'Repeat', 'last_name' => 'Customer'],
+                'chat' => ['id' => 6001, 'type' => 'private'],
+                'text' => "msg {$id}",
+            ],
+        ];
+
+        // First message opens a thread.
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', 's')
+            ->postJson(route('webhooks.telegram', $telegram), $msg(1))->assertOk();
+        $this->assertDatabaseCount('conversations', 1);
+
+        // Close it.
+        Conversation::query()->firstOrFail()->forceFill(['status' => 'CLOSED', 'closed_at' => now()])->save();
+
+        // Customer messages again -> same conversation, reopened (not a new one).
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', 's')
+            ->postJson(route('webhooks.telegram', $telegram), $msg(2))->assertOk();
+
+        $this->assertDatabaseCount('conversations', 1);
+        $reopened = Conversation::query()->firstOrFail();
+        $this->assertNotSame('CLOSED', $reopened->status);
+        $this->assertNull($reopened->closed_at);
+    }
+
     public function test_telegram_webhook_rejects_invalid_secret_before_processing(): void
     {
         [$workspace] = $this->seedRoutingContext();
