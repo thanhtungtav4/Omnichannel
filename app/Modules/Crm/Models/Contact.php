@@ -3,6 +3,8 @@
 namespace App\Modules\Crm\Models;
 
 use App\Models\User;
+use App\Modules\Inbox\Models\Conversation;
+use App\Modules\Platform\Tenancy\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contact extends Model
 {
-    use HasUuids;
+    use BelongsToWorkspace, HasUuids;
 
     protected $guarded = [];
 
@@ -78,7 +80,7 @@ class Contact extends Model
 
     public function conversations(): HasMany
     {
-        return $this->hasMany(\App\Modules\Inbox\Models\Conversation::class);
+        return $this->hasMany(Conversation::class);
     }
 
     public function leads(): HasMany

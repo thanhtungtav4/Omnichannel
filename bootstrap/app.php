@@ -2,11 +2,18 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Modules\Platform\Http\Middleware\EnsurePlatformAdmin;
+use App\Modules\Platform\Http\Middleware\EnsureUserBelongsToWorkspace;
+use App\Modules\Platform\Http\Middleware\RequireWorkspace;
+use App\Modules\Platform\Http\Middleware\ResolveWorkspace;
+use App\Modules\Platform\Http\Middleware\ResolveWorkspaceFromChannel;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,6 +23,34 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        // Tenant-app 404 (no workspace on this host) must beat the auth redirect,
+        // so apex/admin hosts 404 instead of bouncing guests to login.
+        $middleware->prependToPriorityList(
+            before: Authenticate::class,
+            prepend: RequireWorkspace::class,
+        );
+
+        // Webhook tenant resolution must run before route-model binding so the
+        // channel account is loaded unscoped and its workspace pinned first.
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: ResolveWorkspaceFromChannel::class,
+        );
+
+        $middleware->alias([
+            'workspace' => ResolveWorkspace::class,
+            'workspace.member' => EnsureUserBelongsToWorkspace::class,
+            'workspace.required' => RequireWorkspace::class,
+            'workspace.channel' => ResolveWorkspaceFromChannel::class,
+            'platform.admin' => EnsurePlatformAdmin::class,
+        ]);
+
+        // Runs before auth on every web request. Tenant hosts get pinned (or
+        // 404 on unknown slug); non-tenant hosts (apex/admin/webhooks) pass.
+        $middleware->web(prepend: [
+            ResolveWorkspace::class,
+        ]);
 
         $middleware->web(append: [
             HandleAppearance::class,

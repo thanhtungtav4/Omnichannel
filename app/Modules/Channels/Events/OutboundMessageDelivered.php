@@ -15,6 +15,5 @@ class OutboundMessageDelivered
     public function __construct(
         public readonly string $messageId,
         public readonly ?string $providerMessageId,
-    ) {
-    }
+    ) {}
 }

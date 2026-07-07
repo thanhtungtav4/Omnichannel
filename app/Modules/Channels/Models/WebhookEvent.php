@@ -2,12 +2,13 @@
 
 namespace App\Modules\Channels\Models;
 
+use App\Modules\Platform\Tenancy\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 class WebhookEvent extends Model
 {
-    use HasUuids;
+    use BelongsToWorkspace, HasUuids;
 
     protected $guarded = [];
 

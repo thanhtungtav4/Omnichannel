@@ -16,6 +16,9 @@ createInertiaApp({
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name.startsWith('platform/'):
+                // Platform admin console is out-of-tenant: no tenant sidebar.
+                return null;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
             default:

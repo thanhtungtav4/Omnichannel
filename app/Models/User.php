@@ -21,6 +21,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
+ * @property bool $is_platform_admin
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -37,6 +38,7 @@ class User extends Authenticatable implements PasskeyUser
      */
     protected $fillable = [
         'workspace_id',
+        'is_platform_admin',
         'name',
         'display_name',
         'email',
@@ -70,6 +72,7 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'is_platform_admin' => 'boolean',
         ];
     }
 }

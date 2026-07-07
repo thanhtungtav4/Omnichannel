@@ -6,22 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Channels\Jobs\SendChannelMessageJob;
 use App\Modules\Channels\Models\OutboxMessage;
-use App\Modules\Crm\Models\ExternalIdentity;
 use App\Modules\Crm\Models\ContactNote;
+use App\Modules\Crm\Models\ExternalIdentity;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Inbox\Models\MessageAttachment;
 use App\Modules\Routing\Services\AssignmentService;
 use App\Modules\Routing\Services\PresenceService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ConversationActionController extends Controller
 {
-    public function __construct(private readonly PresenceService $presence)
-    {
-    }
+    public function __construct(private readonly PresenceService $presence) {}
 
     public function reply(Request $request, Conversation $conversation, AssignmentService $assignmentService): RedirectResponse
     {

@@ -12,17 +12,17 @@ use App\Modules\Crm\Models\Lead;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Platform\Models\Workspace;
+use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use App\Modules\Routing\Models\AgentPresence;
 use App\Modules\Routing\Models\RoutingQueue;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminController extends Controller
 {
-    public function __construct(private readonly AdminDashboardService $dashboard)
-    {
-    }
+    public function __construct(private readonly AdminDashboardService $dashboard) {}
 
     public function overview(Request $request): Response
     {
@@ -228,7 +228,7 @@ class AdminController extends Controller
     }
 
     /** Older messages for infinite scroll-up (before a given message id). */
-    public function messagesOlder(Request $request, Conversation $conversation): \Illuminate\Http\JsonResponse
+    public function messagesOlder(Request $request, Conversation $conversation): JsonResponse
     {
         abort_unless($conversation->workspace_id === $this->workspaceId($request), 403);
         $displayTz = config('app.display_timezone');
@@ -425,19 +425,8 @@ class AdminController extends Controller
 
     private function workspaceId(Request $request): string
     {
-        if (! $request->user()->workspace_id) {
-            $workspace = Workspace::query()->firstOrCreate(
-                ['slug' => 'default'],
-                ['name' => 'CRM Demo Workspace', 'status' => 'ACTIVE'],
-            );
-
-            $request->user()->forceFill([
-                'workspace_id' => $workspace->id,
-                'display_name' => $request->user()->display_name ?: $request->user()->name,
-                'status' => 'ACTIVE',
-            ])->save();
-        }
-
-        return (string) $request->user()->workspace_id;
+        // Tenant is pinned by ResolveWorkspace from the request subdomain; the
+        // signed-in user is guaranteed to belong to it by workspace.member.
+        return (string) app(CurrentWorkspace::class)->id();
     }
 }

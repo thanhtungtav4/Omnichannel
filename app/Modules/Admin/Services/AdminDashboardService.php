@@ -5,7 +5,6 @@ namespace App\Modules\Admin\Services;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
 use App\Modules\Channels\Models\WebhookEvent;
-use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Routing\Models\AgentPresence;

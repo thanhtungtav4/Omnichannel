@@ -35,8 +35,11 @@ class ContactTagsTest extends TestCase
         $agent = User::factory()->create(['workspace_id' => $ws1->id, 'role' => 'support_agent', 'status' => 'ACTIVE']);
         $other = Contact::create(['workspace_id' => $ws2->id, 'full_name' => 'K', 'status' => 'ACTIVE', 'source' => 'MANUAL']);
 
+        // The workspace global scope hides other tenants' rows entirely, so the
+        // route-model binding 404s before the controller — a stronger isolation
+        // guarantee than a 403 on a visible-but-denied record.
         $this->actingAs($agent)
             ->put(route('admin.contacts.tags', $other), ['tags' => ['x']])
-            ->assertForbidden();
+            ->assertNotFound();
     }
 }

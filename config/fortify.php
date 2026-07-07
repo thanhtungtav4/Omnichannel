@@ -161,7 +161,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Self-serve registration is intentionally disabled: users are provisioned
+        // by a platform admin (create workspace + owner) or by a workspace owner.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

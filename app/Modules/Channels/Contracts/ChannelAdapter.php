@@ -4,6 +4,7 @@ namespace App\Modules\Channels\Contracts;
 
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
+use Illuminate\Support\Carbon;
 
 interface ChannelAdapter
 {
@@ -21,7 +22,7 @@ interface ChannelAdapter
      *     sender_avatar_url: string|null,
      *     body_text: string,
      *     message_type: string,
-     *     provider_timestamp: \Illuminate\Support\Carbon,
+     *     provider_timestamp: Carbon,
      *     raw_profile: array<string, mixed>,
      *     raw_payload: array<string, mixed>
      * }

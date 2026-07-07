@@ -5,6 +5,7 @@ namespace App\Modules\Inbox\Models;
 use App\Models\User;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Crm\Models\Contact;
+use App\Modules\Platform\Tenancy\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Conversation extends Model
 {
-    use HasUuids;
+    use BelongsToWorkspace, HasUuids;
 
     protected $guarded = [];
 

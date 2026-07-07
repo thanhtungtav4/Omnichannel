@@ -18,8 +18,7 @@ class ChannelAdapterRegistry
         private readonly ZaloPersonalAdapter $zaloPersonal,
         private readonly FacebookAdapter $facebook,
         private readonly MockAdapter $mock,
-    ) {
-    }
+    ) {}
 
     public function for(ChannelAccount $account): ChannelAdapter
     {

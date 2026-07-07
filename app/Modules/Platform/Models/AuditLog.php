@@ -2,12 +2,13 @@
 
 namespace App\Modules\Platform\Models;
 
+use App\Modules\Platform\Tenancy\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
-    use HasUuids;
+    use BelongsToWorkspace, HasUuids;
 
     public const UPDATED_AT = null;
 

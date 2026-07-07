@@ -37,8 +37,7 @@ class InboundMessageIngestor
         private readonly AssignmentService $assignmentService,
         private readonly ChannelAdapterRegistry $adapterRegistry,
         private readonly PresenceService $presence,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{duplicate: bool, webhook_event: WebhookEvent, conversation?: Conversation, message?: Message, contact?: Contact, lead?: Lead}

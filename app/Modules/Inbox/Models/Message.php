@@ -3,6 +3,7 @@
 namespace App\Modules\Inbox\Models;
 
 use App\Modules\Channels\Models\ChannelAccount;
+use App\Modules\Platform\Tenancy\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Message extends Model
 {
-    use HasUuids;
+    use BelongsToWorkspace, HasUuids;
 
     protected $guarded = [];
 

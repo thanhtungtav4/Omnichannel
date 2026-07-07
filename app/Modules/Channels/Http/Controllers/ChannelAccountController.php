@@ -5,7 +5,7 @@ namespace App\Modules\Channels\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Services\TelegramWebhookRegistrar;
-use App\Modules\Platform\Models\Workspace;
+use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -201,14 +201,8 @@ class ChannelAccountController extends Controller
 
     private function workspaceId(Request $request): string
     {
-        if (! $request->user()->workspace_id) {
-            $workspace = Workspace::query()->firstOrCreate(
-                ['slug' => 'default'],
-                ['name' => 'CRM Demo Workspace', 'status' => 'ACTIVE'],
-            );
-            $request->user()->forceFill(['workspace_id' => $workspace->id, 'status' => 'ACTIVE'])->save();
-        }
-
-        return (string) $request->user()->workspace_id;
+        // Tenant is pinned by ResolveWorkspace from the request subdomain; the
+        // signed-in user is guaranteed to belong to it by workspace.member.
+        return (string) app(CurrentWorkspace::class)->id();
     }
 }

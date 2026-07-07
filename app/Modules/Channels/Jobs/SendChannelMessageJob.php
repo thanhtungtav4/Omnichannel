@@ -24,9 +24,7 @@ class SendChannelMessageJob implements ShouldQueue
      */
     public array $backoff = [60, 300, 900, 3600];
 
-    public function __construct(public readonly string $outboxMessageId)
-    {
-    }
+    public function __construct(public readonly string $outboxMessageId) {}
 
     public function handle(ChannelAdapterRegistry $registry): void
     {

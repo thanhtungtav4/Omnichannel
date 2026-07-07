@@ -16,6 +16,5 @@ class OutboundMessageFailed
         public readonly string $messageId,
         public readonly string $conversationId,
         public readonly bool $permanent,
-    ) {
-    }
+    ) {}
 }

@@ -4,8 +4,9 @@ namespace App\Modules\Crm\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Crm\Models\Contact;
+use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Crm\Models\ExternalIdentity;
-use App\Modules\Platform\Models\Workspace;
+use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -151,7 +152,7 @@ class ContactController extends Controller
     }
 
     /** Delete a contact note (author or owner/admin). */
-    public function destroyNote(Request $request, \App\Modules\Crm\Models\ContactNote $note): RedirectResponse
+    public function destroyNote(Request $request, ContactNote $note): RedirectResponse
     {
         abort_unless($note->workspace_id === $this->workspaceId($request), 403);
         abort_unless(
@@ -180,14 +181,8 @@ class ContactController extends Controller
 
     private function workspaceId(Request $request): string
     {
-        if (! $request->user()->workspace_id) {
-            $ws = Workspace::query()->firstOrCreate(
-                ['slug' => 'default'],
-                ['name' => 'CRM Demo Workspace', 'status' => 'ACTIVE'],
-            );
-            $request->user()->forceFill(['workspace_id' => $ws->id, 'status' => 'ACTIVE'])->save();
-        }
-
-        return (string) $request->user()->workspace_id;
+        // Tenant is pinned by ResolveWorkspace from the request subdomain; the
+        // signed-in user is guaranteed to belong to it by workspace.member.
+        return (string) app(CurrentWorkspace::class)->id();
     }
 }
