@@ -20,6 +20,17 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * ponytail: known boundary debt. This service reaches across Channels -> Crm
+ * (Contact/Lead/Identity/Timeline) + Inbox (Conversation/Message) + Routing
+ * inside one DB transaction. Kept whole because the atomic ordering
+ * (contact -> lead -> conversation -> message) is correctness-critical and the
+ * transaction guarantees no orphans. Split into events
+ * (Channels emits InboundMessageReceived; Crm/Inbox/Routing listen) only when a
+ * real need appears — e.g. a module must react to inbound without editing this
+ * file, or ingest fan-out grows. Until then, cross-module imports here are a
+ * deliberate, contained exception, not the pattern to copy.
+ */
 class InboundMessageIngestor
 {
     public function __construct(

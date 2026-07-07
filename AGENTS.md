@@ -16,6 +16,13 @@
 - Cross-module links must be explicit: for example, a conversation can link to a contact, lead, deal, task, ticket, or future module entity through a typed relation/link table.
 - Keep state machines canonical in the domain layer. UI may display or disable actions, but cannot be the only place enforcing lifecycle rules.
 
+### Cross-module patterns (follow these for new modules)
+
+- **State a module owns → expose a service.** Example: `Routing\Services\PresenceService` is the only writer of the agent workload counter; Inbox/Channels call it, never touch `AgentPresence` directly.
+- **Report an outcome to another module → emit an event.** Example: `Channels\Events\OutboundMessageDelivered|Failed` → `Inbox\Listeners\SyncOutboundMessageResult`. Wire listeners in `AppServiceProvider::registerModuleEventListeners()`.
+- **Need another module's data to do your job → snapshot it at the boundary,** don't navigate its models. Example: outbound payload carries `text`/`is_group`/`provider_thread_id` on the outbox row; Channels adapters read the snapshot, not the Conversation.
+- **Known exception:** `Channels\Services\InboundMessageIngestor` still crosses modules inside one transaction (atomic ingest ordering). Do not copy this pattern; see its `ponytail:` note.
+
 ## Laravel Rules
 
 - Prefer Laravel 12 conventions, Eloquent models, Form Requests, Policies, Queues, Events, Notifications, and feature tests.
