@@ -55,7 +55,7 @@ class TelegramAdapter implements ChannelAdapter
     {
         return [
             'chat_id' => $message->recipient_external_id ?: Arr::get($message->payload ?? [], 'chat_id'),
-            'text' => (string) (Arr::get($message->payload ?? [], 'text') ?: $message->message?->body_text),
+            'text' => (string) Arr::get($message->payload ?? [], 'text', ''),
             'image_url' => Arr::get($message->payload ?? [], 'image_url'),
         ];
     }

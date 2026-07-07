@@ -61,18 +61,19 @@ class ZaloPersonalAdapter implements ChannelAdapter
 
     public function buildOutboundPayload(ChannelAccount $account, OutboxMessage $message): array
     {
-        // is_group comes from the conversation (the source of truth), NOT the
-        // payload snapshot — the flag may have been backfilled after the reply
-        // was queued. recipient lives on the outbox column.
-        $conversation = $message->conversation;
-        $isGroup = (bool) ($conversation?->is_group ?? Arr::get($message->payload ?? [], 'is_group', false));
+        // is_group + the group thread id are snapshotted onto the outbox payload
+        // when the reply is queued (Inbox owns the conversation; Channels reads
+        // the outbox only). recipient_external_id was already resolved to the
+        // group thread at queue time.
+        $payload = $message->payload ?? [];
+        $isGroup = (bool) Arr::get($payload, 'is_group', false);
+        $threadId = Arr::get($payload, 'provider_thread_id');
 
-        // If it is a group, always target the group thread, not a member.
-        $recipient = $isGroup && $conversation?->provider_thread_id
-            ? $conversation->provider_thread_id
+        $recipient = $isGroup && $threadId
+            ? $threadId
             : $message->recipient_external_id;
 
-        return array_merge($message->payload ?? [], [
+        return array_merge($payload, [
             'recipient_external_id' => $recipient,
             'message_id' => $message->message_id,
             'is_group' => $isGroup,

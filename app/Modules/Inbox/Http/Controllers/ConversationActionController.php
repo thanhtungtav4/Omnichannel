@@ -96,6 +96,9 @@ class ConversationActionController extends Controller
             'payload' => [
                 'text' => $data['body'] ?? '',
                 'is_group' => (bool) $conversation->is_group,
+                // Snapshot the group thread id so Channels can build the outbound
+                // payload from the outbox alone, without reading Inbox models.
+                'provider_thread_id' => $conversation->provider_thread_id,
                 'image_url' => $imageUrl,   // public URL — Telegram sendPhoto, UI
                 'image_path' => $imagePath, // local abs path — Zalo sidecar
             ],

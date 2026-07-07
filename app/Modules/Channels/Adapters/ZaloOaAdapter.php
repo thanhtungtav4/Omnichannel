@@ -41,7 +41,7 @@ class ZaloOaAdapter implements ChannelAdapter
     {
         return array_merge($message->payload ?? [], [
             'recipient_external_id' => $message->recipient_external_id,
-            'text' => Arr::get($message->payload ?? [], 'text') ?: $message->message?->body_text,
+            'text' => (string) Arr::get($message->payload ?? [], 'text', ''),
         ]);
     }
 

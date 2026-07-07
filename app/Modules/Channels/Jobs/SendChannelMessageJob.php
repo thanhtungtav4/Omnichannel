@@ -2,6 +2,8 @@
 
 namespace App\Modules\Channels\Jobs;
 
+use App\Modules\Channels\Events\OutboundMessageDelivered;
+use App\Modules\Channels\Events\OutboundMessageFailed;
 use App\Modules\Channels\Models\OutboxMessage;
 use App\Modules\Channels\Services\ChannelAdapterRegistry;
 use Illuminate\Bus\Queueable;
@@ -29,7 +31,7 @@ class SendChannelMessageJob implements ShouldQueue
     public function handle(ChannelAdapterRegistry $registry): void
     {
         $outbox = OutboxMessage::query()
-            ->with(['channelAccount', 'message', 'conversation'])
+            ->with(['channelAccount'])
             ->findOrFail($this->outboxMessageId);
 
         if (in_array($outbox->status, ['SENT', 'CANCELLED'], true)) {
@@ -42,8 +44,6 @@ class SendChannelMessageJob implements ShouldQueue
             'last_error_code' => null,
             'last_error_message' => null,
         ])->save();
-
-        $outbox->message?->forceFill(['status' => 'SENDING'])->save();
 
         try {
             $adapter = $registry->for($outbox->channelAccount);
@@ -86,11 +86,11 @@ class SendChannelMessageJob implements ShouldQueue
             'last_error_message' => null,
         ])->save();
 
-        $outbox->message?->forceFill([
-            'provider_message_id' => $result['provider_message_id'] ?? $outbox->message->provider_message_id,
-            'status' => 'SENT',
-            'sent_at' => now(),
-        ])->save();
+        // Inbox owns the Message row — tell it we delivered, don't touch it here.
+        OutboundMessageDelivered::dispatch(
+            $outbox->message_id,
+            $result['provider_message_id'] ?? null,
+        );
     }
 
     /**
@@ -114,17 +114,14 @@ class SendChannelMessageJob implements ShouldQueue
             'last_error_message' => $errorMessage,
         ])->save();
 
-        $outbox->message?->forceFill([
-            'status' => $shouldRetry ? 'QUEUED' : 'FAILED',
-        ])->save();
-
-        // Permanent failure: the reply never reached the customer, but the
-        // conversation was optimistically flipped to WAITING_CUSTOMER when the
-        // agent hit send. Flip it back so the thread resurfaces as needing an
-        // agent instead of looking answered. (Retries stay WAITING_CUSTOMER.)
-        if (! $shouldRetry) {
-            $outbox->conversation?->forceFill(['status' => 'WAITING_AGENT'])->save();
-        }
+        // Inbox owns Message + Conversation — it decides how to reflect the
+        // failure (message status, and resurfacing the thread on a permanent
+        // failure). Channels just reports the outcome.
+        OutboundMessageFailed::dispatch(
+            $outbox->message_id,
+            $outbox->conversation_id,
+            ! $shouldRetry,
+        );
 
         if ($shouldRetry && $this->job) {
             $this->release($nextDelay);
