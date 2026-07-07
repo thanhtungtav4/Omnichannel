@@ -3,19 +3,47 @@ import {
     ArrowLeft,
     KanbanSquare,
     MessageSquare,
+    Pencil,
     Pin,
     RefreshCw,
     StickyNote,
     Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { type FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { TagEditor } from '@/components/admin/tag-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+    Field,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import {
     Card,
     CardContent,
@@ -137,20 +165,42 @@ function NotesSection({ contactId, notes }: { contactId: string; notes: Note[] }
                                         )}
                                         {n.author ?? 'Ẩn danh'} · {n.createdAt}
                                     </span>
-                                    <button
-                                        type="button"
-                                        className="hover:underline"
-                                        onClick={() => {
-                                            if (confirm('Xoá ghi chú này?')) {
-                                                router.delete(
-                                                    `/api/admin/contact-notes/${n.id}`,
-                                                    { preserveScroll: true },
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        Xoá
-                                    </button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <button
+                                                type="button"
+                                                className="hover:underline"
+                                            >
+                                                Xoá
+                                            </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>
+                                                    Xoá ghi chú này?
+                                                </AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Ghi chú sẽ bị xoá vĩnh viễn khỏi hồ sơ khách.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>
+                                                    Huỷ
+                                                </AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() =>
+                                                        router.delete(
+                                                            `/api/admin/contact-notes/${n.id}`,
+                                                            { preserveScroll: true },
+                                                        )
+                                                    }
+                                                    className="bg-destructive text-white hover:bg-destructive/90"
+                                                >
+                                                    Xoá
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             </div>
                         ))}
@@ -235,27 +285,51 @@ export default function ContactShow({
                             Cập nhật hồ sơ Zalo
                         </Button>
                     )}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="[color:var(--status-danger-fg)]"
-                        onClick={() => {
-                            if (confirm(`Delete contact "${contact.name}"? This removes their identities and links.`)) {
-                                router.delete(`/api/admin/contacts/${contact.id}`);
-                            }
-                        }}
-                    >
-                        <Trash2 data-icon="inline-start" />
-                        Delete
-                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="[color:var(--status-danger-fg)]"
+                            >
+                                <Trash2 data-icon="inline-start" />
+                                Delete
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                    Xoá khách “{contact.name}”?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Thao tác này xoá vĩnh viễn khách cùng toàn bộ định danh kênh và liên kết. Không thể hoàn tác.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={() =>
+                                        router.delete(`/api/admin/contacts/${contact.id}`)
+                                    }
+                                    className="bg-destructive text-white hover:bg-destructive/90"
+                                >
+                                    <Trash2 data-icon="inline-start" />
+                                    Xoá vĩnh viễn
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
 
                 <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
                     {/* Profile */}
                     <Card className="min-w-0">
-                        <CardHeader>
-                            <CardTitle>Profile</CardTitle>
-                            <CardDescription>Contact details & channel identities.</CardDescription>
+                        <CardHeader className="flex flex-row items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <CardTitle>Profile</CardTitle>
+                                <CardDescription>Contact details & channel identities.</CardDescription>
+                            </div>
+                            <EditContactDialog contact={contact} />
                         </CardHeader>
                         <CardContent className="flex flex-col gap-3 text-sm">
                             <Row label="Phone" value={contact.phone ?? '—'} />
@@ -412,5 +486,89 @@ function Row({ label, value }: { label: string; value: string }) {
             <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
             <span className="min-w-0 truncate font-medium">{value}</span>
         </div>
+    );
+}
+
+function EditContactDialog({
+    contact,
+}: {
+    contact: { id: string; name: string; phone?: string | null; email?: string | null };
+}) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({
+        full_name: contact.name ?? '',
+        phone: contact.phone ?? '',
+        email: contact.email ?? '',
+    });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+        form.put(`/api/admin/contacts/${contact.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <Pencil data-icon="inline-start" />
+                    Sửa
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <form onSubmit={submit}>
+                    <DialogHeader>
+                        <DialogTitle>Sửa liên hệ</DialogTitle>
+                        <DialogDescription>
+                            Cập nhật tên, số điện thoại và email của khách.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <FieldGroup className="py-4">
+                        <Field data-invalid={!!form.errors.full_name}>
+                            <FieldLabel htmlFor="e_name">Họ tên</FieldLabel>
+                            <Input
+                                id="e_name"
+                                value={form.data.full_name}
+                                onChange={(e) => form.setData('full_name', e.target.value)}
+                                aria-invalid={!!form.errors.full_name}
+                            />
+                            <FieldError errors={[{ message: form.errors.full_name }]} />
+                        </Field>
+                        <Field data-invalid={!!form.errors.phone}>
+                            <FieldLabel htmlFor="e_phone">Số điện thoại</FieldLabel>
+                            <Input
+                                id="e_phone"
+                                value={form.data.phone}
+                                onChange={(e) => form.setData('phone', e.target.value)}
+                                placeholder="0912..."
+                                aria-invalid={!!form.errors.phone}
+                            />
+                            <FieldError errors={[{ message: form.errors.phone }]} />
+                        </Field>
+                        <Field data-invalid={!!form.errors.email}>
+                            <FieldLabel htmlFor="e_email">Email</FieldLabel>
+                            <Input
+                                id="e_email"
+                                type="email"
+                                value={form.data.email}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                aria-invalid={!!form.errors.email}
+                            />
+                            <FieldError errors={[{ message: form.errors.email }]} />
+                        </Field>
+                    </FieldGroup>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={form.processing}>
+                            Huỷ
+                        </Button>
+                        <Button type="submit" disabled={form.processing}>
+                            Lưu
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

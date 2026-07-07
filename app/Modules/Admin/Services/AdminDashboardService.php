@@ -11,6 +11,7 @@ use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Routing\Models\AgentPresence;
 use App\Modules\Routing\Models\RoutingQueue;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardService
 {
@@ -87,6 +88,14 @@ class AdminDashboardService
             // Eager-load the denormalized last message (via last_message_id) —
             // one join instead of a per-row "latest message" subquery.
             ->with(['contact', 'owner', 'channelAccount', 'lastMessage'])
+            // Unread = inbound messages newer than the agent's last reply (or all
+            // inbound if the agent never replied). One correlated subquery, no
+            // N+1. ponytail: true "read receipts" per agent would need a
+            // last_read_at column; this SLA-style heuristic is enough for a badge.
+            ->withCount(['messages as unread_count' => function ($q) {
+                $q->where('direction', 'INBOUND')
+                    ->whereColumn('messages.created_at', '>', DB::raw('COALESCE(conversations.last_agent_message_at, \'-infinity\'::timestamptz)'));
+            }])
             ->latest('last_message_at')
             ->limit($limit)
             ->get()
@@ -120,6 +129,9 @@ class AdminDashboardService
                     // reply followed. Drives the unread dot in the queue.
                     'isUnanswered' => in_array($conversation->status, ['OPEN', 'WAITING_AGENT'], true)
                         && $lastMessage?->direction === 'INBOUND',
+                    // Number of customer messages awaiting a reply — drives the
+                    // count badge. Capped display at 99+ on the frontend.
+                    'unreadCount' => (int) $conversation->unread_count,
                     'slaState' => $dueAt && $dueAt->isPast() ? 'BREACHED' : ($dueAt && $dueAt->lessThan(Carbon::now()->addMinutes(5)) ? 'DUE_SOON' : 'OK'),
                 ];
             })

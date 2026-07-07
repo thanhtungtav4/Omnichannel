@@ -20,6 +20,17 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { StatusBadge, StatusDot } from '@/components/admin/status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -91,8 +102,8 @@ function DeleteChannelButton({
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
+        <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialogTrigger asChild>
                 <Button
                     variant="outline"
                     size="sm"
@@ -101,36 +112,35 @@ function DeleteChannelButton({
                     <Trash2 data-icon="inline-start" />
                     Delete
                 </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Delete “{name}”?</DialogTitle>
-                    <DialogDescription>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Delete “{name}”?</AlertDialogTitle>
+                    <AlertDialogDescription>
                         This permanently removes the channel account and all of
                         its synced conversations, messages and webhook events.
                         This cannot be undone. To keep history, disable the
                         account instead.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={() => setOpen(false)}
-                        disabled={processing}
-                    >
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={processing}>
                         Cancel
-                    </Button>
-                    <Button
-                        variant="destructive"
-                        onClick={confirmDelete}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={(e) => {
+                            e.preventDefault(); // keep dialog until request finishes
+                            confirmDelete();
+                        }}
                         disabled={processing}
+                        className="bg-destructive text-white hover:bg-destructive/90"
                     >
                         <Trash2 data-icon="inline-start" />
                         Delete permanently
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }
 

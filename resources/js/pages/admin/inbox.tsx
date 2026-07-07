@@ -15,6 +15,14 @@ import {
 } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
+    CommandDialog,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+import {
     Empty,
     EmptyDescription,
     EmptyHeader,
@@ -68,6 +76,19 @@ export default function Inbox({
         'reply',
     );
     const currentOwnerId = activeConversation?.owner?.id;
+
+    // ⌘K / Ctrl+K opens the command palette (jump to any conversation).
+    const [paletteOpen, setPaletteOpen] = useState(false);
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                setPaletteOpen((v) => !v);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
 
     // Esc exits focus mode.
     useEffect(() => {
@@ -283,6 +304,39 @@ export default function Inbox({
         <>
             <Head title="Hộp thư đa kênh" />
 
+            <CommandDialog
+                open={paletteOpen}
+                onOpenChange={setPaletteOpen}
+                title="Tìm nhanh"
+                description="Nhảy tới hội thoại bất kỳ"
+            >
+                <CommandInput placeholder="Tìm khách, kênh, tin nhắn…" />
+                <CommandList>
+                    <CommandEmpty>Không tìm thấy.</CommandEmpty>
+                    <CommandGroup heading="Hội thoại">
+                        {conversations.map((c) => (
+                            <CommandItem
+                                key={c.id}
+                                value={`${c.contact?.name ?? ''} ${c.contact?.phone ?? ''} ${c.channelName ?? ''} ${c.lastMessage ?? ''}`}
+                                onSelect={() => {
+                                    setPaletteOpen(false);
+                                    router.visit(`/admin/inbox?conversation=${c.id}`);
+                                }}
+                            >
+                                <span className="truncate">
+                                    {c.contact?.name ?? 'Khách'}
+                                </span>
+                                {!!c.unreadCount && c.unreadCount > 0 && (
+                                    <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-semibold tabular-nums text-primary-foreground">
+                                        {c.unreadCount > 99 ? '99+' : c.unreadCount}
+                                    </span>
+                                )}
+                            </CommandItem>
+                        ))}
+                    </CommandGroup>
+                </CommandList>
+            </CommandDialog>
+
             <main className="flex h-[calc(100vh-var(--topbar-height))] flex-col gap-3 overflow-hidden bg-background p-3 md:p-4">
 
                 <section
@@ -352,6 +406,16 @@ export default function Inbox({
                                     />
                                     <InputGroupAddon align="inline-start">
                                         <Search />
+                                    </InputGroupAddon>
+                                    <InputGroupAddon align="inline-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaletteOpen(true)}
+                                            className="hidden rounded border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline"
+                                            title="Tìm nhanh (⌘K)"
+                                        >
+                                            ⌘K
+                                        </button>
                                     </InputGroupAddon>
                                 </InputGroup>
 

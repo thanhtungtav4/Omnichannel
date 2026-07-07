@@ -70,6 +70,7 @@ export type ConversationSummary = {
     lastMessageStatus?: string | null;
     lastMessageAt?: string | null;
     isUnanswered?: boolean;
+    unreadCount?: number;
     slaState: string;
 };
 
