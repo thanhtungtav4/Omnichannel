@@ -1,0 +1,53 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/crm
+            
+            # Disable safe directory warning for git
+            sudo git config --global --add safe.directory /var/www/crm
+            
+            # Fetch latest changes
+            sudo git fetch origin main
+            sudo git reset --hard origin/main
+            
+            # Run composer install
+            sudo COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+            
+            # Fix ownership
+            sudo chown -R www-data:www-data /var/www/crm
+            
+            # Run database migrations
+            sudo -u www-data php8.4 artisan migrate --force
+            
+            # Build assets
+            sudo npm ci
+            sudo npm run build
+            
+            # Finalize ownership and reload php-fpm
+            sudo chown -R www-data:www-data /var/www/crm
+            sudo systemctl reload php8.4-fpm
+            
+            # Clear caches
+            sudo -u www-data php8.4 artisan config:clear
+            sudo -u www-data php8.4 artisan cache:clear
+            sudo -u www-data php8.4 artisan route:clear
+            sudo -u www-data php8.4 artisan view:clear
