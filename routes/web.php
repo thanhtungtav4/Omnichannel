@@ -11,7 +11,16 @@ use App\Modules\Platform\Http\Controllers\PlatformAdminController;
 use App\Modules\Routing\Http\Controllers\PresenceController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/admin')->name('home');
+Route::get('/', function (\Illuminate\Http\Request $request) {
+    $adminSubdomain = config('tenant.admin_subdomain', 'admin');
+    $domain = config('tenant.domain', 'qrf.vn');
+
+    if ($request->getHost() === "{$adminSubdomain}.{$domain}") {
+        return redirect()->route('platform.workspaces');
+    }
+
+    return redirect('/admin');
+})->name('home');
 
 // Platform admin console on admin.crm.nttung.dev — out-of-tenant, manages
 // workspaces and their first owner. Requires an is_platform_admin account.
