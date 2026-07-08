@@ -461,7 +461,7 @@ export default function Inbox({
                         focusMode
                             ? 'grid-cols-1'
                             : activeConversation
-                              ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)] grid-cols-1'
+                              ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_340px] grid-cols-1'
                               : 'grid-cols-1',
                     )}
                 >
@@ -629,15 +629,12 @@ export default function Inbox({
                     )}
 
 {activeConversation && (
-                        <div
-                            data-test="thread-customer-wrap"
-                            className={cn(
-                                'grid min-h-0 min-w-0 grid-cols-1 [&>*]:min-h-0 xl:grid-cols-[minmax(0,1fr)_340px]',
-                                isMobile
-                                    ? (mobileView === 'thread' || mobileView === 'customer' ? 'grid' : 'hidden')
-                                    : (showThread ? 'grid' : 'hidden lg:grid'),
-                            )}
-                        >
+                        <div className={cn(
+                            'min-h-0 min-w-0 grid grid-rows-1 [&>section]:min-h-0',
+                            isMobile
+                                ? (mobileView === 'thread' || mobileView === 'customer' ? 'grid' : 'hidden')
+                                : (showThread ? 'grid' : 'hidden lg:grid')
+                        )}>
                             <ThreadPanel
                                 focusMode={focusMode}
                                 onToggleFocus={() => setFocusMode((v) => !v)}
