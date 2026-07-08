@@ -10,6 +10,7 @@ import {
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
     CommandDialog,
     CommandEmpty,
@@ -43,6 +44,7 @@ import {
     QueueTabTrigger,
     StatPill,
 } from './inbox/QueueParts';
+import { InboxBottomNav } from './inbox/InboxBottomNav';
 import { ThreadPanel } from './inbox/ThreadPanel';
 import { CustomerPanel } from './inbox/CustomerPanel';
 
@@ -90,6 +92,39 @@ export default function Inbox({
         typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).has('conversation');
     const showThread = !!activeConversation && hasExplicitConversation;
+    const isMobile = useIsMobile();
+
+    // Mobile view-state: 'queue' (default) | 'thread' | 'customer'.
+    // On desktop all 3 panes are visible simultaneously so this is a no-op.
+    // The bottom nav drives these transitions; tap on a conversation row
+    // jumps to 'thread' on mobile.
+    type MobileView = 'queue' | 'thread' | 'customer';
+    const [mobileView, setMobileView] = useState<MobileView>(
+        showThread ? 'thread' : 'queue',
+    );
+    // Sync mobileView when user taps a conversation (URL changes).
+    useEffect(() => {
+        if (isMobile && showThread) setMobileView('thread');
+        if (isMobile && !showThread && mobileView === 'thread') setMobileView('queue');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showThread, isMobile]);
+    // Reset to queue when growing past the breakpoint so we don't strand
+    // the user on a mobile-only view.
+    useEffect(() => {
+        if (!isMobile) setMobileView('queue');
+    }, [isMobile]);
+
+    const setView = (v: MobileView) => {
+        setMobileView(v);
+        // Switching to customer on mobile closes the thread so the
+        // sheet sits over the queue.
+        if (v === 'customer') {
+            setMobileView('customer');
+        }
+        if (v === 'queue') {
+            router.visit('/admin/inbox', { preserveScroll: true });
+        }
+    };
 
     // ⌘K / Ctrl+K opens the command palette (jump to any conversation).
     const [paletteOpen, setPaletteOpen] = useState(false);
@@ -188,6 +223,12 @@ export default function Inbox({
             window.removeEventListener('beforeunload', goOffline);
         };
     }, []);
+
+    // Total unread across all conversations (drives the bottom-nav badge).
+    const totalUnread = useMemo(
+        () => conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0),
+        [conversations],
+    );
 
     const filteredConversations = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase();
@@ -357,7 +398,10 @@ export default function Inbox({
                 </CommandList>
             </CommandDialog>
 
-            <main className="flex h-[calc(100vh-var(--topbar-height))] flex-col gap-3 overflow-hidden bg-background p-3 md:p-4">
+            <main
+                data-mobile-view={isMobile ? mobileView : undefined}
+                className="flex h-[calc(100vh-var(--topbar-height))] flex-col gap-3 overflow-hidden bg-background p-3 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-4"
+            >
 
                 <section
                     className={cn(
@@ -372,7 +416,12 @@ export default function Inbox({
                     {!focusMode && (
                         <aside className={cn(
                             "flex min-h-0 flex-col border-b lg:border-r lg:border-b-0 bg-muted/20",
-                            showThread ? "hidden lg:flex" : "flex w-full"
+                            // On mobile: queue hidden when in 'thread' view.
+                            // On lg+: queue hidden only when an explicit thread
+                            // is open (so landing on /admin/inbox shows the list).
+                            isMobile
+                                ? (mobileView === 'queue' ? 'flex w-full' : 'hidden')
+                                : (showThread ? 'hidden lg:flex' : 'flex w-full')
                         )}>
                             <div className="flex items-center justify-between gap-2 border-b p-3">
                                 <div className="min-w-0 flex-1">
@@ -528,7 +577,12 @@ export default function Inbox({
                     )}
 
 {activeConversation && (
-                        <div className={cn('min-h-0 min-w-0 grid grid-rows-1 [&>section]:min-h-0', showThread ? 'grid' : 'hidden lg:grid')}>
+                        <div className={cn(
+                            'min-h-0 min-w-0 grid grid-rows-1 [&>section]:min-h-0',
+                            isMobile
+                                ? (mobileView === 'thread' || mobileView === 'customer' ? 'grid' : 'hidden')
+                                : (showThread ? 'grid' : 'hidden lg:grid')
+                        )}>
                             <ThreadPanel
                                 focusMode={focusMode}
                                 onToggleFocus={() => setFocusMode((v) => !v)}
@@ -556,10 +610,24 @@ export default function Inbox({
                             <CustomerPanel
                                 activeConversation={activeConversation}
                                 agents={agents}
+                                mobileView={mobileView}
+                                onMobileClose={() => setView('queue')}
                             />
                         </div>
                     )}
                 </section>
+
+                {/* Mobile-only bottom nav. Pinned at viewport bottom; the
+                    inbox-wrap above has padding-bottom equal to the nav
+                    height so content never sits under it. Hidden on md+. */}
+                <InboxBottomNav
+                    unreadCount={totalUnread}
+                    isOnline={true}
+                    activeView={mobileView}
+                    onQueue={() => setView('queue')}
+                    onCustomer={() => setView('customer')}
+                    onSearch={() => setPaletteOpen((v) => !v)}
+                />
             </main>
         </>
     );

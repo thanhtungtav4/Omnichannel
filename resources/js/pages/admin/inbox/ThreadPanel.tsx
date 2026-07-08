@@ -219,6 +219,30 @@ export function ThreadPanel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasMore, olderMessages.length, activeId]);
 
+    // Mobile keyboard awareness — keep the composer above the on-screen
+    // keyboard so the typed text stays in view. visualViewport fires on
+    // mobile keyboards opening/closing; we mirror the keyboard height as
+    // bottom-padding on the composer.
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.visualViewport) return;
+        const vv = window.visualViewport;
+        const onResize = () => {
+            const offsetBottom =
+                window.innerHeight - vv.height - vv.offsetTop;
+            const isMobile = window.matchMedia('(max-width: 767px)').matches;
+            const form = document.querySelector(
+                'form[data-composer]',
+            ) as HTMLElement | null;
+            if (form && isMobile && offsetBottom > 80) {
+                form.style.paddingBottom = `calc(12px + ${offsetBottom}px + env(safe-area-inset-bottom, 0px))`;
+            } else if (form && isMobile) {
+                form.style.paddingBottom = '';
+            }
+        };
+        vv.addEventListener('resize', onResize);
+        return () => vv.removeEventListener('resize', onResize);
+    }, [activeId]);
+
     // Full thread = older (client-loaded) + current server page, deduped.
     const allMessages = useMemo(() => {
         const seen = new Set<string>();
@@ -589,7 +613,11 @@ export function ThreadPanel({
                         </div>
                     </ScrollArea>
 
-                    <form onSubmit={onSubmitReply} className="relative shrink-0 border-t p-3">
+                    <form
+                        data-composer
+                        onSubmit={onSubmitReply}
+                        className="relative shrink-0 border-t p-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))]"
+                    >
                         {/* Reply (to customer) vs Comment (internal note). */}
                         <div className="mb-2 inline-flex rounded-md border p-0.5 text-sm">
                             <button

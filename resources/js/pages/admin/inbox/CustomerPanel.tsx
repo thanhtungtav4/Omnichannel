@@ -23,24 +23,43 @@ import { customerName, initials, providerClass, providerLabel } from './lib';
 
 export function CustomerPanel({
     activeConversation,
+    mobileView = 'queue',
+    onMobileClose,
 }: {
     activeConversation: ActiveConversation | null;
     agents: AgentOption[];
+    /** On mobile, only render the bottom-sheet when view === 'customer'. */
+    mobileView?: 'queue' | 'thread' | 'customer';
+    /** Called when the sheet's backdrop is tapped (close action). */
+    onMobileClose?: () => void;
 }) {
     const contact = activeConversation?.contact;
     const name = customerName(activeConversation);
     if (!contact || !activeConversation) {
         return (
-            <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card xl:flex">
-                <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                    Chọn hội thoại để xem hồ sơ khách.
-                </div>
-            </aside>
+            <>
+                {/* Desktop placeholder (xl+) — only shown when conversation is open. */}
+                <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card xl:flex">
+                    <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                        Chọn hội thoại để xem hồ sơ khách.
+                    </div>
+                </aside>
+                {/* Mobile placeholder — empty sheet hidden. */}
+                <div
+                    data-mobile-open="false"
+                    aria-hidden
+                    className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[60] hidden translate-y-[calc(100%+56px+env(safe-area-inset-bottom,0px))] flex-col bg-card [border-top:1px_solid_var(--border)] shadow-[0_-8px_32px_rgb(0_0_0/0.18)] [border-top-left-radius:16px] [border-top-right-radius:16px] transition-transform duration-300 md:hidden"
+                />
+            </>
         );
     }
 
+    const isMobileOpen = mobileView === 'customer';
+
     return (
-        <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card xl:flex">
+        <>
+            {/* Desktop: 3rd column in the grid (xl+). */}
+            <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card xl:flex">
             <Tabs defaultValue="profile" className="flex min-h-0 flex-1 flex-col">
                 <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b bg-card p-0">
                     <TabsTrigger
@@ -102,6 +121,102 @@ export function CustomerPanel({
                 </TabsContent>
             </Tabs>
         </aside>
+
+            {/* Mobile: bottom sheet (md- hidden via @container; shown below xl). */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Hồ sơ khách"
+                data-mobile-open={isMobileOpen ? 'true' : 'false'}
+                className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[60] flex max-h-[calc(100dvh-var(--topbar-height)-56px-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden [border-top:1px_solid_var(--border)] bg-card shadow-[0_-8px_32px_rgb(0_0_0/0.18)] [border-top-left-radius:16px] [border-top-right-radius:16px] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden"
+                style={{
+                    transform: isMobileOpen
+                        ? 'translateY(0)'
+                        : 'translateY(calc(100% + 56px + env(safe-area-inset-bottom, 0px)))',
+                }}
+            >
+                {/* Drag handle visual cue */}
+                <div className="flex justify-center py-1.5">
+                    <span
+                        aria-hidden
+                        className="h-1 w-9 rounded-full bg-muted-foreground/45"
+                    />
+                </div>
+                {onMobileClose && (
+                    <button
+                        type="button"
+                        onClick={onMobileClose}
+                        aria-label="Đóng hồ sơ khách"
+                        className="absolute right-2 top-1.5 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                    >
+                        ×
+                    </button>
+                )}
+                <Tabs defaultValue="profile" className="flex min-h-0 flex-1 flex-col">
+                    <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b bg-card p-0">
+                        <TabsTrigger
+                            value="profile"
+                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                        >
+                            Hồ sơ
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="activity"
+                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                        >
+                            Hoạt động
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="deal"
+                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                        >
+                            Cơ hội
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="conversations"
+                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                        >
+                            Hội thoại
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent
+                        value="profile"
+                        className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                    >
+                        <ProfileTab contact={contact} name={name} owner={activeConversation.owner} />
+                    </TabsContent>
+                    <TabsContent
+                        value="activity"
+                        className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                    >
+                        <ActivityTab conversation={activeConversation} />
+                    </TabsContent>
+                    <TabsContent
+                        value="deal"
+                        className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                    >
+                        <DealTab contact={contact} />
+                    </TabsContent>
+                    <TabsContent
+                        value="conversations"
+                        className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                    >
+                        <ConversationsTab contact={contact} activeId={activeConversation.id} />
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            {/* Mobile backdrop — dims page when sheet is open. */}
+            {isMobileOpen && (
+                <button
+                    type="button"
+                    aria-label="Đóng hồ sơ khách"
+                    onClick={onMobileClose}
+                    className="fixed inset-0 z-[55] cursor-default bg-black/40 md:hidden"
+                />
+            )}
+        </>
     );
 }
 
