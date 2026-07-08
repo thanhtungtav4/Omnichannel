@@ -629,43 +629,75 @@ export default function Inbox({
                     )}
 
 {activeConversation && (
-                        <div className={cn(
-                            'min-h-0 min-w-0 grid grid-rows-1 [&>section]:min-h-0',
-                            isMobile
-                                ? (mobileView === 'thread' || mobileView === 'customer' ? 'grid' : 'hidden')
-                                : (showThread ? 'grid' : 'hidden lg:grid')
-                        )}>
-                            <ThreadPanel
-                                focusMode={focusMode}
-                                onToggleFocus={() => setFocusMode((v) => !v)}
-                                activeConversation={activeConversation}
-                                agents={agents}
-                                replyBody={replyForm.data.body}
-                                replyImage={replyForm.data.image}
-                                replyError={replyForm.errors.body}
-                                replyProcessing={replyForm.processing}
-                                composerMode={composerMode}
-                                onComposerModeChange={setComposerMode}
-                                transferTo={transferTo}
-                                onReplyBodyChange={(body) =>
-                                    replyForm.setData('body', body)
-                                }
-                                onReplyImageChange={(image) =>
-                                    replyForm.setData('image', image)
-                                }
-                                onSubmitReply={submitReply}
-                                onTransferToChange={setTransferTo}
-                                onSubmitTransfer={submitTransfer}
-                                onCloseConversation={closeConversation}
-                                onReopenConversation={reopenConversation}
-                            />
+                        <>
+                            {/*
+                              A1 fix: render ThreadPanel and CustomerPanel as
+                              DIRECT children of the section grid (mockup
+                              line 1699-1797 places 3 panes as siblings,
+                              not inside a wrapper). The wrapper around
+                              these two was collapsing both into the same
+                              grid cell because its Tailwind class was
+                              `grid grid-rows-1` with no `grid-cols-*`,
+                              which defaulted to one column → thread and
+                              customer stacked instead of splitting into
+                              cols 2 and 3 at xl.
+
+                              ThreadPanel still needs responsive hide
+                              logic (mobile shows one pane at a time;
+                              on lg+ thread hides when no conversation
+                              is selected, matching the original wrapper
+                              behavior). CustomerPanel handles its own
+                              responsive via internal `xl:flex` aside
+                              + `md:hidden` bottom sheet — no change.
+                            */}
+                            <div
+                                data-pane="thread"
+                                className={cn(
+                                    'flex min-h-0 min-w-0 flex-col overflow-hidden',
+                                    isMobile
+                                        ? (mobileView === 'thread' ||
+                                          mobileView === 'customer'
+                                            ? 'flex'
+                                            : 'hidden')
+                                        : (showThread
+                                            ? 'flex'
+                                            : 'hidden lg:flex'),
+                                )}
+                            >
+                                <ThreadPanel
+                                    focusMode={focusMode}
+                                    onToggleFocus={() =>
+                                        setFocusMode((v) => !v)
+                                    }
+                                    activeConversation={activeConversation}
+                                    agents={agents}
+                                    replyBody={replyForm.data.body}
+                                    replyImage={replyForm.data.image}
+                                    replyError={replyForm.errors.body}
+                                    replyProcessing={replyForm.processing}
+                                    composerMode={composerMode}
+                                    onComposerModeChange={setComposerMode}
+                                    transferTo={transferTo}
+                                    onReplyBodyChange={(body) =>
+                                        replyForm.setData('body', body)
+                                    }
+                                    onReplyImageChange={(image) =>
+                                        replyForm.setData('image', image)
+                                    }
+                                    onSubmitReply={submitReply}
+                                    onTransferToChange={setTransferTo}
+                                    onSubmitTransfer={submitTransfer}
+                                    onCloseConversation={closeConversation}
+                                    onReopenConversation={reopenConversation}
+                                />
+                            </div>
                             <CustomerPanel
                                 activeConversation={activeConversation}
                                 agents={agents}
                                 mobileView={mobileView}
                                 onMobileClose={() => setView('queue')}
                             />
-                        </div>
+                        </>
                     )}
                 </section>
 
