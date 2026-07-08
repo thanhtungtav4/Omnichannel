@@ -395,159 +395,169 @@ export function ThreadPanel({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1.5">
-                    {/* SLA countdown pill — visible on every open conversation
-                        so the operator can see at a glance whether they're
-                        tracking against the first-response SLA. */}
-                    <SlaPill
-                        state={activeConversation.slaState ?? 'OK'}
-                        seconds={activeConversation.slaSeconds ?? null}
-                    />
+                {/* Actions: mockup splits header-right into a context-group
+                    (SLA + priority signals) and an action-group (buttons),
+                    separated by a divider. */}
+                <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                        {/* SLA countdown pill — visible on every open conversation
+                            so the operator can see at a glance whether they're
+                            tracking against the first-response SLA. */}
+                        <SlaPill
+                            state={activeConversation.slaState ?? 'OK'}
+                            seconds={activeConversation.slaSeconds ?? null}
+                        />
 
-                    {/* Priority dot (mockup) — URGENT/HIGH/NORMAL visual signal
-                        next to the SLA pill. Tighter than the full StatusBadge. */}
-                    <PriorityDot priority={activeConversation.priority} />
+                        {/* Priority dot (mockup) — URGENT/HIGH/NORMAL visual
+                            signal next to the SLA pill. */}
+                        <PriorityDot priority={activeConversation.priority} />
+                    </div>
 
-                    {/* Transfer — opens the assign sheet (mockup header "Chuyển").
+                    <div className="flex items-center gap-1 border-l pl-2">
+                        {/* Transfer — opens the assign sheet (mockup header "Chuyển").
                         Replaces the wide inline owner Select to keep the header
                         on a single compact row. */}
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5 px-2 text-xs"
-                        onClick={() => setTransferOpen(true)}
-                    >
-                        <UserRoundCheck data-icon="inline-start" />
-                        Chuyển
-                    </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 px-2 text-xs"
+                            onClick={() => setTransferOpen(true)}
+                        >
+                            <UserRoundCheck data-icon="inline-start" />
+                            Chuyển
+                        </Button>
 
-                    {/* Mobile-only customer info sheet trigger. */}
-                    <Sheet>
-                        <SheetTrigger asChild>
+                        {/* Mobile-only customer info sheet trigger. */}
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="size-11 sm:size-9 lg:hidden"
+                                    title="Thông tin khách"
+                                    aria-label="Thông tin khách"
+                                >
+                                    <Info />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent
+                                side="right"
+                                className="w-[300px] p-0"
+                            >
+                                <SheetHeader className="border-b">
+                                    <SheetTitle>Thông tin khách</SheetTitle>
+                                    <SheetDescription className="sr-only">
+                                        Chi tiết liên hệ và hành động nhanh
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <div className="flex flex-col gap-3 overflow-y-auto p-4 text-sm">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="size-12">
+                                            {contact?.avatarUrl && (
+                                                <AvatarImage
+                                                    src={contact.avatarUrl}
+                                                    alt={name}
+                                                />
+                                            )}
+                                            <AvatarFallback>
+                                                {initials(name)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                            <p
+                                                className="truncate font-semibold"
+                                                title={name}
+                                            >
+                                                {name}
+                                            </p>
+                                            {contact?.source && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Nguồn: {contact.source}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <ContactInfoRow
+                                        icon={<Phone className="size-3.5" />}
+                                        label="SĐT"
+                                        value={contact?.phone}
+                                        href={
+                                            contact?.phone
+                                                ? `tel:${contact.phone}`
+                                                : undefined
+                                        }
+                                    />
+                                    <ContactInfoRow
+                                        icon={<Mail className="size-3.5" />}
+                                        label="Email"
+                                        value={contact?.email}
+                                        href={
+                                            contact?.email
+                                                ? `mailto:${contact.email}`
+                                                : undefined
+                                        }
+                                    />
+                                    <PanelRow
+                                        label="Tin gần nhất"
+                                        value={contact?.lastInboundAt ?? '—'}
+                                    />
+                                    {contact?.id && (
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-2"
+                                        >
+                                            <Link
+                                                href={`/admin/contacts/${contact.id}`}
+                                            >
+                                                <UserRoundCheck data-icon="inline-start" />
+                                                Xem hồ sơ đầy đủ
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </div>
+                            </SheetContent>
+                        </Sheet>
+
+                        {/* Kebab menu — secondary actions (mockup). */}
+                        <ThreadKebab
+                            onFocusToggle={onToggleFocus}
+                            isFocused={focusMode}
+                            isClosed={activeConversation.status === 'CLOSED'}
+                            onSearchToggle={() => setShowSearch((v) => !v)}
+                            onTransfer={() => setTransferOpen(true)}
+                            onMarkSpam={() =>
+                                toast.error('Đã đánh dấu spam (mockup)')
+                            }
+                        />
+
+                        {activeConversation.status === 'CLOSED' ? (
                             <Button
                                 type="button"
-                                variant="outline"
-                                size="icon"
-                                className="size-11 sm:size-9 lg:hidden"
-                                title="Thông tin khách"
-                                aria-label="Thông tin khách"
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 px-2 text-xs"
+                                onClick={onReopenConversation}
                             >
-                                <Info />
+                                <RotateCcw data-icon="inline-start" />
+                                Mở lại
                             </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-[300px] p-0">
-                            <SheetHeader className="border-b">
-                                <SheetTitle>Thông tin khách</SheetTitle>
-                                <SheetDescription className="sr-only">
-                                    Chi tiết liên hệ và hành động nhanh
-                                </SheetDescription>
-                            </SheetHeader>
-                            <div className="flex flex-col gap-3 overflow-y-auto p-4 text-sm">
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="size-12">
-                                        {contact?.avatarUrl && (
-                                            <AvatarImage
-                                                src={contact.avatarUrl}
-                                                alt={name}
-                                            />
-                                        )}
-                                        <AvatarFallback>
-                                            {initials(name)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="min-w-0">
-                                        <p
-                                            className="truncate font-semibold"
-                                            title={name}
-                                        >
-                                            {name}
-                                        </p>
-                                        {contact?.source && (
-                                            <p className="text-xs text-muted-foreground">
-                                                Nguồn: {contact.source}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <ContactInfoRow
-                                    icon={<Phone className="size-3.5" />}
-                                    label="SĐT"
-                                    value={contact?.phone}
-                                    href={
-                                        contact?.phone
-                                            ? `tel:${contact.phone}`
-                                            : undefined
-                                    }
-                                />
-                                <ContactInfoRow
-                                    icon={<Mail className="size-3.5" />}
-                                    label="Email"
-                                    value={contact?.email}
-                                    href={
-                                        contact?.email
-                                            ? `mailto:${contact.email}`
-                                            : undefined
-                                    }
-                                />
-                                <PanelRow
-                                    label="Tin gần nhất"
-                                    value={contact?.lastInboundAt ?? '—'}
-                                />
-                                {contact?.id && (
-                                    <Button
-                                        asChild
-                                        variant="outline"
-                                        size="sm"
-                                        className="mt-2"
-                                    >
-                                        <Link
-                                            href={`/admin/contacts/${contact.id}`}
-                                        >
-                                            <UserRoundCheck data-icon="inline-start" />
-                                            Xem hồ sơ đầy đủ
-                                        </Link>
-                                    </Button>
-                                )}
-                            </div>
-                        </SheetContent>
-                    </Sheet>
-
-                    {/* Kebab menu — secondary actions (mockup). */}
-                    <ThreadKebab
-                        onFocusToggle={onToggleFocus}
-                        isFocused={focusMode}
-                        isClosed={activeConversation.status === 'CLOSED'}
-                        onSearchToggle={() => setShowSearch((v) => !v)}
-                        onTransfer={() => setTransferOpen(true)}
-                        onMarkSpam={() =>
-                            toast.error('Đã đánh dấu spam (mockup)')
-                        }
-                    />
-
-                    {activeConversation.status === 'CLOSED' ? (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 px-2 text-xs"
-                            onClick={onReopenConversation}
-                        >
-                            <RotateCcw data-icon="inline-start" />
-                            Mở lại
-                        </Button>
-                    ) : (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 px-2 text-xs"
-                            onClick={onCloseConversation}
-                        >
-                            <CheckCircle2 data-icon="inline-start" />
-                            Đóng
-                        </Button>
-                    )}
+                        ) : (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 px-2 text-xs"
+                                onClick={onCloseConversation}
+                            >
+                                <CheckCircle2 data-icon="inline-start" />
+                                Đóng
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </header>
 
