@@ -399,23 +399,7 @@ a { color: inherit; text-decoration: none; }
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
 }
-/* Queue header — alert bell w/ dot badge (replaces inline .queue-alert block) */
-.queue-header .icon-btn { position: relative; }
-.queue-header .icon-btn.alert-btn { color: var(--status-danger-fg); border-color: var(--status-danger-border); background: var(--status-danger-bg); }
-.queue-header .icon-btn.alert-btn:hover { background: color-mix(in oklab, var(--status-danger-bg) 70%, var(--card)); }
-.alert-dot {
-  position: absolute; top: -3px; right: -3px;
-  min-width: 16px; height: 16px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--status-danger-fg);
-  color: var(--status-danger-bg);
-  font-size: 10px; font-weight: 700;
-  display: grid; place-items: center;
-  border: 2px solid color-mix(in oklab, var(--muted) 25%, transparent);
-  font-family: var(--font-mono);
-  line-height: 1;
-}
+/* Queue header — strip đã ở giữa title và refresh (thay cho alert bell cũ) */
 /* Toast stack — bottom-right, Sonner-style */
 .toast-stack {
   position: fixed; bottom: 16px; right: 16px;
@@ -539,24 +523,42 @@ a { color: inherit; text-decoration: none; }
   font-size: 11px;
   color: var(--muted-foreground);
 }
+/* Compact icon-count pills — operator scan: color + number, no label.
+   Tooltip preserves full meaning on hover. */
 .stat-strip {
-  display: flex; flex-wrap: wrap; gap: 6px;
+  display: inline-flex; align-items: center; gap: 1px;
 }
 .stat {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--card);
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-.stat.ok { background: var(--status-ok-bg); border-color: var(--status-ok-border); color: var(--status-ok-fg); }
-.stat.warn { background: var(--status-warn-bg); border-color: var(--status-warn-border); color: var(--status-warn-fg); font-weight: 500; }
-.stat.danger { background: var(--status-danger-bg); border-color: var(--status-danger-border); color: var(--status-danger-fg); font-weight: 600; }
-.stat.danger.anim { animation: pulse-anim 1.5s infinite; }
-@keyframes pulse-anim { 50% { opacity: 0.6; } }
-.stat strong { font-weight: 700; }
+.stat svg { width: 12px; height: 12px; flex-shrink: 0; stroke-width: 2.25; }
+.stat strong { font-weight: 700; font-size: 11px; }
+.stat.ok    { color: var(--status-ok-fg); }
+.stat.warn  { color: var(--status-warn-fg); }
+.stat.danger{ color: var(--status-danger-fg); }
+.stat.danger.anim svg { animation: pulse-anim 1.5s infinite; }
+button.stat {
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+button.stat:hover {
+  background: var(--background);
+  border-color: var(--border);
+}
+button.stat:active { background: color-mix(in oklab, currentColor 8%, transparent); }
+button.stat:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+@keyframes pulse-anim { 50% { opacity: 0.45; } }
 
 /* ── Conversation row ─────────────────────────────────────────────── */
 .conv-list { flex: 1; min-height: 0; overflow-y: auto; }
@@ -651,13 +653,13 @@ a { color: inherit; text-decoration: none; }
   min-height: 0; min-width: 0;
 }
 .thread-header {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
-  padding: 10px 14px;
+  display: flex; align-items: center; flex-wrap: nowrap; gap: 8px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 .thread-header .avatar { flex-shrink: 0; }
-.thread-header-info { flex: 1 1 200px; min-width: 180px; }
+.thread-header-info { flex: 1 1 auto; min-width: 0; }
 .thread-header-actions {
   flex: 0 0 auto;
   margin-left: auto;
@@ -819,6 +821,7 @@ a { color: inherit; text-decoration: none; }
     display: none;
     border: 0;
     background: var(--background);
+    min-width: 0;  /* prevent grid item overflow on narrow viewports */
   }
   .inbox-shell[data-view="queue"] .queue-pane { display: flex; }
   .inbox-shell[data-view="thread"] .thread-pane { display: flex; }
@@ -955,7 +958,7 @@ a { color: inherit; text-decoration: none; }
   .sla-pill { font-size: 10px; padding: 2px 6px; }
   /* Tighten action group gap on mobile */
   .thread-header-actions { gap: 6px; }
-  .thread-header-actions .action-group { gap: 4px; margin-left: auto; padding-left: 8px; }
+  .thread-header-actions .action-group { gap: 4px; padding-left: 8px; }
   /* Compact thread sub info */
   .thread-sub { font-size: 11px; gap: 4px; min-width: 0; }
   .thread-sub > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1018,7 +1021,23 @@ a { color: inherit; text-decoration: none; }
 /* ── Tablet landscape-ish: 768-1023 still uses tablet rules above ── */
 .thread-customer { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; min-width: 0; }
 .thread-customer span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.thread-sub { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); margin-top: 2px; flex-wrap: wrap; }
+.thread-sub { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-foreground); margin-top: 1px; flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.thread-sub .channel-label { flex-shrink: 1; min-width: 0; }
+.thread-sub .owner-info { flex-shrink: 0; }
+/* On narrow thread panes (desktop with customer pane open), drop the owner chip + channel label */
+@media (max-width: 1499px) {
+  .thread-sub .owner-info { display: none; }
+  .thread-sub .channel-label { display: none; }
+  /* Priority dot becomes icon-only — saves ~40px for the customer name */
+  .thread-header-actions .priority-dot .label,
+  .thread-header-actions .priority-dot .sep { display: none; }
+  .thread-header-actions .priority-dot {
+    padding: 4px;
+    width: 22px; height: 22px;
+    justify-content: center;
+  }
+  .thread-header-actions .priority-dot .dot { width: 8px; height: 8px; }
+}
 .thread-sub .online {
   display: inline-block; width: 6px; height: 6px;
   border-radius: 50%; background: var(--status-ok-fg);
@@ -1035,12 +1054,13 @@ a { color: inherit; text-decoration: none; }
   display: inline-flex; align-items: center; gap: 4px;
 }
 .thread-header-actions .action-group .btn {
-  height: 30px; padding: 0 9px; font-size: 12px;
+  height: 28px; padding: 0 7px; font-size: 12px; gap: 4px;
 }
+.thread-header-actions .action-group .btn i[data-lucide] { width: 14px; height: 14px; }
 .thread-header-actions .priority-dot {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11px; font-weight: 600;
-  padding: 2px 8px; border-radius: 4px;
+  padding: 1px 7px; border-radius: 4px;
   border: 1px solid;
   font-family: var(--font-mono);
 }
@@ -1129,9 +1149,9 @@ a { color: inherit; text-decoration: none; }
 
 /* SLA countdown in thread header */
 .sla-pill {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 3px;
   font-size: 11px; font-weight: 600;
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: 4px;
   border: 1px solid;
   font-family: var(--font-mono);
@@ -1685,10 +1705,16 @@ a { color: inherit; text-decoration: none; }
               <div class="queue-title">Hộp thư đa kênh</div>
               <div class="queue-subtitle">12/24 hội thoại đang mở</div>
             </div>
-            <button class="icon-btn alert-btn" title="Cần xử lý: 3 tin lỗi, 2 cuộc chưa gán" id="alertBtn">
-              <i data-lucide="bell" style="width:15px;height:15px"></i>
-              <span class="alert-dot">5</span>
-            </button>
+            <div class="stat-strip">
+              <button class="stat danger anim" data-stat="failed" title="Tin nhắn gửi đi lỗi — bấm để xem" aria-label="3 tin nhắn gửi đi lỗi">
+                <i data-lucide="message-circle-x"></i>
+                <strong>3</strong>
+              </button>
+              <button class="stat warn" data-stat="unassigned" title="Chưa gán nhân viên — bấm để lọc" aria-label="2 cuộc hội thoại chưa gán nhân viên">
+                <i data-lucide="user-round-x"></i>
+                <strong>2</strong>
+              </button>
+            </div>
             <button class="icon-btn" title="Làm mới" id="refreshBtn">
               <i data-lucide="refresh-ccw" style="width:15px;height:15px"></i>
             </button>
@@ -1706,13 +1732,6 @@ a { color: inherit; text-decoration: none; }
               <button class="tab" data-tab="mine">Của tôi <span class="count">5</span></button>
               <button class="tab" data-tab="waiting">Chờ <span class="count">8</span></button>
               <button class="tab" data-tab="priority">Ưu tiên <span class="count">3</span></button>
-            </div>
-
-            <div class="stat-strip">
-              <span class="stat ok" title="Hội thoại đang mở">Mở <strong>24</strong></span>
-              <span class="stat info" title="Chờ nhân viên phản hồi">Chờ <strong>8</strong></span>
-              <span class="stat warn" title="Chưa gán cho nhân viên">Chưa gán <strong>2</strong></span>
-              <span class="stat danger anim" title="Tin nhắn gửi đi lỗi">Lỗi <strong>3</strong></span>
             </div>
           </div>
 
@@ -2216,6 +2235,10 @@ function renderThreadHeader() {
               <i data-lucide="tag" style="width:14px;height:14px"></i>
               Gắn nhãn
             </button>
+            <button class="kebab-item" role="menuitem" onclick="openSheet('transferSheet'); closeKebab();">
+              <i data-lucide="user-round-check" style="width:14px;height:14px"></i>
+              Chuyển hội thoại
+            </button>
             <button class="kebab-item" role="menuitem" onclick="closeKebab()">
               <i data-lucide="user-plus" style="width:14px;height:14px"></i>
               Thêm vào CRM
@@ -2300,7 +2323,7 @@ function renderMessage(m) {
   ` : "";
   const attachmentHtml = m.attachment
     ? (m.attachment.type === "IMAGE"
-        ? `<img class="bubble-attachment" src="https://picsum.photos/seed/${c.id}-${m.id}/240/200" alt="" />`
+        ? `<img class="bubble-attachment" src="https://picsum.photos/seed/${m.id}/240/200" alt="" />`
         : `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:color-mix(in oklab, var(--background) 80%, transparent);border-radius:6px;font-size:12px"><i data-lucide="file" style="width:14px;height:14px"></i> ${m.attachment.name || "Tệp đính kèm"}</div>`)
     : "";
   return `
@@ -2845,53 +2868,29 @@ function showToast({ icon = "triangle-alert", title, rows = [], duration = 8000,
   return dismiss;
 }
 
-/* Alert bell: clicking re-shows the toast (in case operator dismissed it) */
-const alertBtn = document.getElementById("alertBtn");
-if (alertBtn) {
-  alertBtn.addEventListener("click", () => {
-    showToast({
-      icon: "bell",
-      title: "Cần xử lý",
-      rows: [
-        { count: 3, label: "tin gửi lỗi", action: "failed" },
-        { count: 2, label: "cuộc chưa gán", action: "unassigned" },
-      ],
-      onAction: (action) => {
-        if (action === "failed") {
-          // jump to first FAILED conversation
-          const failedConv = CONVS.find(c => c.lastMessageStatus === "FAILED");
-          if (failedConv) { activeId = failedConv.id; renderAll(); }
-        } else if (action === "unassigned") {
-          // switch tab to "waiting" (chưa gán hiển thị ở đó)
-          const waitingTab = document.querySelector('.tab[data-tab="waiting"]');
-          waitingTab?.click();
-        }
-      },
-    });
-  });
+/* Strip đã gắn vào queue-header thay cho alert bell — strip buttons xử lý trực tiếp (filter / jump-to-thread) */
+
+/* Shared handler for "tin gửi lỗi" / "cuộc chưa gán" — used by toast links + stat buttons */
+function handleAlertAction(action) {
+  if (action === "failed") {
+    const failedConv = CONVS.find(c => c.lastMessageStatus === "FAILED");
+    if (failedConv) {
+      activeId = failedConv.id;
+      renderAll();
+      // On mobile, jump straight to the failing thread so operator can fix it
+      if (isMobile()) setView("thread");
+    }
+  } else if (action === "unassigned") {
+    // On mobile, ensure we're in queue view first so user sees the tab switch
+    if (isMobile()) setView("queue");
+    const waitingTab = document.querySelector('.tab[data-tab="waiting"]');
+    waitingTab?.click();
+  }
 }
 
-/* Auto-show toast on first load */
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    showToast({
-      icon: "triangle-alert",
-      title: "Cần xử lý",
-      rows: [
-        { count: 3, label: "tin gửi lỗi", action: "failed" },
-        { count: 2, label: "cuộc chưa gán", action: "unassigned" },
-      ],
-      onAction: (action) => {
-        if (action === "failed") {
-          const failedConv = CONVS.find(c => c.lastMessageStatus === "FAILED");
-          if (failedConv) { activeId = failedConv.id; renderAll(); }
-        } else if (action === "unassigned") {
-          const waitingTab = document.querySelector('.tab[data-tab="waiting"]');
-          waitingTab?.click();
-        }
-      },
-    });
-  }, 800);
+/* Stat buttons: failed / unassigned — filter or jump to failing thread */
+document.querySelectorAll(".stat-strip [data-stat]").forEach(btn => {
+  btn.addEventListener("click", () => handleAlertAction(btn.dataset.stat));
 });
 </script>
 
