@@ -458,10 +458,15 @@ export default function Inbox({
                 <section
                     className={cn(
                         'grid min-h-0 flex-1 overflow-hidden rounded-lg border bg-card',
+                        // Mockup §3.5:
+                        //   desktop (≥ xl, ≥1280): 380px | 1fr | 340px   (queue | thread | customer)
+                        //   tablet  (md..xl, 768..1279): 340px | 1fr      (queue | thread; customer as right-drawer — see CustomerPanel.tsx `xl:flex`)
+                        //   mobile  (< md): 1fr; panes mutually exclusive
+                        //   focus-mode (mockup line 367-369): 380px | 1fr  (queue + thread kept, customer dropped)
                         focusMode
-                            ? 'grid-cols-1'
+                            ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)] grid-cols-1'
                             : activeConversation
-                              ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_340px] grid-cols-1'
+                              ? 'lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)_340px] grid-cols-1'
                               : 'grid-cols-1',
                     )}
                 >
@@ -690,12 +695,14 @@ export default function Inbox({
                                     onReopenConversation={reopenConversation}
                                 />
                             </div>
-                            <CustomerPanel
-                                activeConversation={activeConversation}
-                                agents={agents}
-                                mobileView={mobileView}
-                                onMobileClose={() => setView('queue')}
-                            />
+                            {!focusMode && (
+                                <CustomerPanel
+                                    activeConversation={activeConversation}
+                                    agents={agents}
+                                    mobileView={mobileView}
+                                    onMobileClose={() => setView('queue')}
+                                />
+                            )}
                         </>
                     )}
                 </section>

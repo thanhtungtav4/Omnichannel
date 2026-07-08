@@ -549,11 +549,15 @@ return allMessages;
             </header>
 
             <div
+                data-test="thread-body"
                 className={cn(
-                    'grid min-h-0 flex-1',
-                    focusMode
-                        ? 'grid-cols-1'
-                        : 'lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]',
+                    // Mockup §3.5: thread-pane is single-column flow —
+                    // (header) -> (messages) -> (composer). The internal
+                    // 2-col grid that paired messages with a right-rail
+                    // about-contact was removed in commit 37abb0f; the
+                    // external CustomerPanel (3rd column on xl in the
+                    // inbox-shell grid) now owns that surface area.
+                    'grid min-h-0 flex-1 grid-cols-1',
                 )}
             >
                 <div className="relative flex min-h-0 min-w-0 flex-col">
