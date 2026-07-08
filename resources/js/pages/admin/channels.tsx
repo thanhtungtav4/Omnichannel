@@ -960,7 +960,6 @@ export default function Channels({ channels, canManage, canDelete, webhookBase }
                                                         label={String(
                                                             channel.pendingOutboxCount,
                                                         )}
-                                                        hint="pending"
                                                     />
                                                 ) : (
                                                     <span className="text-muted-foreground">0</span>

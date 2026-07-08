@@ -409,7 +409,7 @@ export default function Inbox({
                 >
                     <Command
                         className="border-0 **:data-[slot=command-input-wrapper]:h-12"
-                        filter={false}
+                        shouldFilter={false}
                     >
                         <CommandInput placeholder="Tìm khách, SĐT, kênh, mã hội thoại…" />
                         <CommandList className="max-h-[420px]">

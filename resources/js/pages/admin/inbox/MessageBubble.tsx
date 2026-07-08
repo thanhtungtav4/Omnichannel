@@ -28,7 +28,7 @@ export function SystemEvent({
     text,
     tone = 'idle',
 }: {
-    icon?: 'info' | 'assignment' | 'sent' | 'closed' | 'failed';
+    icon?: 'info' | 'assignment' | 'sent' | 'closed' | 'failed' | 'closed-success';
     text: string;
     tone?: 'idle' | 'ok' | 'danger';
 }) {

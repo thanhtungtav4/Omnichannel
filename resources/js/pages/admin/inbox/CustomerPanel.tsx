@@ -441,9 +441,9 @@ function ActivityTab({
 
     if (events.length === 0) {
         return (
-            <Empty className="border-0 py-12 text-sm text-muted-foreground">
+            <p className="py-12 text-center text-sm text-muted-foreground">
                 Chưa có hoạt động nào.
-            </Empty>
+            </p>
         );
     }
 
