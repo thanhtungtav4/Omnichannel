@@ -149,9 +149,11 @@ const PROVIDERS = [
     { value: 'ZALO_OA', label: 'Zalo OA' },
     { value: 'ZALO_PERSONAL', label: 'Zalo Personal (QR)' },
     { value: 'FACEBOOK', label: 'Facebook Messenger' },
+    { value: 'SHOPEE', label: 'Shopee Chat (VN)' },
 ] as const;
 
 // Credential fields shown per provider (matches ChannelAccountController).
+// Shopee uses OAuth — no fields here, the connect button drives the flow.
 const CREDENTIAL_FIELDS: Record<string, { key: string; label: string }[]> = {
     TELEGRAM: [{ key: 'bot_token', label: 'Bot token' }],
     ZALO_OA: [
@@ -165,6 +167,7 @@ const CREDENTIAL_FIELDS: Record<string, { key: string; label: string }[]> = {
         { key: 'app_secret', label: 'App secret' },
         { key: 'page_access_token', label: 'Page access token' },
     ],
+    SHOPEE: [],
 };
 
 function providerLabel(provider: string) {
@@ -172,7 +175,10 @@ function providerLabel(provider: string) {
 }
 
 function webhookHint(provider: string, base: string, id?: string) {
-    const path = provider === 'FACEBOOK' ? 'facebook' : provider === 'TELEGRAM' ? 'telegram' : 'zalo';
+    const path = provider === 'FACEBOOK' ? 'facebook'
+        : provider === 'TELEGRAM' ? 'telegram'
+        : provider === 'SHOPEE' ? 'shopee'
+        : 'zalo';
     return `${base}/${path}/${id ?? '{account-id}'}`;
 }
 
@@ -328,6 +334,13 @@ function setupSteps(channel: ChannelSummary) {
                 { label: 'Account created', done: true },
                 { label: 'Start the Node sidecar and log in by QR', done: connected },
                 { label: 'Send the nick a message to test', done: gotMessage },
+            ];
+        case 'SHOPEE':
+            return [
+                { label: 'Configure partner credentials in workspace settings', done: !!channel.shopId },
+                { label: 'Click Connect Shopee — OAuth round-trip', done: !!channel.shopId },
+                { label: 'Webhook URL registered on webhook.qrf.vn', done: !!channel.webhookUrl },
+                { label: 'Send the shop a message from Shopee buyer to test', done: gotMessage },
             ];
         default:
             return [];
@@ -486,6 +499,7 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
     const steps = setupSteps(channel);
     const isTelegram = channel.provider === 'TELEGRAM';
     const isPersonal = channel.provider === 'ZALO_PERSONAL';
+    const isShopee = channel.provider === 'SHOPEE';
 
     function register() {
         setRegistering(true);
@@ -515,6 +529,17 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                 </DialogHeader>
 
                 <div className="flex flex-col gap-4 py-2">
+                    {isShopee && channel.isReauthRequired && (
+                        <Alert className="[border-color:var(--status-danger-border)] [background-color:var(--status-danger-bg)]">
+                            <AlertTriangle />
+                            <AlertTitle>Reconnect required</AlertTitle>
+                            <AlertDescription>
+                                Shopee revoked or expired the connection. Click
+                                "Reconnect Shopee" below to run the OAuth flow again.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     <ol className="flex flex-col gap-2">
                         {steps.map((step, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm">
@@ -536,11 +561,33 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                             {channel.provider === 'FACEBOOK' && (
                                 <CopyRow label="Verify token" value={channel.verifyToken} />
                             )}
+                            {isShopee && (
+                                <>
+                                    <CopyRow label="Shop ID" value={channel.shopId?.toString() ?? null} />
+                                    <CopyRow label="Merchant ID" value={channel.merchantId ?? null} />
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <span className="text-muted-foreground">Token expires:</span>
+                                        <span className={
+                                            channel.accessTokenExpiresAt
+                                                ? 'font-medium'
+                                                : 'text-muted-foreground'
+                                        }>
+                                            {channel.accessTokenExpiresAt ?? 'unknown'}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
                             {isTelegram ? (
                                 <p className="text-xs text-muted-foreground">
                                     Telegram can register automatically, but the URL
                                     must be public HTTPS (use a tunnel like ngrok in
                                     local dev). Then click “Register webhook”.
+                                </p>
+                            ) : isShopee ? (
+                                <p className="text-xs text-muted-foreground">
+                                    The webhook URL is pre-registered. If Shopee ever
+                                    unregisters it (token expiry, etc.) the health
+                                    card will show REAUTH_REQUIRED.
                                 </p>
                             ) : (
                                 <p className="text-xs text-muted-foreground">
@@ -570,7 +617,14 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                     <Button variant="outline" onClick={() => setOpen(false)}>
                         Close
                     </Button>
-                    {!isPersonal && (
+                    {isShopee ? (
+                        <Button asChild>
+                            <a href="/admin/channels/shopee/connect">
+                                <Wand2 data-icon="inline-start" />
+                                {channel.isReauthRequired ? 'Reconnect Shopee' : 'Connect Shopee'}
+                            </a>
+                        </Button>
+                    ) : !isPersonal && (
                         <Button onClick={register} disabled={registering}>
                             <Wand2 data-icon="inline-start" />
                             {isTelegram ? 'Register webhook' : 'Mark ready'}

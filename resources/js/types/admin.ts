@@ -18,6 +18,11 @@ export type ChannelSummary = {
     lastError?: string | null;
     lastErrorCode?: string | null;
     lastErrorMessage?: string | null;
+    // Shopee Chat VN specific (specs/11 W4 health card).
+    shopId?: number | string | null;
+    merchantId?: string | null;
+    accessTokenExpiresAt?: string | null;
+    isReauthRequired?: boolean;
 };
 
 export type QueueSummary = {

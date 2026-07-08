@@ -374,25 +374,37 @@ class AdminController extends Controller
             'canManage' => in_array($request->user()->role, ['owner', 'admin'], true),
             'canDelete' => $request->user()->role === 'owner',
             'webhookBase' => url('/webhooks'),
-            'channels' => ChannelAccount::query()->where('workspace_id', $workspaceId)->latest()->get()->map(fn (ChannelAccount $account) => [
-                'id' => $account->id,
-                'provider' => $account->provider,
-                'name' => $account->name,
-                'status' => $account->status,
-                'webhookUrl' => $account->webhook_url,
-                // The public callback URL to paste into the provider dashboard.
-                'callbackUrl' => url('/webhooks/'.match ($account->provider) {
-                    'FACEBOOK' => 'facebook',
-                    'TELEGRAM' => 'telegram',
-                    default => 'zalo',
-                }.'/'.$account->id),
-                'verifyToken' => $account->webhook_secret,
-                'hasReceivedWebhook' => $account->last_webhook_at !== null,
-                'lastWebhookAt' => $account->last_webhook_at?->diffForHumans(),
-                'lastHealthCheckAt' => $account->last_health_check_at?->diffForHumans(),
-                'lastErrorCode' => $account->last_error_code,
-                'lastErrorMessage' => $account->last_error_message,
-            ]),
+            'channels' => ChannelAccount::query()->where('workspace_id', $workspaceId)->latest()->get()->map(function (ChannelAccount $account) {
+                $creds = $account->credentials ?? [];
+
+                return [
+                    'id' => $account->id,
+                    'provider' => $account->provider,
+                    'name' => $account->name,
+                    'status' => $account->status,
+                    'webhookUrl' => $account->webhook_url,
+                    // The public callback URL to paste into the provider dashboard.
+                    'callbackUrl' => url('/webhooks/'.match ($account->provider) {
+                        'FACEBOOK' => 'facebook',
+                        'TELEGRAM' => 'telegram',
+                        'SHOPEE' => 'shopee',
+                        default => 'zalo',
+                    }.'/'.$account->id),
+                    'verifyToken' => $account->webhook_secret,
+                    'hasReceivedWebhook' => $account->last_webhook_at !== null,
+                    'lastWebhookAt' => $account->last_webhook_at?->diffForHumans(),
+                    'lastHealthCheckAt' => $account->last_health_check_at?->diffForHumans(),
+                    'lastErrorCode' => $account->last_error_code,
+                    'lastErrorMessage' => $account->last_error_message,
+                    // Shopee-specific (spec 11 W4 health card).
+                    'shopId' => $account->provider === 'SHOPEE' ? ($creds['shop_id'] ?? null) : null,
+                    'merchantId' => $account->provider === 'SHOPEE' ? ($creds['merchant_id'] ?? null) : null,
+                    'accessTokenExpiresAt' => $account->provider === 'SHOPEE'
+                        ? (isset($creds['access_token_expires_at']) ? \Illuminate\Support\Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
+                        : null,
+                    'isReauthRequired' => $account->last_error_code === 'REAUTH_REQUIRED',
+                ];
+            }),
         ]);
     }
 
