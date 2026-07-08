@@ -75,3 +75,54 @@ Screen specs live in `specs/07_ADMIN_UI.md` (inventory, layout, component mappin
 - Every module needs focused feature tests for its public behavior and integration tests for cross-module contracts.
 - External provider integrations must have mocked webhook ingestion and outbound delivery tests.
 - Plans and specs must include module boundaries, public contracts, data ownership, events/jobs, permissions, UI entry points, and acceptance criteria.
+
+## gstack Skills (vendored)
+
+This repo vendors [gstack](https://github.com/garrytan/gstack) v1.58.5.0 — Garry
+Tan (YC CEO) open-sourced AI engineering workflow with 48 slash-command skills
+(CEO, Eng Manager, Designer, QA, CSO, Release Manager, etc.). Skills live at:
+
+- `.agents/skills/gstack-*/SKILL.md` — OpenCode + OpenClaw native
+- `.claude/skills/gstack-*/SKILL.md` — Claude Code native (kept in sync)
+
+### When to use gstack skills
+
+| You want to... | Invoke |
+|----------------|--------|
+| Validate a product idea before writing code | `/office-hours` |
+| Challenge scope ("too ambitious?") | `/plan-ceo-review` |
+| Lock architecture, data flow, edge cases | `/plan-eng-review` |
+| Review design before shipping | `/plan-design-review` |
+| Run full review pipeline | `/autoplan` |
+| Systematically QA a feature with real browser | `/qa` |
+| Audit security (OWASP + STRIDE) | `/cso` |
+| Generate production React/Inertia component from mockup | `/design-html` |
+| Author a backlog-ready spec/issue | `/spec` |
+| Debug systematically (no fixes without investigation) | `/investigate` |
+| Pre-PR: run tests, review, push, open PR | `/ship` |
+
+Full skill index: see `docs/gstack/SPRINT-WORKFLOW.md` and `CLAUDE.md` § Skill routing.
+
+### Vendored-mode caveats
+
+The skills reference gstack runtime binaries (`~/.claude/skills/gstack/bin/*`)
+which **do not exist** in this repo. Each vendored SKILL.md has a CRM preamble
+that explains this. Apply the methodology (phases, heuristics) using native
+tools (Read/Edit/Write/Bash/Grep) — skip the bash preamble.
+
+### Refreshing from upstream
+
+```bash
+bash scripts/update-gstack-skills.sh
+```
+
+### Principles (read `@ETHOS.md`)
+
+The 4 gstack principles apply on top of this file:
+
+1. **Boil the Ocean** — AI makes completeness cheap, do the complete thing.
+2. **Search Before Building** — Layer 1 (tried-and-true) + Layer 2 (popular) +
+   Layer 3 (first principles). Don't reinvent.
+3. **User Sovereignty** — AI recommends, user decides. Cross-model agreement is
+   signal, not mandate.
+4. **Build for Yourself** — real problem beats hypothetical.
