@@ -1,18 +1,14 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
-    AlertTriangle,
     InboxIcon,
     LoaderCircle,
+    MessageCircleX,
     RefreshCcw,
     Search,
+    UserRoundX,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-    Alert,
-    AlertDescription,
-    AlertTitle,
-} from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     CommandDialog,
@@ -45,6 +41,7 @@ import {
     ConversationRow,
     QueueSkeleton,
     QueueTabTrigger,
+    StatPill,
 } from './inbox/QueueParts';
 import { ThreadPanel } from './inbox/ThreadPanel';
 
@@ -64,6 +61,13 @@ export default function Inbox({
     const [transferTo, setTransferTo] = useState<string>('');
     const [query, setQuery] = useState('');
     const [tab, setTab] = useState<QueueTab>('all');
+    // Drill-down filter set by clicking a stat pill in the queue-header.
+    // 'unassigned' = conversations with no owner assigned. 'failed' = a
+    // pill reserved for per-conversation failed-message count (backend
+    // join not wired yet — for now clicking it surfaces a hint via toast).
+    const [statFilter, setStatFilter] = useState<'failed' | 'unassigned' | null>(
+        null,
+    );
     const [isRefreshing, setIsRefreshing] = useState(false);
     // Focus mode hides the queue + side panel so the thread gets the full width.
     const [focusMode, setFocusMode] = useState(false);
@@ -194,6 +198,12 @@ export default function Inbox({
                 (tab === 'waiting' && tabState.waiting) ||
                 (tab === 'priority' && tabState.priority);
             if (!matchesTab) return false;
+            // Stat-pill drill-down filter (orthogonal to tab).
+            // 'failed' requires per-conversation outbox data not yet wired
+            // to the queue — clicking it shows a toast instead of filtering.
+            if (statFilter === 'unassigned' && conversation.owner) {
+                return false;
+            }
             if (!normalizedQuery) return true;
             return [
                 conversation.contact?.name,
@@ -363,49 +373,68 @@ export default function Inbox({
                             "flex min-h-0 flex-col border-b lg:border-r lg:border-b-0 bg-muted/20",
                             showThread ? "hidden lg:flex" : "flex w-full"
                         )}>
-                            <div className="flex items-start justify-between gap-3 border-b p-3">
-                                <div className="min-w-0">
+                            <div className="flex items-center justify-between gap-2 border-b p-3">
+                                <div className="min-w-0 flex-1">
                                     <h1 className="truncate text-base font-semibold">
                                         Hộp thư
                                     </h1>
-                                    <p className="truncate text-sm text-muted-foreground">
-                                        {filteredConversations.length}/
-                                        {conversations.length} hội thoại
+                                    <p className="truncate text-xs text-muted-foreground tabular-nums">
+                                        {stats.open}/{conversations.length} mở · {stats.waitingAgent} chờ
                                     </p>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-11 sm:size-9"
-                                    onClick={refreshNow}
-                                    aria-label="Làm mới"
-                                    disabled={isRefreshing}
-                                >
-                                    {isRefreshing ? (
-                                        <LoaderCircle data-icon="icon" />
-                                    ) : (
-                                        <RefreshCcw data-icon="icon" />
-                                    )}
-                                </Button>
+                                <div className="flex items-center gap-0.5">
+                                    <StatPill
+                                        icon={MessageCircleX}
+                                        count={stats.failedOutbox}
+                                        tone="danger"
+                                        pulse
+                                        label="Tin nhắn gửi đi lỗi — bấm để xem"
+                                        active={statFilter === 'failed'}
+                                        onClick={() => {
+                                            if (stats.failedOutbox === 0) return;
+                                            // Per-conversation failed-message data isn't
+                                            // wired to the queue yet. Surface a hint and
+                                            // keep the existing failedOutbox count visible
+                                            // for ops to dig via OPS_WEBHOOKS.md.
+                                            toast.error(
+                                                `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
+                                                { duration: 5000 },
+                                            );
+                                        }}
+                                    />
+                                    <StatPill
+                                        icon={UserRoundX}
+                                        count={stats.unassigned}
+                                        tone="warn"
+                                        label="Chưa gán nhân viên — bấm để lọc"
+                                        active={statFilter === 'unassigned'}
+                                        onClick={() =>
+                                            setStatFilter((current) =>
+                                                current === 'unassigned'
+                                                    ? null
+                                                    : 'unassigned',
+                                            )
+                                        }
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-8"
+                                        onClick={refreshNow}
+                                        aria-label="Làm mới"
+                                        disabled={isRefreshing}
+                                    >
+                                        {isRefreshing ? (
+                                            <LoaderCircle className="size-3.5" />
+                                        ) : (
+                                            <RefreshCcw className="size-3.5" />
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="flex flex-col gap-3 border-b p-3">
-                                {(stats.failedOutbox > 0 || stats.unassigned > 0) && (
-                                    <Alert className="shrink-0 py-2 [background-color:var(--status-danger-bg)] [color:var(--status-danger-fg)] [border-color:var(--status-danger-border)]">
-                                        <AlertTriangle className="size-4" />
-                                        <AlertTitle className="text-xs font-semibold">Cần xử lý</AlertTitle>
-                                        <AlertDescription className="text-xs">
-                                            {stats.failedOutbox > 0 && (
-                                                <span>{stats.failedOutbox} tin gửi lỗi. </span>
-                                            )}
-                                            {stats.unassigned > 0 && (
-                                                <span>{stats.unassigned} cuộc chưa gán.</span>
-                                            )}
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
                                 <InputGroup>
                                     <InputGroupInput
                                         value={query}
@@ -458,36 +487,6 @@ export default function Inbox({
                                         />
                                     </TabsList>
                                 </Tabs>
-
-                                <div className="flex items-center justify-between gap-1.5 text-xs select-none">
-                                    <span className="flex items-center gap-1 rounded border px-2 py-0.5 [background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]" title="Tổng số hội thoại đang mở">
-                                        Mở: <strong className="font-semibold">{stats.open}</strong>
-                                    </span>
-                                    <span className={cn(
-                                        "flex items-center gap-1 rounded border px-2 py-0.5",
-                                        stats.waitingAgent > 0
-                                            ? "[background-color:var(--status-info-bg)] [color:var(--status-info-fg)] [border-color:var(--status-info-border)]"
-                                            : "[background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]"
-                                    )} title="Hội thoại chờ nhân viên trả lời">
-                                        Chờ: <strong className="font-semibold">{stats.waitingAgent}</strong>
-                                    </span>
-                                    <span className={cn(
-                                        "flex items-center gap-1 rounded border px-2 py-0.5",
-                                        stats.unassigned > 0
-                                            ? "[background-color:var(--status-warn-bg)] [color:var(--status-warn-fg)] [border-color:var(--status-warn-border)] font-medium"
-                                            : "[background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]"
-                                    )} title="Hội thoại chưa gán cho ai">
-                                        Chưa gán: <strong className="font-semibold">{stats.unassigned}</strong>
-                                    </span>
-                                    <span className={cn(
-                                        "flex items-center gap-1 rounded border px-2 py-0.5",
-                                        stats.failedOutbox > 0
-                                            ? "[background-color:var(--status-danger-bg)] [color:var(--status-danger-fg)] [border-color:var(--status-danger-border)] font-bold animate-pulse"
-                                            : "[background-color:var(--status-idle-bg)] [color:var(--status-idle-fg)] [border-color:var(--status-idle-border)]"
-                                    )} title="Tin nhắn gửi đi gặp lỗi">
-                                        Lỗi: <strong className="font-semibold">{stats.failedOutbox}</strong>
-                                    </span>
-                                </div>
                             </div>
 
                             <ScrollArea className="min-h-0 flex-1">

@@ -1,7 +1,13 @@
 import { Link } from '@inertiajs/react';
+import {
+    MessageCircleX,
+    type LucideIcon,
+    UserRoundX,
+} from 'lucide-react';
 import { StatusBadge, StatusDot } from '@/components/admin/status-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -70,6 +76,75 @@ export function QueueSkeleton() {
         </div>
     );
 }
+
+/**
+ * Compact stat pill (icon + tabular count) for the queue-header strip.
+ * Operator-scan design: no label, full meaning on tooltip / aria-label.
+ * Color = semantic status (danger / warn / info / idle / ok).
+ *
+ * When `active` is true the pill is rendered as a filled background to show
+ * the current drill-down filter.
+ */
+export function StatPill({
+    icon: Icon,
+    count,
+    tone,
+    label,
+    active = false,
+    onClick,
+    pulse = false,
+}: {
+    icon: LucideIcon;
+    count: number;
+    tone: 'ok' | 'warn' | 'danger' | 'info' | 'idle';
+    label: string;
+    active?: boolean;
+    onClick?: () => void;
+    pulse?: boolean;
+}) {
+    // The base visual style: icon + bold number, mono font for tabular nums.
+    // Hover/active adds a soft background to indicate clickability.
+    const toneColor = `var(--status-${tone}-fg)`;
+    const toneBg = `var(--status-${tone}-bg)`;
+    const toneBorder = `var(--status-${tone}-border)`;
+
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClick}
+            title={label}
+            aria-label={label}
+            aria-pressed={active}
+            className={cn(
+                'h-auto gap-1.5 rounded-md px-2 py-1 [font-family:var(--font-mono)] [font-variant-numeric:tabular-nums] text-[11px]',
+                'transition-colors',
+                // Idle tone is muted; colored tones light up their value.
+                count === 0 && 'opacity-50',
+                active && 'border',
+            )}
+            style={{
+                color: count > 0 ? toneColor : undefined,
+                backgroundColor: active ? toneBg : undefined,
+                borderColor: active ? toneBorder : undefined,
+            }}
+        >
+            <Icon
+                className={cn(
+                    'size-3 stroke-[2.25]',
+                    pulse && count > 0 && 'animate-pulse',
+                )}
+                aria-hidden
+            />
+            <strong className="text-[11px] font-bold leading-none">
+                {count}
+            </strong>
+        </Button>
+    );
+}
+
+export { MessageCircleX, UserRoundX };
 
 export function ConversationRow({
     conversation,
