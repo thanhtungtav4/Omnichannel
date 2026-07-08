@@ -94,7 +94,7 @@ export default function Overview({
                             Operations cockpit
                         </h1>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                         <Button asChild variant="outline">
                             <Link href="/admin/inbox">
                                 <MessageSquareText data-icon="inline-start" />

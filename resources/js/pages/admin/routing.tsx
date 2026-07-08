@@ -102,7 +102,7 @@ export default function Routing({ queues }: RoutingProps) {
                                     </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                                     <Badge variant="outline">
                                         <ShieldCheck className="size-3" />
                                         Online required:{' '}

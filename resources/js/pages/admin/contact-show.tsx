@@ -249,7 +249,7 @@ export default function ContactShow({
                         <h1 className="truncate text-2xl font-semibold tracking-tight">
                             {contact.name}
                         </h1>
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                             <StatusBadge status={contact.status} />
                             <StatusBadge status={contact.source} />
                             <span>Owner: {contact.owner ?? 'Unassigned'}</span>

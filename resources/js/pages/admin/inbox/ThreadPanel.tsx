@@ -395,7 +395,7 @@ return allMessages;
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     {/* SLA countdown pill — visible on every open conversation
                         so the operator can see at a glance whether they're
                         tracking against the first-response SLA. */}
