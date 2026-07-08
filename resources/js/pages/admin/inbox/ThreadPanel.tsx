@@ -52,9 +52,7 @@ import {
 import {
     InputGroup,
     InputGroupAddon,
-    InputGroupButton,
     InputGroupInput,
-    InputGroupTextarea,
 } from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -73,6 +71,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, AgentOption } from '@/types';
 import {
@@ -764,91 +763,92 @@ return allMessages;
                                         </>
                                     )}
                                 </FieldLabel>
-                                <InputGroup className="items-stretch">
-                                    <InputGroupTextarea
-                                        id="reply-body"
-                                        name="body"
-                                        rows={3}
-                                        value={replyBody}
-                                        onChange={(event) =>
-                                            onReplyBodyChange(event.target.value)
-                                        }
-                                        onKeyDown={(event) => {
-                                            // Enter sends; Shift+Enter newline. Don't
-                                            // send while the "/" template picker is open.
-                                            if (
-                                                event.key === 'Enter' &&
-                                                !event.shiftKey &&
-                                                !event.nativeEvent.isComposing &&
-                                                !replyBody.startsWith('/')
-                                            ) {
-                                                event.preventDefault();
+                                <Textarea
+                                    id="reply-body"
+                                    name="body"
+                                    rows={3}
+                                    value={replyBody}
+                                    onChange={(event) =>
+                                        onReplyBodyChange(event.target.value)
+                                    }
+                                    onKeyDown={(event) => {
+                                        // Enter sends; Shift+Enter newline. Don't
+                                        // send while the "/" template picker is open.
+                                        if (
+                                            event.key === 'Enter' &&
+                                            !event.shiftKey &&
+                                            !event.nativeEvent.isComposing &&
+                                            !replyBody.startsWith('/')
+                                        ) {
+                                            event.preventDefault();
 
-                                                if (
-                                                    replyBody.trim() &&
-                                                    !replyProcessing
-                                                ) {
-                                                    onSubmitReply(
-                                                        event as unknown as FormEvent,
-                                                    );
-                                                }
+                                            if (
+                                                replyBody.trim() &&
+                                                !replyProcessing
+                                            ) {
+                                                onSubmitReply(
+                                                    event as unknown as FormEvent,
+                                                );
                                             }
-                                        }}
-                                        aria-invalid={!!replyError}
-                                        placeholder={
-                                            composerMode === 'comment'
-                                                ? 'Ghi chú cho đồng nghiệp — không gửi cho khách'
-                                                : 'Nhập tin — Enter gửi, Shift+Enter xuống dòng'
                                         }
-                                    />
-                                    <InputGroupAddon align="inline-end">
-                                        {composerMode === 'reply' && (
-                                            <InputGroupButton
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon-xs"
-                                                className="size-11 sm:size-6"
-                                                onClick={() =>
-                                                    fileInputRef.current?.click()
-                                                }
-                                                aria-label="Đính kèm ảnh"
-                                            >
-                                                <ImagePlus />
-                                            </InputGroupButton>
-                                        )}
-                                        <InputGroupButton
+                                    }}
+                                    aria-invalid={!!replyError}
+                                    placeholder={
+                                        composerMode === 'comment'
+                                            ? 'Ghi chú cho đồng nghiệp — không gửi cho khách'
+                                            : 'Nhập tin — Enter gửi, Shift+Enter xuống dòng (gõ / để chèn mẫu)'
+                                    }
+                                    className="min-h-[76px] w-full resize-none"
+                                />
+                                {/* Composer bar (mockup): icon actions left, send right. */}
+                                <div className="flex items-center gap-1">
+                                    {composerMode === 'reply' && (
+                                        <Button
                                             type="button"
                                             variant="ghost"
-                                            size="icon-xs"
-                                            className="size-11 sm:size-6"
+                                            size="icon"
+                                            className="size-8 text-muted-foreground"
                                             onClick={() =>
-                                                setShowEmoji((v) => !v)
+                                                fileInputRef.current?.click()
                                             }
-                                            aria-label="Chèn emoji"
+                                            aria-label="Đính kèm ảnh"
                                         >
-                                            <Smile />
-                                        </InputGroupButton>
-                                        <InputGroupButton
-                                            type="submit"
-                                            className="min-h-11 sm:min-h-0"
-                                            disabled={
-                                                replyProcessing ||
-                                                (!replyBody.trim() &&
-                                                    (composerMode === 'comment' ||
-                                                        !replyImage))
-                                            }
-                                        >
-                                            {replyProcessing ? (
-                                                <LoaderCircle data-icon="inline-start" />
-                                            ) : (
-                                                <Send data-icon="inline-start" />
-                                            )}
-                                            {composerMode === 'comment'
-                                                ? 'Lưu ghi chú'
-                                                : 'Gửi'}
-                                        </InputGroupButton>
-                                    </InputGroupAddon>
-                                </InputGroup>
+                                            <ImagePlus />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-8 text-muted-foreground"
+                                        onClick={() => setShowEmoji((v) => !v)}
+                                        aria-label="Chèn emoji"
+                                    >
+                                        <Smile />
+                                    </Button>
+                                    <div className="flex-1" />
+                                    <span className="[font-family:var(--font-mono)] hidden text-[11px] text-muted-foreground sm:inline">
+                                        Enter ↵
+                                    </span>
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            replyProcessing ||
+                                            (!replyBody.trim() &&
+                                                (composerMode === 'comment' ||
+                                                    !replyImage))
+                                        }
+                                    >
+                                        {replyProcessing ? (
+                                            <LoaderCircle data-icon="inline-start" />
+                                        ) : (
+                                            <Send data-icon="inline-start" />
+                                        )}
+                                        {composerMode === 'comment'
+                                            ? 'Lưu ghi chú'
+                                            : 'Gửi'}
+                                    </Button>
+                                </div>
                                 {replyError ? (
                                     <FieldDescription>
                                         {replyError}
