@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -38,6 +39,12 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'workspace' => (function () {
+                $ws = app(CurrentWorkspace::class)->get();
+
+                return $ws ? ['name' => $ws->name, 'slug' => $ws->slug] : null;
+            })(),
+            'tenantDomain' => config('tenant.domain'),
             'auth' => [
                 'user' => $request->user(),
             ],

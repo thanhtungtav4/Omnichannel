@@ -677,7 +677,6 @@ export default function Inbox({
                                     replyProcessing={replyForm.processing}
                                     composerMode={composerMode}
                                     onComposerModeChange={setComposerMode}
-                                    transferTo={transferTo}
                                     onReplyBodyChange={(body) =>
                                         replyForm.setData('body', body)
                                     }

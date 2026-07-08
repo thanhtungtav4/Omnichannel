@@ -1,16 +1,18 @@
 import { Link } from '@inertiajs/react';
 import {
     Activity,
-    ContactRound,
-    KanbanSquare,
+    Briefcase,
+    Inbox,
     LayoutDashboard,
-    MessageSquareText,
-    RadioTower,
+    Plug,
     Route,
     Settings,
+    Target,
+    Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavMain } from '@/components/nav-main';
+import { NavMain  } from '@/components/nav-main';
+import type {NavSection} from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
@@ -21,43 +23,33 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const navSections: NavSection[] = [
     {
-        title: 'Overview',
-        href: '/admin',
-        icon: LayoutDashboard,
+        label: 'Tổng quan',
+        items: [
+            { title: 'Tổng quan', href: '/admin', icon: LayoutDashboard },
+            { title: 'Hộp thư', href: '/admin/inbox', icon: Inbox },
+        ],
     },
     {
-        title: 'Inbox',
-        href: '/admin/inbox',
-        icon: MessageSquareText,
+        label: 'CRM',
+        items: [
+            { title: 'Khách hàng', href: '/admin/contacts', icon: Users },
+            { title: 'Cơ hội', href: '/admin/leads', icon: Briefcase },
+            { title: 'Deal', href: '/admin/leads', icon: Target },
+        ],
     },
     {
-        title: 'Contacts',
-        href: '/admin/contacts',
-        icon: ContactRound,
+        label: 'Vận hành',
+        items: [
+            { title: 'Phân bổ', href: '/admin/routing', icon: Route },
+            { title: 'Kênh', href: '/admin/channels', icon: Plug },
+        ],
     },
     {
-        title: 'Leads',
-        href: '/admin/leads',
-        icon: KanbanSquare,
-    },
-    {
-        title: 'Channels',
-        href: '/admin/channels',
-        icon: RadioTower,
-    },
-    {
-        title: 'Routing',
-        href: '/admin/routing',
-        icon: Route,
-    },
-    {
-        title: 'Settings',
-        href: '/settings/profile',
-        icon: Settings,
+        label: 'Hệ thống',
+        items: [{ title: 'Cài đặt', href: '/settings/profile', icon: Settings }],
     },
 ];
 
@@ -77,7 +69,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain sections={navSections} />
             </SidebarContent>
 
             <SidebarFooter>
