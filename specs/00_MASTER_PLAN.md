@@ -6,6 +6,12 @@
 > and adds message/contact fields + `sdk_limits`. Where it conflicts with
 > earlier specs, spec 10 wins. ZaloCRM is a feature reference only (AGPL - do
 > not copy code).
+>
+> **Next connector (cut 1, August 2026): `specs/11_SHOPEE_CHAT_VN.md`.**
+> Adds Shopee Chat (VN region only, chat scope only) on top of spec 10's
+> adapter-registry pattern. Provider enum extended with `SHOPEE` and a
+> reserved `TIKTOK_SHOP` placeholder. No architecture changes — purely an
+> adapter + new webhook path + OAuth round-trip.
 
 ## Vision
 
@@ -23,6 +29,11 @@ Build a modular Laravel CRM with a Bitrix24-like contact-center core: customer r
 - `07_ADMIN_UI.md`: shadcn-based screen inventory, layout, table/filter/action behavior, and realtime states.
 - `08_RBAC.md`: role matrix, policies, sensitive configuration rules, and audit requirements.
 - `09_TEST_RUNBOOK.md`: implementation phases, test matrix, local runbook, and release-readiness checklist.
+- `10_OMNICHANNEL_SUPPORT_PLAN.md`: sidecar-based Zalo personal + Facebook connectors, adapter-registry refactor, dedup/media rules.
+- `11_SHOPEE_CHAT_VN.md`: Shopee Open Platform v2 (VN region) chat connector — adapter contract, OAuth flow, HMAC verification, idempotency, retry policy, milestones through August 2026.
+- `12_SHOPEE_CHAT_VN_READINESS.md`: project-management companion to spec 11 — locked decision log, DoD per milestone, estimate breakdown, go/no-go gates, project risk register, rollout plan, support model, success metrics. Use this to drive Shopee cut 1 from "ready to code" to "ready to ship".
+- `13_TIKTOK_SHOP_VN.md`: TikTok Shop Partner API (VN region, chat only, NEW_MESSAGE webhook) connector — adapter contract, OAuth flow, HMAC verification, idempotency, retry policy, milestones through August 2026 (parallel to Shopee cut 1). Two W1 spikes required: auth model + signature scheme.
+- `14_TIKTOK_SHOP_READINESS.md`: PM companion to spec 13 — same shape as spec 12. Decision log, DoD per milestone, estimate breakdown (~20 dev-days, mostly pattern-reuse from Shopee), go/no-go gates, project risk register, rollout plan.
 
 ## Non-Negotiable Architecture
 

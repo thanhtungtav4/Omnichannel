@@ -1,0 +1,2901 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup Inbox — CRM Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+/* ── Tokens (mirror .ui-craft/tokens.css) ─────────────────────────────── */
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --background:        oklch(98.5% 0.003 250);
+  --foreground:        oklch(20%   0.010 250);
+  --card:              oklch(100%  0     0);
+  --card-foreground:   oklch(20%   0.010 250);
+  --popover:           oklch(100%  0     0);
+  --popover-foreground:oklch(20%   0.010 250);
+  --primary:           oklch(52%   0.16  250);
+  --primary-foreground:oklch(99%   0     0);
+  --secondary:         oklch(96%   0.004 250);
+  --secondary-foreground:oklch(28%   0.010 250);
+  --muted:             oklch(96.5% 0.004 250);
+  --muted-foreground:  oklch(50%   0.010 250);
+  --accent:            oklch(96%   0.006 250);
+  --accent-foreground: oklch(28%   0.010 250);
+  --destructive:       oklch(55%   0.20  25);
+  --destructive-foreground: oklch(99% 0    0);
+  --border:            oklch(90%   0.005 250);
+  --input:             oklch(90%   0.005 250);
+  --ring:              oklch(52%   0.16  250);
+  --radius:            0.5rem;
+
+  --status-ok-bg:        oklch(95%  0.04 150);
+  --status-ok-fg:        oklch(48%  0.15 150);
+  --status-ok-border:    oklch(72%  0.16 150);
+  --status-warn-bg:      oklch(96%  0.05 75);
+  --status-warn-fg:      oklch(52%  0.13 75);
+  --status-warn-border:  oklch(76%  0.15 75);
+  --status-danger-bg:    oklch(96%  0.04 25);
+  --status-danger-fg:    oklch(52%  0.20 25);
+  --status-danger-border:oklch(70%  0.19 25);
+  --status-info-bg:      oklch(95%  0.04 250);
+  --status-info-fg:      oklch(50%  0.15 250);
+  --status-info-border:  oklch(70%  0.15 250);
+  --status-idle-bg:      oklch(96%  0.004 250);
+  --status-idle-fg:      oklch(50%   0.010 250);
+  --status-idle-border:  oklch(85%   0.006 250);
+
+  --channel-telegram:    oklch(60% 0.13 235);
+  --channel-zalo:        oklch(58% 0.15 250);
+  --channel-facebook:    oklch(58% 0.15 285);
+
+  --row-height:          40px;
+  --sidebar-width:       240px;
+  --topbar-height:       56px;
+  --content-pad:         1rem;
+  --status-dot:          6px;
+}
+.dark {
+  --background:        oklch(16%   0.008 250);
+  --foreground:        oklch(96%  0.006 250);
+  --card:              oklch(20%   0.009 250);
+  --card-foreground:   oklch(96%  0.006 250);
+  --popover:           oklch(22%   0.010 250);
+  --popover-foreground:oklch(96%  0.006 250);
+  --primary:           oklch(65%   0.14  250);
+  --primary-foreground:oklch(16%   0.008 250);
+  --secondary:         oklch(26%   0.008 250);
+  --secondary-foreground:oklch(92%  0.006 250);
+  --muted:             oklch(24%   0.007 250);
+  --muted-foreground:  oklch(66%   0.010 250);
+  --accent:            oklch(28%   0.008 250);
+  --accent-foreground: oklch(92%   0.006 250);
+  --destructive:       oklch(62%   0.18  25);
+  --destructive-foreground: oklch(98% 0    0);
+  --border:            oklch(100%  0     0 / 0.10);
+  --input:             oklch(100%  0     0 / 0.12);
+  --ring:              oklch(65%   0.14  250);
+
+  --status-ok-bg:        oklch(30%  0.06 150 / 0.4);
+  --status-ok-fg:        oklch(78%  0.15 150);
+  --status-ok-border:    oklch(55%  0.14 150);
+  --status-warn-bg:      oklch(32%  0.07 75 / 0.4);
+  --status-warn-fg:      oklch(82%  0.14 75);
+  --status-warn-border:  oklch(60%  0.14 75);
+  --status-danger-bg:    oklch(32%  0.08 25 / 0.4);
+  --status-danger-fg:    oklch(75%  0.18 25);
+  --status-danger-border:oklch(58%  0.17 25);
+  --status-info-bg:      oklch(30%  0.07 250 / 0.4);
+  --status-info-fg:      oklch(78%  0.14 250);
+  --status-info-border:  oklch(58%  0.14 250);
+  --status-idle-bg:      oklch(26%  0.006 250);
+  --status-idle-fg:      oklch(66%  0.010 250);
+  --status-idle-border:  oklch(38%  0.008 250);
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ── Utility classes (subset of Tailwind, hand-rolled) ─────────────── */
+.flex { display: flex; }
+.grid { display: grid; }
+.hidden { display: none; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.flex-1 { flex: 1 1 0%; min-width: 0; }
+.min-w-0 { min-width: 0; }
+.gap-1 { gap: 4px; } .gap-1\.5 { gap: 6px; } .gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-6 { gap: 24px; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.relative { position: relative; }
+.absolute { position: absolute; }
+.sticky { position: sticky; }
+.fixed { position: fixed; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.top-0 { top: 0; }
+.right-0 { right: 0; }
+.left-0 { left: 0; }
+.z-10 { z-index: 10; } .z-20 { z-index: 20; } .z-50 { z-index: 50; }
+.h-full { height: 100%; } .h-screen { height: 100vh; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+.overflow-x-hidden { overflow-x: hidden; }
+.rounded { border-radius: var(--radius); }
+.rounded-sm { border-radius: calc(var(--radius) - 2px); }
+.rounded-md { border-radius: calc(var(--radius) - 1px); }
+.rounded-lg { border-radius: var(--radius); }
+.rounded-full { border-radius: 9999px; }
+.rounded-tl-md { border-top-left-radius: calc(var(--radius) - 1px); }
+.rounded-tr-md { border-top-right-radius: calc(var(--radius) - 1px); }
+.rounded-bl-sm { border-bottom-left-radius: calc(var(--radius) - 4px); }
+.rounded-br-sm { border-bottom-right-radius: calc(var(--radius) - 4px); }
+.border { border: 1px solid var(--border); }
+.border-b { border-bottom: 1px solid var(--border); }
+.border-r { border-right: 1px solid var(--border); }
+.border-l { border-left: 1px solid var(--border); }
+.border-t { border-top: 1px solid var(--border); }
+.border-l-4 { border-left: 4px solid; }
+.bg-background { background: var(--background); }
+.bg-card { background: var(--card); }
+.bg-muted { background: var(--muted); }
+.bg-muted\/20 { background: color-mix(in oklab, var(--muted) 20%, transparent); }
+.bg-muted\/40 { background: color-mix(in oklab, var(--muted) 40%, transparent); }
+.bg-primary { background: var(--primary); }
+.bg-primary\/5 { background: color-mix(in oklab, var(--primary) 5%, transparent); }
+.text-foreground { color: var(--foreground); }
+.text-muted-foreground { color: var(--muted-foreground); }
+.text-primary-foreground { color: var(--primary-foreground); }
+.text-primary { color: var(--primary); }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.text-xs { font-size: 11px; } .text-sm { font-size: 13px; } .text-base { font-size: 14px; }
+.text-lg { font-size: 16px; } .text-xl { font-size: 20px; }
+.uppercase { text-transform: uppercase; }
+.tracking-wide { letter-spacing: 0.04em; }
+.tabular-nums { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whitespace-pre-wrap { white-space: pre-wrap; }
+.text-center { text-align: center; }
+.cursor-pointer { cursor: pointer; }
+.select-none { user-select: none; }
+.shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+.shadow-md { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.08); }
+.transition-all { transition: all 0.15s ease; }
+.hover\:bg-muted:hover { background: var(--muted); }
+.hover\:bg-accent:hover { background: var(--accent); }
+.hover\:bg-background\/40:hover { background: color-mix(in oklab, var(--background) 40%, transparent); }
+.focus-visible\:outline-none:focus-visible { outline: none; }
+.focus-visible\:ring-2:focus-visible { box-shadow: 0 0 0 2px var(--ring); }
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* ── App shell ────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100vh;
+  background: var(--background);
+}
+.app-sidebar {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-brand {
+  display: flex; align-items: center; gap: 10px;
+  height: var(--topbar-height);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.app-brand-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--primary);
+  display: grid; place-items: center;
+  color: var(--primary-foreground);
+  font-weight: 700; font-size: 14px;
+}
+.app-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.app-brand-name { font-weight: 600; font-size: 13px; }
+.app-brand-sub { font-size: 11px; color: var(--muted-foreground); }
+
+.nav-section { padding: 12px 8px; }
+.nav-section-title {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  padding: 4px 8px 8px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; color: var(--foreground);
+  cursor: pointer;
+  margin-bottom: 1px;
+}
+.nav-item:hover { background: var(--muted); }
+.nav-item.active { background: var(--accent); color: var(--accent-foreground); font-weight: 500; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.nav-item .nav-badge.danger {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+  border: 1px solid var(--status-danger-border);
+}
+
+/* ── Topbar ───────────────────────────────────────────────────────── */
+.topbar {
+  height: var(--topbar-height);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  background: var(--card);
+}
+.topbar-tenant {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+.topbar-tenant-avatar {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  display: grid; place-items: center;
+  font-size: 10px; font-weight: 700;
+}
+.topbar-search {
+  flex: 0 1 360px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.topbar-search .kbd {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+.topbar-spacer { flex: 1; }
+.topbar-icons { display: flex; align-items: center; gap: 4px; }
+.topbar-icon-btn {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.topbar-icon-btn:hover { background: var(--muted); color: var(--foreground); }
+.topbar-icon-btn .dot {
+  position: absolute; top: 7px; right: 7px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--status-danger-fg);
+  box-shadow: 0 0 0 2px var(--card);
+}
+.topbar-presence {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid var(--status-ok-border);
+  background: var(--status-ok-bg);
+  color: var(--status-ok-fg);
+  font-weight: 500;
+}
+.topbar-presence .pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--status-ok-fg);
+  box-shadow: 0 0 0 0 var(--status-ok-fg);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--status-ok-fg) 50%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.topbar-user {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px 4px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.topbar-user:hover { background: var(--muted); }
+.topbar-user-name { font-size: 13px; font-weight: 500; }
+.topbar-user-role { font-size: 11px; color: var(--muted-foreground); }
+
+/* ── Inbox main area ─────────────────────────────────────────────── */
+.inbox-wrap {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+  gap: 12px;
+}
+.inbox-shell {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr) 340px;
+  flex: 1; min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+}
+.inbox-shell.focus-mode {
+  grid-template-columns: 380px minmax(0, 1fr);
+}
+
+/* ── Queue pane ───────────────────────────────────────────────────── */
+.queue-pane {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: color-mix(in oklab, var(--muted) 25%, transparent);
+  border-right: 1px solid var(--border);
+}
+.queue-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.queue-title-block { flex: 1; min-width: 0; }
+.queue-title { font-size: 14px; font-weight: 600; }
+.queue-subtitle { font-size: 12px; color: var(--muted-foreground); }
+.icon-btn {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--muted); color: var(--foreground); }
+.icon-btn.icon-btn-sm { width: 26px; height: 26px; }
+.queue-filters {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+/* Queue header — alert bell w/ dot badge (replaces inline .queue-alert block) */
+.queue-header .icon-btn { position: relative; }
+.queue-header .icon-btn.alert-btn { color: var(--status-danger-fg); border-color: var(--status-danger-border); background: var(--status-danger-bg); }
+.queue-header .icon-btn.alert-btn:hover { background: color-mix(in oklab, var(--status-danger-bg) 70%, var(--card)); }
+.alert-dot {
+  position: absolute; top: -3px; right: -3px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--status-danger-fg);
+  color: var(--status-danger-bg);
+  font-size: 10px; font-weight: 700;
+  display: grid; place-items: center;
+  border: 2px solid color-mix(in oklab, var(--muted) 25%, transparent);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+/* Toast stack — bottom-right, Sonner-style */
+.toast-stack {
+  position: fixed; bottom: 16px; right: 16px;
+  display: flex; flex-direction: column-reverse; gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 360px;
+}
+/* On mobile, push toast above the bottom navigation (~64px high + safe area) */
+@media (max-width: 767px) {
+  .toast-stack {
+    left: 12px; right: 12px;
+    max-width: none;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--status-danger-border);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  font-size: 12px;
+  color: var(--foreground);
+  animation: toast-in .25s cubic-bezier(.2,.8,.2,1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.toast::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--status-danger-fg);
+}
+.toast:hover { background: var(--muted); }
+.toast-icon {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 6px;
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+}
+.toast-body { flex: 1; min-width: 0; }
+.toast-title { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.toast-row { color: var(--muted-foreground); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+.toast-row .link { color: var(--status-danger-fg); font-weight: 600; cursor: pointer; }
+.toast-row .link:hover { text-decoration: underline; }
+.toast-close {
+  flex-shrink: 0; width: 20px; height: 20px;
+  display: grid; place-items: center;
+  border: 0; background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer; border-radius: 4px;
+}
+.toast-close:hover { background: var(--muted); color: var(--foreground); }
+.toast-progress {
+  position: absolute; left: 0; bottom: 0; height: 2px;
+  background: var(--status-danger-fg);
+  opacity: .5;
+  animation: toast-progress 8s linear forwards;
+}
+.toast.dismissing { animation: toast-out .2s cubic-bezier(.4,0,1,1) forwards; }
+@keyframes toast-in {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes toast-out {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
+}
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.search-input {
+  height: 32px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+}
+.search-input input {
+  flex: 1; min-width: 0;
+  background: transparent; border: 0; outline: 0;
+  font-size: 13px;
+}
+.search-input .kbd {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px; border: 1px solid var(--border);
+  border-radius: 3px; color: var(--muted-foreground);
+  background: var(--background);
+}
+.tablist {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.tab {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 5px 8px;
+  font-size: 12px; font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  border: 0; background: transparent;
+}
+.tab[data-active="true"] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+.tab .count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.stat-strip {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.stat {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+.stat.ok { background: var(--status-ok-bg); border-color: var(--status-ok-border); color: var(--status-ok-fg); }
+.stat.warn { background: var(--status-warn-bg); border-color: var(--status-warn-border); color: var(--status-warn-fg); font-weight: 500; }
+.stat.danger { background: var(--status-danger-bg); border-color: var(--status-danger-border); color: var(--status-danger-fg); font-weight: 600; }
+.stat.danger.anim { animation: pulse-anim 1.5s infinite; }
+@keyframes pulse-anim { 50% { opacity: 0.6; } }
+.stat strong { font-weight: 700; }
+
+/* ── Conversation row ─────────────────────────────────────────────── */
+.conv-list { flex: 1; min-height: 0; overflow-y: auto; }
+.conv-row {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 14px 12px 10px;
+  border-bottom: 1px solid var(--border);
+  border-left: 4px solid transparent;
+  cursor: pointer;
+  position: relative;
+}
+.conv-row:hover { background: var(--background); }
+.conv-row.active {
+  background: var(--background);
+  border-left-color: var(--primary);
+  box-shadow: inset 1px 0 0 var(--primary);
+}
+.conv-row.unanswered { background: color-mix(in oklab, var(--primary) 5%, transparent); }
+.conv-row-head { display: flex; align-items: flex-start; gap: 10px; }
+.conv-avatar-wrap { position: relative; flex-shrink: 0; }
+.avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 600;
+  overflow: hidden;
+  position: relative;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar.lg { width: 56px; height: 56px; font-size: 18px; }
+.unread-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 10px; font-weight: 700;
+  display: grid; place-items: center;
+  box-shadow: 0 0 0 2px var(--card);
+  font-family: var(--font-mono);
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: 1px solid;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.status-dot.ok { background: var(--status-ok-fg); border-color: var(--status-ok-border); }
+.status-dot.warn { background: var(--status-warn-fg); border-color: var(--status-warn-border); }
+.status-dot.danger { background: var(--status-danger-fg); border-color: var(--status-danger-border); }
+.status-dot.info { background: var(--status-info-fg); border-color: var(--status-info-border); }
+.status-dot.idle { background: var(--status-idle-fg); border-color: var(--status-idle-border); }
+.conv-row-name-block { flex: 1; min-width: 0; }
+.conv-row-name { font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.conv-row-name strong { font-weight: 600; }
+.conv-row-time { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); flex-shrink: 0; }
+.conv-row-msg { font-size: 12px; line-height: 1.45; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.conv-row.unanswered .conv-row-msg { color: var(--foreground); }
+.conv-row-foot { display: flex; align-items: center; gap: 6px; padding-left: 46px; }
+.conv-row-foot .owner { margin-left: auto; font-size: 11px; color: var(--muted-foreground); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Badges ──────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.badge.ok { background: var(--status-ok-bg); border-color: var(--status-ok-border); color: var(--status-ok-fg); }
+.badge.warn { background: var(--status-warn-bg); border-color: var(--status-warn-border); color: var(--status-warn-fg); }
+.badge.danger { background: var(--status-danger-bg); border-color: var(--status-danger-border); color: var(--status-danger-fg); }
+.badge.info { background: var(--status-info-bg); border-color: var(--status-info-border); color: var(--status-info-fg); }
+.badge.idle { background: var(--status-idle-bg); border-color: var(--status-idle-border); color: var(--status-idle-fg); }
+.badge.ch-zalo { color: var(--channel-zalo); border-color: var(--channel-zalo); }
+.badge.ch-telegram { color: var(--channel-telegram); border-color: var(--channel-telegram); }
+.badge.ch-facebook { color: var(--channel-facebook); border-color: var(--channel-facebook); }
+.badge.sla-danger { background: var(--status-danger-bg); border-color: var(--status-danger-border); color: var(--status-danger-fg); font-weight: 600; }
+.badge.sla-warn { background: var(--status-warn-bg); border-color: var(--status-warn-border); color: var(--status-warn-fg); font-weight: 600; }
+
+/* ── Thread pane ─────────────────────────────────────────────────── */
+.thread-pane {
+  display: flex; flex-direction: column;
+  min-height: 0; min-width: 0;
+}
+.thread-header {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.thread-header .avatar { flex-shrink: 0; }
+.thread-header-info { flex: 1 1 200px; min-width: 180px; }
+.thread-header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.thread-back {
+  width: 32px; height: 32px;
+  display: none;
+  align-items: center; justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
+.thread-back:hover { background: var(--muted); }
+@media (max-width: 1023px) { .thread-back { display: flex; } }
+
+/* ════════════════════════════════════════════════════════════════════
+   RESPONSIVE — Tablet (768–1279) & Mobile (<768)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Elements that only show on small screens (default hidden) */
+.sidebar-toggle-mobile { display: none; align-items: center; justify-content: center; }
+.customer-toggle-mobile,
+.btn.customer-toggle-mobile { display: none; align-items: center; justify-content: center; }
+.mobile-bottom-nav { display: none; }
+.mobile-bottom-nav-spacer { display: none; }
+
+/* ── Tablet 768–1279: hide customer pane, sidebar becomes drawer ───── */
+@media (max-width: 1279px) {
+  .app {
+    /* sidebar is fixed (off-flow), so use single column for remaining <main> */
+    grid-template-columns: 1fr;
+  }
+  .app-sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 240px;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 10px 40px rgb(0 0 0 / 0.18);
+  }
+  .app-sidebar[data-open="true"] { transform: translateX(0); }
+  .sidebar-toggle-mobile { display: inline-flex; }
+
+  .inbox-shell {
+    grid-template-columns: 340px minmax(0, 1fr);
+  }
+  .inbox-shell.focus-mode {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .customer-pane {
+    position: fixed;
+    right: 0; top: var(--topbar-height); bottom: 0;
+    width: 340px;
+    z-index: 55;
+    transform: translateX(100%);
+    transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+    border-left: 1px solid var(--border);
+  }
+  .customer-pane[data-mobile-open="true"] { transform: translateX(0); }
+  .customer-toggle-mobile,
+  .btn.customer-toggle-mobile { display: inline-flex; }
+
+  /* Hide topbar tenant name (chrome) on tablet too */
+  .topbar-search span:not(.kbd) { display: none; }
+  .topbar-search .kbd { display: inline-flex; }
+
+  /* Tablet: icon-only for toggles in thread-header to save space */
+  .thread-header-actions #customerToggle span,
+  .thread-header-actions #focusToggle span { display: none; }
+  .thread-header-actions #customerToggle,
+  .thread-header-actions #focusToggle {
+    width: 32px; height: 32px; padding: 0; justify-content: center;
+  }
+
+  /* Tablet: shrink header padding & avatar to fit 2-row layout cleanly */
+  .thread-header {
+    padding: 8px 12px;
+    gap: 6px 8px;
+  }
+  .thread-header .avatar { width: 30px; height: 30px; font-size: 12px; }
+  .thread-customer { font-size: 14px; }
+  .thread-sub { font-size: 11px; gap: 6px; }
+
+  /* Tablet: priority becomes dot-only (tooltip keeps label) — saves ~50px */
+  .thread-header-actions .priority-dot .label,
+  .thread-header-actions .priority-dot .sep { display: none; }
+  .thread-header-actions .priority-dot {
+    padding: 4px;
+    width: 22px; height: 22px;
+    justify-content: center;
+  }
+  .thread-header-actions .priority-dot .dot {
+    width: 8px; height: 8px;
+  }
+
+  /* Tablet: Chuyển icon-only (Đóng chuyển vào kebab để gọn hơn nữa) */
+  .thread-header-actions .btn-transfer span:not(.btn-icon) { display: none; }
+  .thread-header-actions .btn-transfer {
+    width: 32px; height: 32px; padding: 0; justify-content: center;
+  }
+  /* Tablet: hide btn-close entirely — moved to kebab menu */
+  .thread-header-actions .btn.btn-close,
+  .thread-header-actions .btn:not(.btn-transfer):not(.customer-toggle-mobile):not(.kebab-wrap .btn) { display: none; }
+
+  /* Tablet: drop channel-label (keep dot only) — saves ~70px */
+  .thread-sub .channel-label { display: none; }
+  .thread-sub .channel-dot { width: 9px; height: 9px; }
+
+  /* Tablet: tighten action-group — only Chuyển + kebab, no border sep */
+  .thread-header-actions { gap: 6px; }
+  .thread-header-actions .action-group { gap: 2px; padding-left: 0; border-left: none; margin-left: 0; }
+  .thread-header-actions .context-group { gap: 4px; }
+}
+
+/* ── Mobile <768: single-pane stack with bottom nav + bottom sheet ─ */
+@media (max-width: 767px) {
+  :root {
+    --topbar-height: 52px;
+    --content-pad: 0.5rem;
+  }
+  html, body { height: 100dvh; overscroll-behavior-y: none; }
+  .app {
+    grid-template-columns: 1fr;
+    height: 100dvh;
+  }
+  .topbar {
+    padding: 0 8px 0 4px;
+    gap: 8px;
+  }
+  .topbar-tenant > span { display: none; }
+  .topbar-tenant > i { display: none; }
+  .topbar-search { display: none; }
+  .topbar-presence { display: none; }
+  .topbar-icons { display: none; }
+  .topbar-user > div:last-child { display: none; }
+  .topbar-user > .avatar { width: 32px; height: 32px; font-size: 12px; }
+  .inbox-wrap {
+    padding: 0;
+    gap: 0;
+    /* leave room for fixed bottom nav */
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--topbar-height));
+  }
+  .inbox-shell {
+    grid-template-columns: 1fr;
+    border: 0;
+    border-radius: 0;
+    background: var(--background);
+    /* stack 3 panes in same cell; only one visible via data-view */
+    grid-template-rows: 1fr;
+  }
+  .inbox-shell.focus-mode { grid-template-columns: 1fr; }
+
+  /* Hide all 3 panes — JS toggles which one is visible via data-view on shell */
+  .queue-pane, .thread-pane, .customer-pane {
+    grid-column: 1;
+    grid-row: 1;
+    display: none;
+    border: 0;
+    background: var(--background);
+  }
+  .inbox-shell[data-view="queue"] .queue-pane { display: flex; }
+  .inbox-shell[data-view="thread"] .thread-pane { display: flex; }
+
+  /* Customer panel becomes bottom sheet on mobile */
+  .customer-pane {
+    position: fixed;
+    left: 0; right: 0; top: auto;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));  /* sit above bottom nav */
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - var(--topbar-height) - 56px - env(safe-area-inset-bottom, 0px));
+    height: auto;
+    z-index: 75;
+    transform: translateY(calc(100% + 56px + env(safe-area-inset-bottom, 0px)));
+    border-radius: 16px 16px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    background: var(--card);
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 0.18);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex;
+  }
+  .customer-pane[data-mobile-open="true"] { transform: translateY(0); }
+  .inbox-shell[data-view="customer"] .customer-pane {
+    transform: translateY(0);
+    display: flex;
+  }
+  .customer-body { overflow-y: auto; }
+  /* Drag handle (visual cue for bottom sheet) */
+  .customer-pane::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 6px; left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 4px;
+    background: var(--muted-foreground);
+    border-radius: 2px;
+    opacity: 0.45;
+    z-index: 1;
+  }
+
+  /* Sticky composer above bottom nav, never behind keyboard */
+  .composer {
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--card);
+    border-top: 1px solid var(--border);
+  }
+  .composer textarea { font-size: 16px; } /* prevent iOS zoom-on-focus */
+
+  /* Bottom navigation */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 4px 0 calc(4px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around;
+    align-items: stretch;
+    box-shadow: 0 -4px 12px rgb(0 0 0 / 0.04);
+  }
+  .mobile-bottom-nav button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    flex: 1;
+    padding: 4px 0 6px;
+    border: 0; background: transparent;
+    font-size: 10px; font-weight: 500;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    min-height: 48px; /* Apple HIG touch target */
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-bottom-nav button[data-active="true"] {
+    color: var(--primary);
+  }
+  .mobile-bottom-nav .nav-icon-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .mobile-bottom-nav .nav-icon-wrap .badge {
+    position: absolute;
+    top: -4px; right: -8px;
+    min-width: 16px; height: 16px;
+    font-size: 9px; font-weight: 700;
+    border-radius: 8px;
+    background: var(--destructive);
+    color: var(--destructive-foreground);
+    display: grid; place-items: center;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .mobile-bottom-nav .nav-icon-wrap .badge.ok { background: var(--status-ok-fg); }
+
+  /* Hide focus toggle on mobile (replaced by info button) */
+  .focus-toggle-desktop,
+  #focusToggle { display: none !important; }
+  /* Hide customer-toggle on mobile — "Khách" tab in bottom nav handles it */
+  .customer-toggle-mobile,
+  .btn.customer-toggle-mobile { display: none !important; }
+
+  /* Compact thread header on mobile */
+  .thread-header {
+    padding: 8px 10px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    min-height: 56px;
+  }
+  .thread-header-info { flex: 1 1 100px; min-width: 100px; }
+  .thread-header-actions {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+  .thread-header-actions .action-group {
+    margin-left: 2px; padding-left: 8px; gap: 2px;
+    border-left-color: color-mix(in oklab, var(--border) 60%, transparent);
+  }
+  .thread-header-actions .btn span:not(.btn-icon) { display: none; }
+  .thread-header-actions .btn {
+    padding: 0;
+    width: 32px; height: 32px;
+    justify-content: center;
+  }
+  /* On mobile, drop priority dot — SLA pill is enough signal */
+  .thread-header-actions .priority-dot.urgent,
+  .thread-header-actions .priority-dot.high,
+  .thread-header-actions .priority-dot.normal { display: none; }
+  /* Hide status badge (info) on mobile — SLA + priority dot enough */
+  .thread-header-actions .status-badge { display: none; }
+  .sla-pill { font-size: 10px; padding: 2px 6px; }
+  /* Tighten action group gap on mobile */
+  .thread-header-actions { gap: 6px; }
+  .thread-header-actions .action-group { gap: 4px; margin-left: auto; padding-left: 8px; }
+  /* Compact thread sub info */
+  .thread-sub { font-size: 11px; gap: 4px; min-width: 0; }
+  .thread-sub > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .thread-customer { font-size: 13px; }
+  .thread-customer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Hide the channel-name badge text, keep dot only — saves space */
+  .thread-sub .badge { font-size: 9px; padding: 1px 4px; }
+  /* Make channel badge just colored dot */
+  .thread-sub .badge.ch-zalo,
+  .thread-sub .badge.ch-telegram,
+  .thread-sub .badge.ch-facebook {
+    font-size: 0;
+    padding: 0;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    min-width: 8px;
+  }
+  /* Hide the "Chuyển" and "Đóng" buttons on mobile — use bottom sheet actions instead */
+  .thread-header-actions .btn.btn-transfer,
+  .thread-header-actions .btn.btn-close { display: none; }
+  /* Owner online dot compact */
+  .thread-sub .online { width: 5px; height: 5px; }
+
+  /* Compact queue header on mobile */
+  .queue-header {
+    padding: 10px 12px;
+  }
+  .queue-title { font-size: 15px; }
+  .queue-filters { padding: 10px 12px; gap: 8px; }
+  .conv-row {
+    padding: 10px 12px;
+  }
+
+  /* Topbar tenant dropdown becomes just avatar */
+  .topbar-tenant { padding: 4px; }
+  .topbar-tenant-avatar { width: 32px; height: 32px; }
+
+  /* When customer sheet is open on mobile, dim background */
+  body[data-mobile-sheet-open="true"]::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 0.4);
+    z-index: 70;
+    animation: fadeIn 0.18s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+  /* Compact customer panel tabs */
+  .customer-tabs { padding: 12px 12px 0 12px; margin-top: 14px; }
+  .customer-body { padding: 12px; }
+
+  /* Demo chrome (theme toggle + watermark) — hide on mobile (clutter the bottom nav) */
+  .theme-toggle,
+  .fps-note {
+    display: none !important;
+  }
+}
+
+/* ── Tablet landscape-ish: 768-1023 still uses tablet rules above ── */
+.thread-customer { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; min-width: 0; }
+.thread-customer span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-sub { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted-foreground); margin-top: 2px; flex-wrap: wrap; }
+.thread-sub .online {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--status-ok-fg);
+}
+.thread-sub .online.offline { background: var(--status-idle-fg); }
+.thread-header-actions {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; flex-shrink: 0;
+}
+.thread-header-actions .context-group {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.thread-header-actions .action-group {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.thread-header-actions .action-group .btn {
+  height: 30px; padding: 0 9px; font-size: 12px;
+}
+.thread-header-actions .priority-dot {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+  border: 1px solid;
+  font-family: var(--font-mono);
+}
+.thread-header-actions .priority-dot .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+}
+.thread-header-actions .priority-dot.urgent { background: var(--status-danger-bg); border-color: var(--status-danger-border); color: var(--status-danger-fg); }
+.thread-header-actions .priority-dot.high   { background: var(--status-warn-bg);   border-color: var(--status-warn-border);   color: var(--status-warn-fg); }
+.thread-header-actions .priority-dot.normal { background: transparent; border-color: var(--border); color: var(--muted-foreground); font-weight: 500; }
+
+/* Channel dot+label — replaces verbose "Zalo cá nhân · Zalo (nv01)" badge */
+.thread-sub .channel-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.thread-sub .channel-dot.ch-zalo     { background: var(--channel-zalo); }
+.thread-sub .channel-dot.ch-telegram { background: var(--channel-telegram); }
+.thread-sub .channel-dot.ch-facebook { background: var(--channel-facebook); }
+.thread-sub .channel-label {
+  font-weight: 500;
+  color: var(--foreground);
+}
+.thread-sub .owner-info { color: var(--muted-foreground); }
+.thread-sub .unassigned { font-weight: 500; }
+.thread-sub > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Desktop: focus toggle is a power-user action — keep it icon-only to save space */
+.focus-toggle-desktop span { display: none; }
+.focus-toggle-desktop { width: 32px; padding: 0; justify-content: center; }
+
+/* Kebab menu */
+.kebab-wrap { position: relative; display: inline-flex; }
+.kebab-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 200px;
+  background: var(--popover, var(--card));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06);
+  padding: 4px;
+  z-index: 80;
+  display: none;
+  font-size: 13px;
+}
+.kebab-menu[data-open="true"] { display: block; animation: fadeIn 0.12s ease; }
+.kebab-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 10px;
+  background: transparent; border: 0; border-radius: 4px;
+  color: var(--foreground);
+  cursor: pointer; text-align: left;
+  font-size: 13px;
+}
+.kebab-item:hover { background: var(--muted); }
+.kebab-item.danger { color: var(--destructive); }
+.kebab-sep { height: 1px; background: var(--border); margin: 4px 0; }
+.kebab-item kbd {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--muted); color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px; font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--muted); }
+.btn.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.btn.primary:hover { background: color-mix(in oklab, var(--primary) 90%, black); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted-foreground); }
+.btn.ghost:hover { background: var(--muted); color: var(--foreground); }
+.btn.danger { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-border); }
+.btn.danger:hover { background: color-mix(in oklab, var(--status-danger-bg) 80%, var(--destructive) 20%); }
+.btn .btn-icon { display: inline-flex; }
+
+/* SLA countdown in thread header */
+.sla-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.sla-pill.ok { background: var(--status-ok-bg); border-color: var(--status-ok-border); color: var(--status-ok-fg); }
+.sla-pill.warn { background: var(--status-warn-bg); border-color: var(--status-warn-border); color: var(--status-warn-fg); }
+.sla-pill.danger {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-fg);
+  animation: sla-blink 1.5s infinite;
+}
+@keyframes sla-blink { 50% { box-shadow: 0 0 0 3px color-mix(in oklab, var(--status-danger-fg) 20%, transparent); } }
+
+/* Thread body */
+.thread-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 0; min-width: 0;
+  flex: 1;
+}
+.thread-body:not(.focus-mode):has(~ .customer-pane) { /* keep */ }
+.messages-pane {
+  display: flex; flex-direction: column;
+  min-height: 0; min-width: 0;
+  position: relative;
+}
+.messages-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.day-divider {
+  display: flex; align-items: center; justify-content: center;
+  margin: 8px 0;
+}
+.day-divider span {
+  font-size: 11px; font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.bubble-row { display: flex; min-width: 0; }
+.bubble-row.out { justify-content: flex-end; }
+.bubble {
+  display: flex; flex-direction: column; gap: 6px;
+  max-width: 78%;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.bubble.in {
+  background: var(--muted);
+  color: var(--foreground);
+  border-bottom-left-radius: 4px;
+}
+.bubble.out {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-bottom-right-radius: 4px;
+}
+.bubble.failed {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+  border: 1px solid var(--status-danger-border);
+}
+.bubble-sender {
+  font-size: 11px; font-weight: 600;
+  color: var(--primary);
+}
+.bubble-attachment {
+  max-width: 240px; max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  display: block;
+  object-fit: cover;
+}
+.bubble-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.bubble.in .bubble-foot { color: var(--muted-foreground); opacity: 1; }
+.bubble.out .bubble-foot { color: color-mix(in oklab, var(--primary-foreground) 80%, transparent); }
+.bubble .delivery { display: inline-flex; align-items: center; gap: 3px; font-weight: 500; }
+.bubble .delivery svg { width: 12px; height: 12px; }
+.bubble.failed .bubble-foot { color: var(--status-danger-fg); }
+.note-bubble {
+  display: flex; gap: 10px;
+  background: var(--status-warn-bg);
+  border: 1px solid var(--status-warn-border);
+  color: var(--status-warn-fg);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  max-width: 78%;
+  margin: 4px auto;
+}
+.note-bubble .note-meta { font-weight: 600; font-size: 11px; }
+.note-bubble .note-author { color: var(--status-warn-fg); font-weight: 600; }
+.scroll-to-bottom {
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 10;
+}
+.system-event {
+  display: flex; justify-content: center; margin: 4px 0;
+}
+.system-event span {
+  font-size: 11px; color: var(--muted-foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* Composer */
+.composer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  background: var(--card);
+}
+.composer-mode {
+  display: inline-flex;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  margin-bottom: 8px;
+  gap: 2px;
+}
+.composer-mode button {
+  font-size: 12px; font-weight: 500;
+  padding: 4px 10px;
+  border: 0; background: transparent;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.composer-mode button.active.reply { background: var(--primary); color: var(--primary-foreground); }
+.composer-mode button.active.comment {
+  background: var(--status-warn-fg); color: var(--card);
+}
+.composer-textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: none;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  font-size: 13px; line-height: 1.5;
+  outline: 0;
+  font-family: inherit;
+}
+.composer-textarea:focus { border-color: var(--ring); box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 25%, transparent); }
+.composer-bar {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px;
+}
+.composer-bar .left { display: flex; align-items: center; gap: 4px; }
+.composer-bar .spacer { flex: 1; }
+
+/* ── Customer side panel ─────────────────────────────────────────── */
+.customer-pane {
+  display: flex; flex-direction: column;
+  min-height: 0; min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+  overflow: hidden;
+}
+.customer-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+.customer-tab {
+  flex: 1;
+  font-size: 12px; font-weight: 500;
+  padding: 10px 8px;
+  border: 0; background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  position: relative;
+}
+.customer-tab[data-active="true"] {
+  color: var(--foreground);
+}
+.customer-tab[data-active="true"]::after {
+  content: "";
+  position: absolute; left: 8px; right: 8px; bottom: -1px;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px 2px 0 0;
+}
+.customer-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.profile-head { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.profile-name { font-size: 14px; font-weight: 600; }
+.profile-source { font-size: 11px; color: var(--muted-foreground); }
+.profile-actions { display: flex; gap: 6px; width: 100%; }
+.profile-actions .btn { flex: 1; justify-content: center; }
+.section-title {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+.field {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.field:last-child { border-bottom: 0; }
+.field-label { color: var(--muted-foreground); min-width: 80px; font-size: 12px; }
+.field-value { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.field-value a { color: var(--primary); }
+.field-icon { color: var(--muted-foreground); }
+.identity-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+}
+.tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border: 1px solid var(--border);
+}
+.tag .x { color: var(--muted-foreground); cursor: pointer; }
+.tag-input {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.timeline-event {
+  display: flex; gap: 10px;
+  position: relative;
+  padding-bottom: 12px;
+}
+.timeline-event:not(:last-child)::before {
+  content: ""; position: absolute; left: 11px; top: 22px; bottom: 0;
+  width: 1px; background: var(--border);
+}
+.timeline-dot {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  z-index: 1;
+}
+.timeline-dot.ok { background: var(--status-ok-bg); color: var(--status-ok-fg); }
+.timeline-dot.warn { background: var(--status-warn-bg); color: var(--status-warn-fg); }
+.timeline-dot.danger { background: var(--status-danger-bg); color: var(--status-danger-fg); }
+.timeline-dot.info { background: var(--status-info-bg); color: var(--status-info-fg); }
+.timeline-content { flex: 1; min-width: 0; }
+.timeline-title { font-size: 12px; font-weight: 500; }
+.timeline-meta { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+.timeline-body { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; line-height: 1.45; }
+.lead-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.lead-card-head { display: flex; align-items: center; gap: 8px; }
+.lead-title { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lead-stage { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted-foreground); }
+.lead-progress {
+  height: 4px; border-radius: 2px;
+  background: var(--muted);
+  position: relative; overflow: hidden;
+}
+.lead-progress .fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--primary);
+}
+.lead-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted-foreground); }
+.lead-value { font-family: var(--font-mono); font-weight: 600; color: var(--foreground); font-size: 13px; }
+.kanban-strip { display: flex; gap: 2px; align-items: center; }
+.kanban-strip .stage {
+  flex: 1; height: 4px; border-radius: 2px; background: var(--muted);
+}
+.kanban-strip .stage.active { background: var(--primary); }
+.kanban-strip .stage.won { background: var(--status-ok-fg); }
+.kanban-strip .stage.lost { background: var(--status-danger-fg); }
+
+/* ── Sheet (transfer) ─────────────────────────────────────────────── */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgb(0 0 0 / 0.4);
+  display: none;
+}
+.sheet-backdrop.open { display: block; }
+.sheet {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  z-index: 60;
+  width: 380px; max-width: 90vw;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  box-shadow: -10px 0 20px rgb(0 0 0 / 0.1);
+  display: none;
+  flex-direction: column;
+}
+.sheet.open { display: flex; }
+.sheet-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.sheet-title { font-size: 14px; font-weight: 600; flex: 1; }
+.sheet-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.sheet-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+.select-input {
+  height: 32px;
+  width: 100%;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  font-size: 13px;
+  outline: 0;
+}
+.select-input:focus { border-color: var(--ring); }
+.textarea-input {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  font-size: 13px;
+  outline: 0;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* ── Command palette ─────────────────────────────────────────────── */
+.cmd-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgb(0 0 0 / 0.3);
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding-top: 12vh;
+}
+.cmd-backdrop.open { display: flex; }
+.cmd-dialog {
+  width: 560px; max-width: 90vw;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.25);
+  display: flex; flex-direction: column;
+  max-height: 480px;
+  overflow: hidden;
+}
+.cmd-input {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 14px;
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+}
+.cmd-input input { flex: 1; background: transparent; border: 0; outline: 0; font-size: 14px; }
+.cmd-list { flex: 1; overflow-y: auto; padding: 6px; }
+.cmd-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--muted-foreground); padding: 8px 10px 4px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cmd-item:hover, .cmd-item[data-active="true"] { background: var(--accent); color: var(--accent-foreground); }
+.cmd-item .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.cmd-empty { padding: 24px; text-align: center; color: var(--muted-foreground); font-size: 13px; }
+
+/* ── Theme toggle (demo only) ────────────────────────────────────── */
+.theme-toggle {
+  position: fixed; bottom: 16px; left: 16px; z-index: 100;
+  display: flex; gap: 6px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+.theme-toggle button {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 10px;
+  font-size: 12px; font-weight: 500;
+  background: transparent;
+  border: 0; border-radius: 5px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.theme-toggle button[data-active="true"] { background: var(--accent); color: var(--foreground); }
+.fps-note {
+  position: fixed; bottom: 16px; right: 16px; z-index: 100;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+.fps-note strong { color: var(--foreground); }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══ Sidebar ═══════════════════════════════════════════════════════ -->
+  <aside class="app-sidebar">
+    <div class="app-brand">
+      <div class="app-brand-mark">NK</div>
+      <div class="app-brand-text">
+        <span class="app-brand-name">Nha Khoa Demo</span>
+        <span class="app-brand-sub">nhakhoa.qrf.vn</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Tổng quan</div>
+      <a class="nav-item" href="#">
+        <i data-lucide="layout-dashboard" style="width:16px;height:16px"></i>
+        Tổng quan
+      </a>
+      <a class="nav-item active" href="#">
+        <i data-lucide="inbox" style="width:16px;height:16px"></i>
+        Hộp thư
+        <span class="nav-badge">12</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">CRM</div>
+      <a class="nav-item" href="#">
+        <i data-lucide="users" style="width:16px;height:16px"></i>
+        Khách hàng
+      </a>
+      <a class="nav-item" href="#">
+        <i data-lucide="briefcase" style="width:16px;height:16px"></i>
+        Cơ hội
+        <span class="nav-badge">3</span>
+      </a>
+      <a class="nav-item" href="#">
+        <i data-lucide="target" style="width:16px;height:16px"></i>
+        Deal
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Vận hành</div>
+      <a class="nav-item" href="#">
+        <i data-lucide="route" style="width:16px;height:16px"></i>
+        Phân bổ
+      </a>
+      <a class="nav-item" href="#">
+        <i data-lucide="plug" style="width:16px;height:16px"></i>
+        Kênh
+        <span class="nav-badge danger">1</span>
+      </a>
+    </div>
+
+    <div style="flex:1"></div>
+    <div class="nav-section" style="border-top: 1px solid var(--border);">
+      <a class="nav-item" href="#">
+        <i data-lucide="settings" style="width:16px;height:16px"></i>
+        Cài đặt
+      </a>
+    </div>
+  </aside>
+
+  <!-- ═══ Main ═══════════════════════════════════════════════════════════ -->
+  <main class="flex flex-col min-w-0 overflow-hidden">
+    <!-- Topbar -->
+    <header class="topbar">
+      <button class="icon-btn icon-btn-sm sidebar-toggle-mobile" id="sidebarToggle" aria-label="Mở menu" style="border:0;background:transparent">
+        <i data-lucide="menu" style="width:20px;height:20px"></i>
+      </button>
+      <div class="topbar-tenant">
+        <div class="topbar-tenant-avatar">NK</div>
+        <span>Nha Khoa Demo</span>
+        <i data-lucide="chevrons-up-down" style="width:14px;height:14px;color:var(--muted-foreground)"></i>
+      </div>
+
+      <button class="topbar-search" id="openPalette">
+        <i data-lucide="search" style="width:14px;height:14px"></i>
+        <span>Tìm khách, SĐT, mã hội thoại…</span>
+        <span class="kbd">⌘K</span>
+      </button>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="topbar-presence" title="Bạn đang online — agent sẽ được nhận hội thoại mới">
+        <span class="pulse"></span>
+        Online · Tự nhận
+      </div>
+
+      <div class="topbar-icons">
+        <div class="topbar-icon-btn" style="position:relative">
+          <i data-lucide="bell" style="width:18px;height:18px"></i>
+          <span class="dot"></span>
+        </div>
+        <div class="topbar-icon-btn">
+          <i data-lucide="help-circle" style="width:18px;height:18px"></i>
+        </div>
+      </div>
+
+      <div class="topbar-user">
+        <div class="avatar" style="width:28px;height:28px;font-size:11px">TT</div>
+        <div style="display:flex;flex-direction:column;line-height:1.15">
+          <span class="topbar-user-name">Trần Tùng</span>
+          <span class="topbar-user-role">Support Lead</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Inbox -->
+    <div class="inbox-wrap">
+      <div class="inbox-shell" id="inboxShell">
+
+        <!-- ── Queue pane ─────────────────────────────────────────────── -->
+        <aside class="queue-pane">
+          <div class="queue-header">
+            <div class="queue-title-block">
+              <div class="queue-title">Hộp thư đa kênh</div>
+              <div class="queue-subtitle">12/24 hội thoại đang mở</div>
+            </div>
+            <button class="icon-btn alert-btn" title="Cần xử lý: 3 tin lỗi, 2 cuộc chưa gán" id="alertBtn">
+              <i data-lucide="bell" style="width:15px;height:15px"></i>
+              <span class="alert-dot">5</span>
+            </button>
+            <button class="icon-btn" title="Làm mới" id="refreshBtn">
+              <i data-lucide="refresh-ccw" style="width:15px;height:15px"></i>
+            </button>
+          </div>
+
+          <div class="queue-filters">
+            <div class="search-input">
+              <i data-lucide="search" style="width:14px;height:14px;color:var(--muted-foreground)"></i>
+              <input type="text" placeholder="Tìm khách, SĐT, kênh..." />
+              <span class="kbd">⌘K</span>
+            </div>
+
+            <div class="tablist" id="tablist">
+              <button class="tab" data-tab="all" data-active="true">Tất cả <span class="count">24</span></button>
+              <button class="tab" data-tab="mine">Của tôi <span class="count">5</span></button>
+              <button class="tab" data-tab="waiting">Chờ <span class="count">8</span></button>
+              <button class="tab" data-tab="priority">Ưu tiên <span class="count">3</span></button>
+            </div>
+
+            <div class="stat-strip">
+              <span class="stat ok" title="Hội thoại đang mở">Mở <strong>24</strong></span>
+              <span class="stat info" title="Chờ nhân viên phản hồi">Chờ <strong>8</strong></span>
+              <span class="stat warn" title="Chưa gán cho nhân viên">Chưa gán <strong>2</strong></span>
+              <span class="stat danger anim" title="Tin nhắn gửi đi lỗi">Lỗi <strong>3</strong></span>
+            </div>
+          </div>
+
+          <div class="conv-list scrollbar-thin" id="convList">
+            <!-- rows injected via JS -->
+          </div>
+        </aside>
+
+        <!-- ── Thread pane ────────────────────────────────────────────── -->
+        <section class="thread-pane" id="threadPane">
+          <header class="thread-header" id="threadHeader">
+            <!-- injected -->
+          </header>
+          <div class="thread-body">
+            <div class="messages-pane">
+              <button class="btn scroll-to-bottom" id="scrollDown" style="display:none">
+                <i data-lucide="chevron-down" style="width:14px;height:14px"></i>
+                Xuống cuối
+              </button>
+              <div class="messages-scroll scrollbar-thin" id="messagesScroll">
+                <!-- injected -->
+              </div>
+              <form class="composer" id="composer" onsubmit="event.preventDefault();sendMessage()">
+                <div class="composer-mode" id="composerMode">
+                  <button type="button" data-mode="reply" class="active reply">Trả lời</button>
+                  <button type="button" data-mode="comment" class="comment">Ghi chú nội bộ</button>
+                </div>
+                <textarea
+                  id="composerText"
+                  class="composer-textarea"
+                  rows="3"
+                  placeholder="Nhập tin — Enter gửi, Shift+Enter xuống dòng (gõ / để chèn mẫu)"
+                ></textarea>
+                <div class="composer-bar">
+                  <div class="left">
+                    <button type="button" class="icon-btn" title="Đính kèm ảnh"><i data-lucide="image-plus" style="width:15px;height:15px"></i></button>
+                    <button type="button" class="icon-btn" title="Emoji"><i data-lucide="smile" style="width:15px;height:15px"></i></button>
+                    <button type="button" class="icon-btn" title="Mẫu nhanh"><i data-lucide="zap" style="width:15px;height:15px"></i></button>
+                  </div>
+                  <div class="spacer"></div>
+                  <span class="badge idle" style="font-family:var(--font-mono)">⌘+Enter</span>
+                  <button type="submit" class="btn primary">
+                    <i data-lucide="send" style="width:14px;height:14px"></i>
+                    Gửi
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Customer side panel ────────────────────────────────────── -->
+        <aside class="customer-pane" id="customerPane">
+          <div class="customer-tabs" id="customerTabs">
+            <button class="customer-tab" data-tab="profile" data-active="true">Hồ sơ</button>
+            <button class="customer-tab" data-tab="activity">Hoạt động</button>
+            <button class="customer-tab" data-tab="deal">Cơ hội</button>
+            <button class="customer-tab" data-tab="conversations">Hội thoại</button>
+          </div>
+          <div class="customer-body scrollbar-thin" id="customerBody">
+            <!-- injected -->
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ Mobile bottom nav (hidden ≥768px) ═══════════════════════════════ -->
+  <nav class="mobile-bottom-nav" aria-label="Điều hướng chính">
+    <button data-nav="queue" data-active="true" aria-label="Hộp thư">
+      <span class="nav-icon-wrap">
+        <i data-lucide="inbox" style="width:22px;height:22px"></i>
+        <span class="badge">12</span>
+      </span>
+      <span>Hộp thư</span>
+    </button>
+    <button data-nav="customer" aria-label="Khách hàng">
+      <span class="nav-icon-wrap">
+        <i data-lucide="users" style="width:22px;height:22px"></i>
+      </span>
+      <span>Khách</span>
+    </button>
+    <button data-nav="search" aria-label="Tìm kiếm">
+      <span class="nav-icon-wrap">
+        <i data-lucide="search" style="width:22px;height:22px"></i>
+      </span>
+      <span>Tìm</span>
+    </button>
+    <button data-nav="profile" aria-label="Cá nhân">
+      <span class="nav-icon-wrap">
+        <i data-lucide="user-round" style="width:22px;height:22px"></i>
+        <span class="badge ok">●</span>
+      </span>
+      <span>Tôi</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ═══ Sheet: Transfer / Close ═══════════════════════════════════════ -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="transferSheet">
+  <div class="sheet-header">
+    <i data-lucide="user-round-check" style="width:18px;height:18px;color:var(--muted-foreground)"></i>
+    <span class="sheet-title">Chuyển hội thoại</span>
+    <button class="icon-btn icon-btn-sm" onclick="closeSheets()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div>
+      <label class="section-title" style="display:block;margin-bottom:6px">Chuyển đến</label>
+      <select class="select-input">
+        <option>— Chọn nhân viên —</option>
+        <option>Lê Hoa (Support Lead) · 8 active</option>
+        <option>Ngọc Anh (Support) · 5 active</option>
+        <option selected>Trần Tùng (Support Lead) · 4 active</option>
+        <option>Mai Linh (Sales) · 2 active</option>
+      </select>
+    </div>
+    <div>
+      <label class="section-title" style="display:block;margin-bottom:6px">Lý do (tuỳ chọn)</label>
+      <select class="select-input">
+        <option>Chuyển tiếp ngữ cảnh</option>
+        <option>Khách yêu cầu</option>
+        <option>Đang quá tải</option>
+        <option>Khác</option>
+      </select>
+    </div>
+    <div>
+      <label class="section-title" style="display:block;margin-bottom:6px">Ghi chú kèm theo</label>
+      <textarea class="textarea-input" placeholder="Ghi chú cho người nhận..."></textarea>
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn ghost" onclick="closeSheets()">Huỷ</button>
+    <button class="btn primary" onclick="closeSheets()">Chuyển ngay</button>
+  </div>
+</div>
+
+<div class="sheet" id="closeSheet">
+  <div class="sheet-header">
+    <i data-lucide="check-circle-2" style="width:18px;height:18px;color:var(--muted-foreground)"></i>
+    <span class="sheet-title">Đóng hội thoại</span>
+    <button class="icon-btn icon-btn-sm" onclick="closeSheets()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+  </div>
+  <div class="sheet-body">
+    <div>
+      <label class="section-title" style="display:block;margin-bottom:6px">Lý do đóng</label>
+      <select class="select-input">
+        <option>RESOLVED — Đã giải quyết</option>
+        <option>DUPLICATE — Trùng hội thoại</option>
+        <option>SPAM — Thư rác</option>
+        <option>NO_RESPONSE — Không phản hồi</option>
+        <option>OTHER — Khác</option>
+      </select>
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn ghost" onclick="closeSheets()">Huỷ</button>
+    <button class="btn primary" onclick="closeSheets()">Đóng hội thoại</button>
+  </div>
+</div>
+
+<!-- ═══ Command Palette ═══════════════════════════════════════════════ -->
+<div class="cmd-backdrop" id="cmdBackdrop">
+  <div class="cmd-dialog">
+    <div class="cmd-input">
+      <i data-lucide="search" style="width:16px;height:16px;color:var(--muted-foreground)"></i>
+      <input type="text" placeholder="Tìm khách, SĐT, kênh, mã hội thoại…" autofocus />
+      <span class="kbd">ESC</span>
+    </div>
+    <div class="cmd-list scrollbar-thin">
+      <div class="cmd-section-title">Hội thoại</div>
+      <div class="cmd-item" data-active="true">
+        <div class="avatar" style="width:24px;height:24px;font-size:10px">NA</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500">Nguyễn Thị A</div>
+          <div style="font-size:11px;color:var(--muted-foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Em muốn tư vấn niềng răng trong suốt ạ</div>
+        </div>
+        <div class="right">
+          <span class="badge ch-zalo" style="font-size:10px">Zalo</span>
+          <span class="badge sla-danger" style="font-size:10px">Trễ 1:12</span>
+        </div>
+      </div>
+      <div class="cmd-item">
+        <div class="avatar" style="width:24px;height:24px;font-size:10px">TV</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500">Trần Văn</div>
+          <div style="font-size:11px;color:var(--muted-foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Gửi lại báo giá implant</div>
+        </div>
+        <div class="right">
+          <span class="badge ch-telegram" style="font-size:10px">Telegram</span>
+        </div>
+      </div>
+      <div class="cmd-item">
+        <div class="avatar" style="width:24px;height:24px;font-size:10px">PT</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500">Phạm Thảo</div>
+          <div style="font-size:11px;color:var(--muted-foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cảm ơn bạn, hẹn gặp lại!</div>
+        </div>
+        <div class="right">
+          <span class="badge ch-zalo" style="font-size:10px">Zalo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Theme toggle (demo) ═══════════════════════════════════════════ -->
+<div class="theme-toggle" id="themeToggle">
+  <button data-mode="light" data-active="true"><i data-lucide="sun" style="width:13px;height:13px"></i> Light</button>
+  <button data-mode="dark"><i data-lucide="moon" style="width:13px;height:13px"></i> Dark</button>
+</div>
+<div class="fps-note">
+  Mockup · 1440px · <strong>3-pane + tabs</strong> · HubSpot-style
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   Mock data
+   ════════════════════════════════════════════════════════════════════ */
+
+const CONVS = [
+  {
+    id: "c-001",
+    contact: { name: "Nguyễn Thị Anh", phone: "0901 234 567", email: "anh.nguyen@gmail.com", source: "ZALO_PERSONAL", avatar: null },
+    channel: "ZALO_PERSONAL", channelName: "Zalo (nv01)",
+    priority: "URGENT", status: "WAITING_AGENT",
+    slaState: "BREACHED", slaSeconds: -72,
+    owner: { name: "Trần Tùng", online: true },
+    lastDirection: "INBOUND",
+    lastMessage: "Em muốn tư vấn niềng răng trong suốt ạ, bên mình có dịch vụ gì ạ?",
+    lastMessageAt: "14:32",
+    lastMessageStatus: "RECEIVED",
+    unread: 3,
+    isUnanswered: true,
+  },
+  {
+    id: "c-002",
+    contact: { name: "Trần Văn Bình", phone: "0987 654 321", email: null, source: "TELEGRAM", avatar: null },
+    channel: "TELEGRAM", channelName: "Bot nhakhoa",
+    priority: "HIGH", status: "WAITING_AGENT",
+    slaState: "DUE_SOON", slaSeconds: 184,
+    owner: { name: "Lê Hoa", online: true },
+    lastDirection: "INBOUND",
+    lastMessage: "Bạn gửi lại báo giá implant giúp mình nhé, cảm ơn",
+    lastMessageAt: "14:18",
+    lastMessageStatus: "RECEIVED",
+    unread: 1,
+    isUnanswered: true,
+  },
+  {
+    id: "c-003",
+    contact: { name: "Phạm Thảo Vy", phone: "0933 222 111", email: "vy.pham@yahoo.com", source: "ZALO_OA", avatar: null },
+    channel: "ZALO_OA", channelName: "Nha Khoa OA",
+    priority: "NORMAL", status: "WAITING_CUSTOMER",
+    slaState: "OK", slaSeconds: 1200,
+    owner: { name: "Ngọc Anh", online: true },
+    lastDirection: "OUTBOUND",
+    lastMessage: "Bạn: Dạ vâng anh/chị ơi, bên em có lịch trống 9h sáng thứ 7 tuần này ạ. Mình đặt lịch giúp em nha!",
+    lastMessageAt: "13:55",
+    lastMessageStatus: "DELIVERED",
+    unread: 0,
+    isUnanswered: false,
+  },
+  {
+    id: "c-004",
+    contact: { name: "[Nhóm] Tư vấn Invisalign 2026", phone: null, email: null, source: "ZALO_PERSONAL", avatar: null },
+    channel: "ZALO_PERSONAL", channelName: "Zalo (nv02)",
+    priority: "NORMAL", status: "WAITING_AGENT",
+    slaState: "OK", slaSeconds: 540,
+    owner: null,
+    lastDirection: "INBOUND",
+    lastMessage: "Hà Linh: Cho mình hỏi thêm về phương pháp niềng trong suốt ạ",
+    lastMessageAt: "13:41",
+    lastMessageStatus: "RECEIVED",
+    unread: 4,
+    isUnanswered: true,
+    isGroup: true,
+  },
+  {
+    id: "c-005",
+    contact: { name: "Lê Minh Đức", phone: "0912 888 999", email: "duc.le@gmail.com", source: "FACEBOOK", avatar: null },
+    channel: "FACEBOOK", channelName: "Nha Khoa FB Page",
+    priority: "NORMAL", status: "ASSIGNED",
+    slaState: "OK", slaSeconds: 2200,
+    owner: { name: "Trần Tùng", online: true },
+    lastDirection: "OUTBOUND",
+    lastMessage: "Bạn: [Hình ảnh] Bảng giá dịch vụ tẩy trắng răng 2026",
+    lastMessageAt: "12:18",
+    lastMessageStatus: "FAILED",
+    unread: 0,
+    isUnanswered: false,
+  },
+  {
+    id: "c-006",
+    contact: { name: "Vũ Hồng Nhung", phone: "0944 555 666", email: null, source: "ZALO_PERSONAL", avatar: null },
+    channel: "ZALO_PERSONAL", channelName: "Zalo (nv01)",
+    priority: "HIGH", status: "WAITING_AGENT",
+    slaState: "DUE_SOON", slaSeconds: 312,
+    owner: { name: "Mai Linh", online: false },
+    lastDirection: "INBOUND",
+    lastMessage: "Chị ơi em muốn hỏi lịch khám cuối tuần này có không ạ?",
+    lastMessageAt: "11:50",
+    lastMessageStatus: "RECEIVED",
+    unread: 2,
+    isUnanswered: true,
+  },
+  {
+    id: "c-007",
+    contact: { name: "Hoàng Sơn", phone: "0966 333 222", email: "son.hoang@outlook.com", source: "TELEGRAM", avatar: null },
+    channel: "TELEGRAM", channelName: "Bot nhakhoa",
+    priority: "NORMAL", status: "CLOSED",
+    slaState: "OK", slaSeconds: 0,
+    owner: { name: "Trần Tùng", online: true },
+    lastDirection: "OUTBOUND",
+    lastMessage: "Bạn: Cảm ơn bạn đã liên hệ! Chúc bạn một ngày tốt lành.",
+    lastMessageAt: "10:24",
+    lastMessageStatus: "READ",
+    unread: 0,
+    isUnanswered: false,
+  },
+  {
+    id: "c-008",
+    contact: { name: "Đỗ Khánh Linh", phone: "0977 111 000", email: null, source: "ZALO_OA", avatar: null },
+    channel: "ZALO_OA", channelName: "Nha Khoa OA",
+    priority: "NORMAL", status: "WAITING_AGENT",
+    slaState: "OK", slaSeconds: 900,
+    owner: null,
+    lastDirection: "INBOUND",
+    lastMessage: "Cho mình đặt lịch khám tổng quát với ạ",
+    lastMessageAt: "09:48",
+    lastMessageStatus: "RECEIVED",
+    unread: 1,
+    isUnanswered: true,
+  },
+];
+
+/* Active conversation (first = SLA breached example) */
+let activeId = "c-001";
+let activeCustomerTab = "profile";
+
+/* ════════════════════════════════════════════════════════════════════
+   Renderers
+   ════════════════════════════════════════════════════════════════════ */
+
+function providerClass(channel) {
+  if (channel === "TELEGRAM") return "ch-telegram";
+  if (channel === "ZALO_PERSONAL" || channel === "ZALO_OA") return "ch-zalo";
+  if (channel === "FACEBOOK") return "ch-facebook";
+  return "";
+}
+function providerLabel(channel) {
+  return { TELEGRAM: "Telegram", ZALO_PERSONAL: "Zalo cá nhân", ZALO_OA: "Zalo OA", FACEBOOK: "Facebook" }[channel] || channel;
+}
+function statusBadge(status) {
+  const map = {
+    WAITING_AGENT: ["info", "Chờ NV"], ASSIGNED: ["ok", "Đã gán"],
+    WAITING_CUSTOMER: ["info", "Chờ khách"], CLOSED: ["idle", "Đã đóng"],
+    OPEN: ["info", "Đang mở"],
+  };
+  const [tone, label] = map[status] || ["idle", status];
+  return `<span class="badge ${tone}">${label}</span>`;
+}
+function priorityBadge(p) {
+  const map = { URGENT: ["danger", "Khẩn cấp"], HIGH: ["warn", "Cao"], NORMAL: ["idle", "Bình thường"], LOW: ["idle", "Thấp"] };
+  const [tone, label] = map[p] || ["idle", p];
+  return `<span class="badge ${tone}">${label}</span>`;
+}
+function priorityDot(p) {
+  const map = {
+    URGENT: ["urgent", "Khẩn"],
+    HIGH:   ["high",   "Cao"],
+    NORMAL: ["normal", "Thường"],
+    LOW:    ["normal", "Thấp"],
+  };
+  const [tone, label] = map[p] || ["normal", p];
+  return `<span class="priority-dot ${tone}" title="Ưu tiên: ${label}"><span class="dot"></span><span class="label">${label}</span></span>`;
+}
+function closeKebab() {
+  const m = document.getElementById("kebabMenu");
+  if (m) m.setAttribute("data-open", "false");
+}
+function slaClass(s) { return s === "BREACHED" ? "danger" : s === "DUE_SOON" ? "warn" : "ok"; }
+function slaText(s, secs) {
+  if (s === "BREACHED") return `Trễ ${formatTime(-secs)}`;
+  if (s === "DUE_SOON") return `Còn ${formatTime(secs)}`;
+  return `${formatTime(secs)}`;
+}
+function formatTime(secs) {
+  const sign = secs < 0 ? "-" : "";
+  const a = Math.abs(secs);
+  const m = Math.floor(a / 60);
+  const s = a % 60;
+  return `${sign}${m}:${s.toString().padStart(2, "0")}`;
+}
+function initials(name) {
+  return (name || "?").split(/\s+/).filter(Boolean).map(p => p[0]).join("").slice(0, 2).toUpperCase();
+}
+function deliveryIcon(status) {
+  return {
+    SENT:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`,
+    DELIVERED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 6 9 17 4 12"/><polyline points="20 12 11 23" /></svg>`,
+    READ:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 6 9 17 4 12"/><polyline points="20 12 11 23" /></svg>`,
+    FAILED:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    QUEUED:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  }[status] || "";
+}
+function deliveryLabel(status) {
+  return { SENT: "Đã gửi", DELIVERED: "Đã nhận", READ: "Đã xem", FAILED: "Gửi lỗi", QUEUED: "Đang chờ", SENDING: "Đang gửi", RETRYING: "Đang thử lại" }[status] || status;
+}
+
+/* ── Conversation row */
+function renderConvRow(c) {
+  const isActive = c.id === activeId;
+  const lastDir = c.lastDirection === "OUTBOUND" ? `<strong>Bạn:</strong> ` : "";
+  return `
+    <div class="conv-row ${isActive ? "active" : ""} ${c.isUnanswered && !isActive ? "unanswered" : ""}" data-id="${c.id}">
+      <div class="conv-row-head">
+        <div class="conv-avatar-wrap">
+          <div class="avatar">${initials(c.contact.name)}</div>
+          ${c.unread > 0 ? `<span class="unread-badge">${c.unread > 99 ? "99+" : c.unread}</span>` : ""}
+        </div>
+        <div class="conv-row-name-block">
+          <div class="conv-row-name">
+            <span class="status-dot ${slaClass(c.slaState)}" title="${c.slaState}"></span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${c.contact.name}</span>
+          </div>
+          <div class="conv-row-time">${c.lastMessageAt}</div>
+        </div>
+      </div>
+      <p class="conv-row-msg">${lastDir}${c.lastMessage || "Chưa có tin"}</p>
+      <div class="conv-row-foot">
+        <span class="badge ${providerClass(c.channel)}">${providerLabel(c.channel)}</span>
+        ${priorityBadge(c.priority)}
+        ${statusBadge(c.status)}
+        ${c.lastMessageStatus && c.lastDirection === "OUTBOUND" ? `<span class="badge ${c.lastMessageStatus === "FAILED" ? "danger" : c.lastMessageStatus === "READ" ? "ok" : "info"}" style="font-size:10px">${deliveryLabel(c.lastMessageStatus)}</span>` : ""}
+        <span class="owner">${c.owner ? c.owner.name : "Chưa gán"}</span>
+      </div>
+    </div>
+  `;
+}
+function renderConvList() {
+  document.getElementById("convList").innerHTML = CONVS.map(renderConvRow).join("");
+  document.querySelectorAll(".conv-row").forEach(el => {
+    el.addEventListener("click", () => {
+      activeId = el.dataset.id;
+      renderAll();
+    });
+  });
+}
+
+/* ── Thread header */
+function renderThreadHeader() {
+  const c = CONVS.find(x => x.id === activeId);
+  if (!c) return;
+  const slaTone = c.slaState === "BREACHED" ? "danger" : c.slaState === "DUE_SOON" ? "warn" : "ok";
+  document.getElementById("threadHeader").innerHTML = `
+    <div class="thread-back" onclick="closeSheets()"><i data-lucide="arrow-left" style="width:18px;height:18px"></i></div>
+    <div class="avatar">${initials(c.contact.name)}</div>
+    <div class="thread-header-info">
+      <div class="thread-customer">
+        <span>${c.contact.name}</span>
+      </div>
+      <div class="thread-sub">
+        <span class="channel-dot ${providerClass(c.channel)}" title="${providerLabel(c.channel)} · ${c.channelName}"></span>
+        <span class="channel-label">${providerLabel(c.channel)}</span>
+        ${c.owner ? `<span class="owner-info"><span class="online ${c.owner.online ? "" : "offline"}"></span> ${c.owner.name} đang xử lý</span>` : `<span class="unassigned" style="color:var(--status-warn-fg)">Chưa gán ai</span>`}
+      </div>
+    </div>
+    <div class="thread-header-actions">
+      <div class="context-group">
+        <span class="sla-pill ${slaTone}" title="Phản hồi đầu tiên SLA">
+          <i data-lucide="timer" style="width:11px;height:11px"></i>
+          ${slaText(c.slaState, c.slaSeconds)}
+        </span>
+        ${priorityDot(c.priority)}
+      </div>
+      <div class="action-group">
+        <button class="btn ghost customer-toggle-mobile" id="customerToggle" title="Hồ sơ khách" onclick="toggleCustomerMobile()">
+          <i data-lucide="user-round" style="width:16px;height:16px"></i>
+          <span>Hồ sơ</span>
+        </button>
+        <button class="btn btn-transfer" onclick="openSheet('transferSheet')">
+          <i data-lucide="user-round-check" style="width:14px;height:14px"></i>
+          <span>Chuyển</span>
+        </button>
+        ${c.status === "CLOSED"
+          ? `<button class="btn"><i data-lucide="rotate-ccw" style="width:14px;height:14px"></i><span>Mở lại</span></button>`
+          : `<button class="btn btn-close" onclick="openSheet('closeSheet')"><i data-lucide="check-circle-2" style="width:14px;height:14px"></i><span>Đóng</span></button>`
+        }
+        <div class="kebab-wrap">
+          <button class="btn ghost" id="kebabToggle" title="Thêm" aria-haspopup="menu">
+            <i data-lucide="more-horizontal" style="width:16px;height:16px"></i>
+          </button>
+          <div class="kebab-menu" id="kebabMenu" role="menu">
+            <button class="kebab-item" role="menuitem" onclick="closeKebab()">
+              <i data-lucide="search" style="width:14px;height:14px"></i>
+              Tìm trong hội thoại
+              <kbd>⌘F</kbd>
+            </button>
+            <button class="kebab-item" role="menuitem" onclick="closeKebab()">
+              <i data-lucide="tag" style="width:14px;height:14px"></i>
+              Gắn nhãn
+            </button>
+            <button class="kebab-item" role="menuitem" onclick="closeKebab()">
+              <i data-lucide="user-plus" style="width:14px;height:14px"></i>
+              Thêm vào CRM
+            </button>
+            ${c.status === "CLOSED"
+              ? `<button class="kebab-item" role="menuitem" onclick="closeKebab()">
+                  <i data-lucide="rotate-ccw" style="width:14px;height:14px"></i>
+                  Mở lại hội thoại
+                </button>`
+              : `<button class="kebab-item" role="menuitem" onclick="openSheet('closeSheet'); closeKebab();">
+                  <i data-lucide="check-circle-2" style="width:14px;height:14px"></i>
+                  Đóng hội thoại
+                </button>`
+            }
+            <button class="kebab-item" role="menuitem" id="kebabFocus" onclick="closeKebab()">
+              <i data-lucide="maximize-2" style="width:14px;height:14px"></i>
+              Phóng to
+              <kbd>Esc</kbd>
+            </button>
+            <div class="kebab-sep"></div>
+            <button class="kebab-item danger" role="menuitem" onclick="closeKebab()">
+              <i data-lucide="flag" style="width:14px;height:14px"></i>
+              Đánh dấu spam
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("focusToggle")?.addEventListener("click", () => {
+    document.getElementById("inboxShell").classList.toggle("focus-mode");
+  });
+  document.getElementById("kebabFocus")?.addEventListener("click", () => {
+    document.getElementById("inboxShell").classList.toggle("focus-mode");
+  });
+  // Kebab toggle
+  const kebabToggle = document.getElementById("kebabToggle");
+  const kebabMenu = document.getElementById("kebabMenu");
+  kebabToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = kebabMenu.getAttribute("data-open") === "true";
+    kebabMenu.setAttribute("data-open", open ? "false" : "true");
+  });
+  document.addEventListener("click", closeKebab, { once: true });
+  kebabMenu.addEventListener("click", (e) => e.stopPropagation());
+}
+
+/* ── Messages */
+function renderMessages() {
+  const c = CONVS.find(x => x.id === activeId);
+  if (!c) return;
+  const messages = MOCK_MESSAGES[c.id] || [];
+  const today = messages.filter(m => m.day === "today");
+  const html = `
+    ${today.length ? `<div class="day-divider"><span>Hôm nay</span></div>` : ""}
+    ${today.map(renderMessage).join("")}
+  `;
+  document.getElementById("messagesScroll").innerHTML = html;
+}
+function renderMessage(m) {
+  if (m.kind === "system") {
+    return `<div class="system-event"><span><i data-lucide="${m.icon}" style="width:11px;height:11px"></i> ${m.text}</span></div>`;
+  }
+  if (m.kind === "note") {
+    return `
+      <div class="note-bubble">
+        <i data-lucide="sticky-note" style="width:14px;height:14px;flex-shrink:0;margin-top:1px"></i>
+        <div>
+          <div class="note-meta"><span class="note-author">${m.author}</span> · ghi chú nội bộ</div>
+          <div style="margin-top:2px">${m.text}</div>
+        </div>
+      </div>
+    `;
+  }
+  const isOut = m.direction === "OUTBOUND";
+  const failed = m.status === "FAILED";
+  const deliveryHtml = isOut ? `
+    <span class="delivery">
+      ${deliveryIcon(m.status)}
+      ${deliveryLabel(m.status)}
+    </span>
+  ` : "";
+  const attachmentHtml = m.attachment
+    ? (m.attachment.type === "IMAGE"
+        ? `<img class="bubble-attachment" src="https://picsum.photos/seed/${c.id}-${m.id}/240/200" alt="" />`
+        : `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:color-mix(in oklab, var(--background) 80%, transparent);border-radius:6px;font-size:12px"><i data-lucide="file" style="width:14px;height:14px"></i> ${m.attachment.name || "Tệp đính kèm"}</div>`)
+    : "";
+  return `
+    <div class="bubble-row ${isOut ? "out" : "in"}">
+      <div class="bubble ${isOut ? "out" : "in"} ${failed ? "failed" : ""}">
+        ${attachmentHtml}
+        <div class="whitespace-pre-wrap">${m.body}</div>
+        ${m.outboxError ? `<div style="font-size:11px;opacity:0.9">⚠ ${m.outboxError}</div>` : ""}
+        <div class="bubble-foot">
+          <span>${m.time}</span>
+          ${deliveryHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Mock messages
+   ════════════════════════════════════════════════════════════════════ */
+
+const MOCK_MESSAGES = {
+  "c-001": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Chào shop ạ", time: "14:28", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Em đang quan tâm dịch vụ niềng răng trong suốt Invisalign ạ", time: "14:29", status: "RECEIVED" },
+    { id: "m3", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Bên mình có dịch vụ gì ạ? Giá khoảng bao nhiêu vậy?", time: "14:32", status: "RECEIVED" },
+    { kind: "system", day: "today", icon: "user-round-check", text: "Đã gán cho Trần Tùng" },
+  ],
+  "c-002": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Chào bạn, mình muốn hỏi về dịch vụ trồng răng implant", time: "13:50", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "OUTBOUND", senderType: "AGENT", body: "Dạ chào anh! Bên em có nhiều gói implant khác nhau ạ, em gửi bảng giá cho mình xem nha", time: "14:02", status: "SENT" },
+    { id: "m3", day: "today", direction: "OUTBOUND", senderType: "AGENT", body: "[Hình ảnh]", attachment: { type: "IMAGE" }, time: "14:03", status: "DELIVERED" },
+    { id: "m4", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Bạn gửi lại báo giá implant giúp mình nhé, cảm ơn", time: "14:18", status: "RECEIVED" },
+  ],
+  "c-003": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Chào shop, mình muốn đặt lịch khám tổng quát", time: "13:30", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "OUTBOUND", senderType: "AGENT", body: "Dạ vâng anh/chị ơi, bên em có lịch trống 9h sáng thứ 7 tuần này ạ. Mình đặt lịch giúp em nha!", time: "13:55", status: "DELIVERED" },
+    { kind: "system", day: "today", icon: "check-circle-2", text: "Đã gửi đến khách · 13:55" },
+  ],
+  "c-004": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Cả nhóm ơi, mình vừa niềng xong tháng 3 ở Nha Khoa, kết quả ok lắm", time: "13:20", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Mọi người có ai đang niềng không ạ?", time: "13:25", status: "RECEIVED" },
+    { id: "m3", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Hà Linh: Cho mình hỏi thêm về phương pháp niềng trong suốt ạ", time: "13:41", status: "RECEIVED" },
+  ],
+  "c-005": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Cho mình xin bảng giá tẩy trắng răng 2026 với", time: "12:00", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "OUTBOUND", senderType: "AGENT", body: "Dạ gửi bạn bảng giá ạ:", time: "12:18", status: "SENT" },
+    { id: "m3", day: "today", direction: "OUTBOUND", senderType: "AGENT", body: "[Hình ảnh]", attachment: { type: "IMAGE" }, time: "12:18", status: "FAILED", outboxError: "Không upload được — provider timeout 30s" },
+    { kind: "system", day: "today", icon: "alert-triangle", text: "Tin gửi lỗi · Bấm để thử lại" },
+  ],
+  "c-006": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Chào shop ạ", time: "11:30", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Chị ơi em muốn hỏi lịch khám cuối tuần này có không ạ?", time: "11:50", status: "RECEIVED" },
+  ],
+  "c-007": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Cảm ơn shop đã tư vấn nhiệt tình ạ", time: "10:20", status: "RECEIVED" },
+    { id: "m2", day: "today", direction: "OUTBOUND", senderType: "AGENT", body: "Cảm ơn bạn đã liên hệ! Chúc bạn một ngày tốt lành.", time: "10:24", status: "READ" },
+    { kind: "system", day: "today", icon: "archive", text: "Đã đóng hội thoại · 10:25" },
+  ],
+  "c-008": [
+    { id: "m1", day: "today", direction: "INBOUND", senderType: "CUSTOMER", body: "Cho mình đặt lịch khám tổng quát với ạ", time: "09:48", status: "RECEIVED" },
+  ],
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   Customer panel
+   ════════════════════════════════════════════════════════════════════ */
+
+function renderCustomerPanel() {
+  const c = CONVS.find(x => x.id === activeId);
+  if (!c) return;
+  const html = {
+    profile: renderProfile(c),
+    activity: renderActivity(c),
+    deal: renderDeal(c),
+    conversations: renderConversations(c),
+  }[activeCustomerTab];
+  document.getElementById("customerBody").innerHTML = html;
+}
+
+function renderProfile(c) {
+  const tags = ["VIP", "Hà Nội", "Invisalign"];
+  return `
+    <div class="profile-head">
+      <div class="avatar lg">${initials(c.contact.name)}</div>
+      <div>
+        <div class="profile-name">${c.contact.name}</div>
+        <div class="profile-source">Nguồn: ${providerLabel(c.contact.source)}</div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn"><i data-lucide="phone" style="width:14px;height:14px"></i> Gọi</button>
+        <button class="btn"><i data-lucide="user-round" style="width:14px;height:14px"></i> Hồ sơ</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Thông tin</div>
+      <div class="field"><span class="field-icon"><i data-lucide="phone" style="width:13px;height:13px"></i></span><span class="field-label">SĐT</span><span class="field-value"><a href="tel:${c.contact.phone}">${c.contact.phone || "—"}</a></span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="mail" style="width:13px;height:13px"></i></span><span class="field-label">Email</span><span class="field-value">${c.contact.email ? `<a href="mailto:${c.contact.email}">${c.contact.email}</a>` : "—"}</span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="map-pin" style="width:13px;height:13px"></i></span><span class="field-label">Khu vực</span><span class="field-value">Hà Nội</span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="inbox" style="width:13px;height:13px"></i></span><span class="field-label">Tin gần nhất</span><span class="field-value">14:32 hôm nay</span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="briefcase" style="width:13px;height:13px"></i></span><span class="field-label">Nhân viên</span><span class="field-value">${c.owner ? c.owner.name : "Chưa gán"}</span></div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Tag</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${tags.map(t => `<span class="tag">${t} <span class="x">×</span></span>`).join("")}
+        <span class="tag-input"><i data-lucide="plus" style="width:11px;height:11px"></i> Thêm</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Định danh kênh</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="identity-chip">
+          <span class="badge ${providerClass(c.channel)}" style="font-size:10px;border:0;padding:0">${providerLabel(c.channel)}</span>
+          uid-7821a3
+        </span>
+        <span class="identity-chip">
+          <span class="badge ch-facebook" style="font-size:10px;border:0;padding:0">FB</span>
+          1029384756
+        </span>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Ghi chú nhanh</div>
+      <div style="border:1px solid var(--status-warn-border);background:var(--status-warn-bg);color:var(--status-warn-fg);border-radius:6px;padding:8px 10px;font-size:12px;display:flex;gap:8px">
+        <i data-lucide="pin" style="width:14px;height:14px;flex-shrink:0;margin-top:1px"></i>
+        <div>
+          <div style="font-weight:600;font-size:11px">Lê Hoa · 12/06</div>
+          <div>Khách quan tâm gói Invisalign, đã gửi brochure, hẹn gọi lại 17h thứ 6.</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderActivity(c) {
+  const events = [
+    { tone: "info", icon: "message-circle", title: "Khách gửi tin nhắn", meta: "14:32 hôm nay", body: `"Em muốn tư vấn niềng răng trong suốt..."` },
+    { tone: "info", icon: "message-circle", title: "Khách gửi tin nhắn", meta: "14:29 hôm nay", body: `"Em đang quan tâm dịch vụ niềng răng trong suốt..."` },
+    { tone: "ok",   icon: "user-round-check", title: "Auto-assigned", meta: "14:28 hôm nay · bởi hệ thống", body: "Sticky owner → Trần Tùng" },
+    { tone: "info", icon: "message-circle", title: "Khách gửi tin nhắn", meta: "14:28 hôm nay", body: `"Chào shop ạ"` },
+    { tone: "ok",   icon: "phone", title: "Cuộc gọi", meta: "Hôm qua 16:42", body: "Gọi 12:34 — Khách quan tâm, hẹn gọi lại" },
+    { tone: "warn", icon: "alert-triangle", title: "SLA cảnh báo", meta: "2 ngày trước", body: "Phản hồi đầu tiên trễ 4 phút" },
+    { tone: "info", icon: "briefcase", title: "Lead tạo", meta: "3 ngày trước · Trần Tùng", body: "Lead #L-2041 · Nguồn: Zalo cá nhân" },
+    { tone: "ok",   icon: "tag", title: "Tag thêm", meta: "3 ngày trước · Lê Hoa", body: "+VIP, +Hà Nội" },
+    { tone: "info", icon: "user-plus", title: "Contact tạo", meta: "3 ngày trước · từ Zalo", body: "First-touch qua tin nhắn" },
+  ];
+  return `
+    <div>
+      <div class="section-title" style="margin-bottom:12px">Hoạt động (${events.length})</div>
+      <div class="timeline">
+        ${events.map(e => `
+          <div class="timeline-event">
+            <div class="timeline-dot ${e.tone}"><i data-lucide="${e.icon}" style="width:12px;height:12px"></i></div>
+            <div class="timeline-content">
+              <div class="timeline-title">${e.title}</div>
+              <div class="timeline-meta">${e.meta}</div>
+              <div class="timeline-body">${e.body}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderDeal(c) {
+  const stages = ["Mới", "Đủ điều kiện", "Báo giá", "Đàm phán", "Thắng", "Thua"];
+  const currentStage = 1; // Đủ điều kiện
+  return `
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Cơ hội đang mở</div>
+      <div class="lead-card">
+        <div class="lead-card-head">
+          <span class="lead-title">Lead #L-2041 · Niềng Invisalign</span>
+          <span class="badge warn">Cao</span>
+        </div>
+        <div class="kanban-strip">
+          ${stages.map((s, i) => `<span class="stage ${i < currentStage ? (i === stages.length - 2 ? "won" : i === stages.length - 1 ? "lost" : "active") : ""}" title="${s}"></span>`).join("")}
+        </div>
+        <div class="lead-meta">
+          <span>${stages[currentStage]}</span>
+          <span>·</span>
+          <span>SLA: 12 ngày</span>
+          <span>·</span>
+          <span class="lead-value">85.000.000 ₫</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Pipeline</div>
+      <div class="field"><span class="field-icon"><i data-lucide="git-branch" style="width:13px;height:13px"></i></span><span class="field-label">Pipeline</span><span class="field-value">Invisalign 2026</span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="user" style="width:13px;height:13px"></i></span><span class="field-label">Owner</span><span class="field-value">Trần Tùng</span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="calendar" style="width:13px;height:13px"></i></span><span class="field-label">Dự kiến đóng</span><span class="field-value">30 ngày tới</span></div>
+      <div class="field"><span class="field-icon"><i data-lucide="phone" style="width:13px;height:13px"></i></span><span class="field-label">Nguồn</span><span class="field-value">${providerLabel(c.contact.source)}</span></div>
+    </div>
+
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Hoạt động deal</div>
+      <div class="timeline">
+        <div class="timeline-event">
+          <div class="timeline-dot ok"><i data-lucide="check" style="width:12px;height:12px"></i></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Đã tạo brochure</div>
+            <div class="timeline-meta">2 ngày trước · Lê Hoa</div>
+          </div>
+        </div>
+        <div class="timeline-event">
+          <div class="timeline-dot info"><i data-lucide="send" style="width:12px;height:12px"></i></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Đã gửi brochure cho khách</div>
+            <div class="timeline-meta">2 ngày trước</div>
+          </div>
+        </div>
+        <div class="timeline-event">
+          <div class="timeline-dot info"><i data-lucide="phone" style="width:12px;height:12px"></i></div>
+          <div class="timeline-content">
+            <div class="timeline-title">Đã gọi tư vấn</div>
+            <div class="timeline-meta">Hôm qua 16:42 · 12:34</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderConversations(c) {
+  const others = [
+    { channel: "FACEBOOK", time: "12/06", msg: "Cho mình hỏi dịch vụ tẩy trắng răng" },
+    { channel: "TELEGRAM", time: "08/06", msg: "Đặt lịch khám tổng quát" },
+    { channel: "ZALO_OA", time: "01/06", msg: "Brochure dịch vụ implant" },
+  ];
+  return `
+    <div>
+      <div class="section-title" style="margin-bottom:8px">Hội thoại khác (${others.length})</div>
+      ${others.map(o => `
+        <a class="conv-row-foot" href="#" style="display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;text-decoration:none">
+          <span class="badge ${providerClass(o.channel)}" style="font-size:10px">${providerLabel(o.channel)}</span>
+          <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.msg}</span>
+          <span style="font-size:11px;color:var(--muted-foreground);font-family:var(--font-mono)">${o.time}</span>
+        </a>
+      `).join("")}
+    </div>
+  `;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Interactions
+   ════════════════════════════════════════════════════════════════════ */
+
+function renderAll() {
+  renderConvList();
+  renderThreadHeader();
+  renderMessages();
+  renderCustomerPanel();
+  if (window.lucide) window.lucide.createIcons();
+}
+
+document.getElementById("openPalette").addEventListener("click", () => {
+  document.getElementById("cmdBackdrop").classList.add("open");
+});
+document.getElementById("cmdBackdrop").addEventListener("click", (e) => {
+  if (e.target.id === "cmdBackdrop") e.target.classList.remove("open");
+});
+document.getElementById("sheetBackdrop").addEventListener("click", closeSheets);
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.removeAttribute("data-active"));
+    t.setAttribute("data-active", "true");
+  });
+});
+
+document.querySelectorAll(".customer-tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".customer-tab").forEach(x => x.removeAttribute("data-active"));
+    t.setAttribute("data-active", "true");
+    activeCustomerTab = t.dataset.tab;
+    renderCustomerPanel();
+    if (window.lucide) window.lucide.createIcons();
+  });
+});
+
+document.querySelectorAll(".composer-mode button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".composer-mode button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+  });
+});
+
+document.getElementById("themeToggle").querySelectorAll("button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.getElementById("themeToggle").querySelectorAll("button").forEach(x => x.removeAttribute("data-active"));
+    b.setAttribute("data-active", "true");
+    document.body.classList.toggle("dark", b.dataset.mode === "dark");
+  });
+});
+
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    document.getElementById("cmdBackdrop").classList.toggle("open");
+  }
+  if (e.key === "Escape") {
+    closeSheets();
+    document.getElementById("cmdBackdrop").classList.remove("open");
+    document.getElementById("inboxShell").classList.remove("focus-mode");
+  }
+});
+
+function openSheet(id) {
+  document.getElementById("sheetBackdrop").classList.add("open");
+  document.getElementById(id).classList.add("open");
+}
+function closeSheets() {
+  document.getElementById("sheetBackdrop").classList.remove("open");
+  document.querySelectorAll(".sheet").forEach(s => s.classList.remove("open"));
+}
+
+function sendMessage() {
+  const ta = document.getElementById("composerText");
+  if (!ta.value.trim()) return;
+  const c = CONVS.find(x => x.id === activeId);
+  const list = MOCK_MESSAGES[c.id] || (MOCK_MESSAGES[c.id] = []);
+  list.push({ id: "n" + Date.now(), day: "today", direction: "OUTBOUND", senderType: "AGENT", body: ta.value, time: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }), status: "QUEUED" });
+  // simulate SENT after 1.2s
+  setTimeout(() => { list[list.length-1].status = "SENT"; renderMessages(); if (window.lucide) window.lucide.createIcons(); }, 1200);
+  // simulate DELIVERED after 2.5s
+  setTimeout(() => { list[list.length-1].status = "DELIVERED"; renderMessages(); if (window.lucide) window.lucide.createIcons(); }, 2500);
+  ta.value = "";
+  renderMessages();
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   RESPONSIVE — view-state, drawer, bottom sheet, bottom nav
+   ════════════════════════════════════════════════════════════════════ */
+
+const MQ_MOBILE  = window.matchMedia("(max-width: 767px)");
+const MQ_TABLET  = window.matchMedia("(min-width: 768px) and (max-width: 1279px)");
+const isMobile   = () => MQ_MOBILE.matches;
+const isTablet   = () => MQ_TABLET.matches;
+const isSmall    = () => MQ_MOBILE.matches || MQ_TABLET.matches;
+
+let view = "queue";          // 'queue' | 'thread' | 'customer'
+const inboxShell = document.getElementById("inboxShell");
+const customerPane = document.getElementById("customerPane");
+const appSidebar = document.querySelector(".app-sidebar");
+
+function setView(v) {
+  view = v;
+  inboxShell.setAttribute("data-view", v);
+  // sync bottom nav active state
+  document.querySelectorAll(".mobile-bottom-nav button").forEach(b => {
+    b.setAttribute("data-active", String(b.dataset.nav === v));
+  });
+  // body flag for backdrop dim
+  document.body.toggleAttribute("data-mobile-sheet-open", v === "customer" && isMobile());
+  // if entering customer view via bottom nav, also open the sheet
+  if (v === "customer" && isMobile()) {
+    customerPane.setAttribute("data-mobile-open", "true");
+  } else {
+    customerPane.setAttribute("data-mobile-open", "false");
+  }
+}
+
+function goBack() {
+  if (isMobile()) {
+    if (view === "customer") setView("thread");
+    else if (view === "thread") setView("queue");
+    else closeSheets();
+  } else {
+    closeSheets();
+  }
+}
+
+function toggleCustomerMobile() {
+  if (isSmall()) {
+    setView(view === "customer" ? "thread" : "customer");
+  } else {
+    // desktop: focus toggle would do something else; for now no-op
+  }
+}
+
+function toggleSidebar() {
+  const open = appSidebar.getAttribute("data-open") === "true";
+  appSidebar.setAttribute("data-open", String(!open));
+}
+
+/* ── Wire up controls */
+document.getElementById("sidebarToggle")?.addEventListener("click", toggleSidebar);
+
+/* Bottom nav */
+document.querySelectorAll(".mobile-bottom-nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    const target = b.dataset.nav;
+    if (target === "search") {
+      document.getElementById("cmdBackdrop").classList.add("open");
+      return;
+    }
+    if (target === "profile") {
+      // on mobile profile screen could be a separate page; mockup = open cmd palette
+      document.getElementById("cmdBackdrop").classList.add("open");
+      return;
+    }
+    setView(target);
+  });
+});
+
+/* When user taps a conversation, jump to thread on mobile */
+document.getElementById("convList").addEventListener("click", (e) => {
+  if (isMobile()) {
+    setView("thread");
+  }
+}, true);  // capture phase: run before row's own click handler
+
+/* Override the inline onclick on .thread-back to use goBack() */
+document.querySelectorAll(".thread-back").forEach(el => {
+  el.setAttribute("onclick", "goBack()");
+});
+
+/* Tab backdrop click also closes mobile customer sheet */
+document.getElementById("sheetBackdrop").addEventListener("click", () => {
+  if (isMobile() && view === "customer") setView("thread");
+  closeSheets();
+});
+
+/* Resize: reset view if growing past breakpoint (don't strand on mobile view) */
+function syncViewToBreakpoint() {
+  if (!isSmall()) {
+    // grow to desktop: clear mobile-specific state
+    inboxShell.removeAttribute("data-view");
+    customerPane.setAttribute("data-mobile-open", "false");
+    appSidebar.setAttribute("data-open", "false");
+  } else if (isTablet()) {
+    // tablet: 2-pane grid (queue + thread), customer pane is overlay drawer (hidden by default)
+    inboxShell.removeAttribute("data-view");
+    customerPane.setAttribute("data-mobile-open", "false");
+    appSidebar.setAttribute("data-open", "false");
+  } else {
+    // mobile: single-pane with view state
+    if (!inboxShell.hasAttribute("data-view")) setView("queue");
+  }
+}
+MQ_MOBILE.addEventListener("change", syncViewToBreakpoint);
+MQ_TABLET.addEventListener("change", syncViewToBreakpoint);
+syncViewToBreakpoint();
+
+/* Keyboard-aware composer (mobile) — keeps composer above virtual keyboard */
+if (window.visualViewport) {
+  const composer = document.querySelector(".composer");
+  window.visualViewport.addEventListener("resize", () => {
+    if (!isMobile() || !composer) return;
+    const offsetBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+    composer.style.paddingBottom = `calc(8px + ${Math.max(0, offsetBottom)}px + env(safe-area-inset-bottom, 0px))`;
+  });
+}
+
+/* On mobile, when keyboard opens, scroll composer into view */
+document.getElementById("composerText")?.addEventListener("focus", () => {
+  if (isMobile()) {
+    setTimeout(() => {
+      document.getElementById("composerText")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 300);
+  }
+});
+
+/* Init */
+renderAll();
+setView("queue");
+
+/* ════════════════════════════════════════════════════════════════════
+   Queue alert → toast + header bell (replaces inline alert block)
+   ════════════════════════════════════════════════════════════════════ */
+function showToast({ icon = "triangle-alert", title, rows = [], duration = 8000, onAction } = {}) {
+  const stack = document.getElementById("toastStack");
+  if (!stack) return;
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `
+    <div class="toast-icon"><i data-lucide="${icon}" style="width:15px;height:15px"></i></div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-row">
+        ${rows.map(r => `<span><span class="link" data-action="${r.action || ""}">${r.count}</span> ${r.label}</span>`).join("")}
+      </div>
+    </div>
+    <button class="toast-close" aria-label="Đóng"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    <div class="toast-progress"></div>
+  `;
+  stack.appendChild(el);
+  if (window.lucide) window.lucide.createIcons();
+  let dismissTimer = null;
+  let remaining = duration;
+  let startedAt = Date.now();
+  const dismiss = () => {
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+    el.classList.add("dismissing");
+    setTimeout(() => el.remove(), 220);
+  };
+  const startTimer = (ms) => {
+    if (ms <= 0) return;
+    startedAt = Date.now();
+    dismissTimer = setTimeout(dismiss, ms);
+  };
+  el.querySelector(".toast-close").addEventListener("click", (e) => {
+    e.stopPropagation();
+    dismiss();
+  });
+  el.addEventListener("click", (e) => {
+    const link = e.target.closest(".link");
+    if (link) {
+      const action = link.dataset.action;
+      if (onAction) onAction(action);
+      dismiss();
+      return;
+    }
+    dismiss();
+  });
+  // Pause both dismiss timer AND progress animation on hover (so timing stays consistent)
+  const progress = el.querySelector(".toast-progress");
+  el.addEventListener("mouseenter", () => {
+    if (dismissTimer) {
+      clearTimeout(dismissTimer);
+      remaining = Math.max(0, remaining - (Date.now() - startedAt));
+      dismissTimer = null;
+    }
+    progress.style.animationPlayState = "paused";
+  });
+  el.addEventListener("mouseleave", () => {
+    startTimer(remaining);
+    progress.style.animationPlayState = "running";
+  });
+  if (duration > 0) startTimer(duration);
+  // Expose dismiss on the element for external control
+  el._dismiss = dismiss;
+  return dismiss;
+}
+
+/* Alert bell: clicking re-shows the toast (in case operator dismissed it) */
+const alertBtn = document.getElementById("alertBtn");
+if (alertBtn) {
+  alertBtn.addEventListener("click", () => {
+    showToast({
+      icon: "bell",
+      title: "Cần xử lý",
+      rows: [
+        { count: 3, label: "tin gửi lỗi", action: "failed" },
+        { count: 2, label: "cuộc chưa gán", action: "unassigned" },
+      ],
+      onAction: (action) => {
+        if (action === "failed") {
+          // jump to first FAILED conversation
+          const failedConv = CONVS.find(c => c.lastMessageStatus === "FAILED");
+          if (failedConv) { activeId = failedConv.id; renderAll(); }
+        } else if (action === "unassigned") {
+          // switch tab to "waiting" (chưa gán hiển thị ở đó)
+          const waitingTab = document.querySelector('.tab[data-tab="waiting"]');
+          waitingTab?.click();
+        }
+      },
+    });
+  });
+}
+
+/* Auto-show toast on first load */
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    showToast({
+      icon: "triangle-alert",
+      title: "Cần xử lý",
+      rows: [
+        { count: 3, label: "tin gửi lỗi", action: "failed" },
+        { count: 2, label: "cuộc chưa gán", action: "unassigned" },
+      ],
+      onAction: (action) => {
+        if (action === "failed") {
+          const failedConv = CONVS.find(c => c.lastMessageStatus === "FAILED");
+          if (failedConv) { activeId = failedConv.id; renderAll(); }
+        } else if (action === "unassigned") {
+          const waitingTab = document.querySelector('.tab[data-tab="waiting"]');
+          waitingTab?.click();
+        }
+      },
+    });
+  }, 800);
+});
+</script>
+
+<!-- Toast container — Sonner-style, bottom-right -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+</body>
+</html>
