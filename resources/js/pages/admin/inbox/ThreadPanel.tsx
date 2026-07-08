@@ -1294,7 +1294,12 @@ function ThreadKebab({
                     </span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                    onSelect={() => toast.info('Mở panel gắn nhãn (TODO)')}
+                    onSelect={() =>
+                        toast.info(
+                            'Mở tab "Hồ sơ" trong panel khách để gắn nhãn (mockup §3.5).',
+                            { duration: 5000 },
+                        )
+                    }
                 >
                     <TagIcon />
                     <span>Gắn nhãn</span>

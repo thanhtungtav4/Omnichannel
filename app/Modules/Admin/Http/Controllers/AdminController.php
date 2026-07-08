@@ -127,6 +127,9 @@ class AdminController extends Controller
                     'source' => $conversation->contact->source,
                     'status' => $conversation->contact->status,
                     'tags' => $conversation->contact->tags ?? [],
+                    // Workspace-scope vocabulary — surfaced in the customer
+                    // panel TagEditor for autocomplete suggestions.
+                    'tagVocabulary' => $this->tagVocabulary($conversation->workspace_id),
                     'lastInboundAt' => $conversation->contact->last_inbound_at?->diffForHumans(),
                     'identities' => $conversation->contact->identities->map(fn ($identity) => [
                         'id' => $identity->id,
@@ -525,6 +528,18 @@ class AdminController extends Controller
                     ]),
                 ]),
         ]);
+    }
+
+    private function tagVocabulary(string $workspaceId): array
+    {
+        $settings = app(\App\Modules\Platform\Services\WorkspaceSettings::class);
+        $vocab = $settings->get(
+            \App\Modules\Platform\Models\Workspace::query()->whereKey($workspaceId)->first(),
+            'tags.vocabulary',
+            [],
+        );
+
+        return is_array($vocab) ? array_values($vocab) : [];
     }
 
     private function workspaceId(Request $request): string

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Crm\Models\ExternalIdentity;
+use App\Modules\Platform\Models\Workspace;
 use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -129,7 +130,36 @@ class ContactController extends Controller
 
         $contact->forceFill(['tags' => $tags])->save();
 
+        // Workspace-scope vocabulary sync (mockup §3.5): any new tag added to
+        // a contact auto-joins the workspace's vocabulary so other agents see
+        // it as a suggestion next time. We don't delete vocabulary entries on
+        // tag removal (admins curate the vocabulary separately).
+        $settings = app(\App\Modules\Platform\Services\WorkspaceSettings::class);
+        $vocab = $settings->get($contact->workspace, 'tags.vocabulary', []);
+        if (! is_array($vocab)) {
+            $vocab = [];
+        }
+        $merged = array_values(array_unique(array_merge($vocab, $tags)));
+        if (count($merged) !== count($vocab)) {
+            $settings->set($contact->workspace, 'tags.vocabulary', $merged);
+        }
+
         return back()->with('success', 'Đã cập nhật tag.');
+    }
+
+    /**
+     * Workspace-scope tag vocabulary. Returns the list of allowed tags that
+     * any contact in this workspace can choose from. The vocabulary grows
+     * automatically as agents add new tags via updateTags(). Admins curate
+     * it via the /settings surface (cut 2).
+     */
+    public function vocabulary(Request $request, Workspace $workspace): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($workspace->id === $this->workspaceId($request), 403);
+        $settings = app(\App\Modules\Platform\Services\WorkspaceSettings::class);
+        $vocab = $settings->get($workspace, 'tags.vocabulary', []);
+
+        return response()->json(['vocabulary' => is_array($vocab) ? $vocab : []]);
     }
 
     /** Add a CSKH note to a contact. */

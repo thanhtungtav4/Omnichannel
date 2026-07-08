@@ -109,6 +109,8 @@ export type ActiveConversation = {
         source?: string | null;
         status?: string | null;
         tags?: string[];
+        /** Workspace-scope tag vocabulary (for autocomplete suggestions). */
+        tagVocabulary?: string[];
         lastInboundAt?: string | null;
         identities?: {
             id: string;

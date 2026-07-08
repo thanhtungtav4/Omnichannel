@@ -7,11 +7,11 @@ import {
     Pin,
     Send,
     StickyNote,
-    Tag as TagIcon,
     UserRound,
     UserRoundCheck,
 } from 'lucide-react';
 import { Link } from '@inertiajs/react';
+import { TagEditor } from '@/components/admin/tag-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -231,6 +231,7 @@ function ProfileTab({
     owner: ActiveConversation['owner'];
 }) {
     const tags = contact.tags ?? [];
+    const vocab = contact.tagVocabulary ?? [];
     const identities = contact.identities ?? [];
     const notes = contact.notes ?? [];
 
@@ -317,31 +318,11 @@ function ProfileTab({
             {/* Tag */}
             <div>
                 <SectionTitle>Tag</SectionTitle>
-                <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag) => (
-                        <span
-                            key={tag}
-                            className="inline-flex items-center gap-1 rounded-full border bg-accent px-2 py-0.5 text-xs font-medium"
-                        >
-                            {tag}
-                            <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground"
-                                aria-label={`Xóa tag ${tag}`}
-                                title={`Xóa tag ${tag}`}
-                            >
-                                ×
-                            </button>
-                        </span>
-                    ))}
-                    <button
-                        type="button"
-                        className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
-                    >
-                        <TagIcon className="size-3" />
-                        Thêm
-                    </button>
-                </div>
+                <TagEditor
+                    contactId={contact.id}
+                    tags={tags}
+                    suggestions={vocab}
+                />
             </div>
 
             {/* Định danh kênh */}
