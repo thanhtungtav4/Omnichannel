@@ -31,4 +31,14 @@ class Lead extends Model
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
+
+    public function pipeline(): BelongsTo
+    {
+        return $this->belongsTo(Pipeline::class);
+    }
+
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(Stage::class);
+    }
 }

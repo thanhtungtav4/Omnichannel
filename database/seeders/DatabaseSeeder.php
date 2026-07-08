@@ -94,12 +94,73 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Default Lead Pipeline', 'sort_order' => 1],
         );
 
-        $newStage = Stage::query()->firstOrCreate(
-            ['workspace_id' => $workspace->id, 'pipeline_id' => $pipeline->id, 'sort_order' => 1],
+        // Default Sales pipeline — 6 stages matching mockup §3.5 deal kanban.
+        $salesPipeline = Pipeline::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'type' => 'DEAL', 'is_default' => true],
+            ['name' => 'Sales Pipeline', 'sort_order' => 1],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $salesPipeline->id, 'sort_order' => 1],
+            ['name' => 'Mới', 'status_group' => 'OPEN', 'color_token' => 'idle'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $salesPipeline->id, 'sort_order' => 2],
+            ['name' => 'Đủ điều kiện', 'status_group' => 'OPEN', 'color_token' => 'info'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $salesPipeline->id, 'sort_order' => 3],
+            ['name' => 'Báo giá', 'status_group' => 'OPEN', 'color_token' => 'info'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $salesPipeline->id, 'sort_order' => 4],
+            ['name' => 'Đàm phán', 'status_group' => 'OPEN', 'color_token' => 'warn'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $salesPipeline->id, 'sort_order' => 5],
+            ['name' => 'Thắng', 'status_group' => 'WON', 'color_token' => 'ok'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $salesPipeline->id, 'sort_order' => 6],
+            ['name' => 'Thua', 'status_group' => 'LOST', 'color_token' => 'danger'],
+        );
+
+        // CSKH pipeline — used for support tracking (5 stages, no Thắng/Thua).
+        $cskhPipeline = Pipeline::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'type' => 'DEAL', 'is_default' => false, 'name' => 'CSKH Pipeline'],
+            ['sort_order' => 2],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $cskhPipeline->id, 'sort_order' => 1],
+            ['name' => 'Mới', 'status_group' => 'OPEN', 'color_token' => 'idle'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $cskhPipeline->id, 'sort_order' => 2],
+            ['name' => 'Đang xử lý', 'status_group' => 'OPEN', 'color_token' => 'info'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $cskhPipeline->id, 'sort_order' => 3],
+            ['name' => 'Chờ khách', 'status_group' => 'OPEN', 'color_token' => 'info'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $cskhPipeline->id, 'sort_order' => 4],
+            ['name' => 'Đã giải quyết', 'status_group' => 'WON', 'color_token' => 'ok'],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $cskhPipeline->id, 'sort_order' => 5],
+            ['name' => 'Hủy', 'status_group' => 'LOST', 'color_token' => 'danger'],
+        );
+
+        // Backward-compat: old LEAD pipeline (for migration / older workspaces).
+        $legacyPipeline = Pipeline::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'type' => 'LEAD', 'is_default' => true],
+            ['name' => 'Default Lead Pipeline', 'sort_order' => 1],
+        );
+        Stage::query()->firstOrCreate(
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $legacyPipeline->id, 'sort_order' => 1],
             ['name' => 'New inquiry', 'status_group' => 'OPEN', 'color_token' => 'secondary'],
         );
         Stage::query()->firstOrCreate(
-            ['workspace_id' => $workspace->id, 'pipeline_id' => $pipeline->id, 'sort_order' => 2],
+            ['workspace_id' => $workspace->id, 'pipeline_id' => $legacyPipeline->id, 'sort_order' => 2],
             ['name' => 'Consulting', 'status_group' => 'OPEN', 'color_token' => 'default'],
         );
 
@@ -188,7 +249,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'owner_id' => $seed['owner']?->id,
                     'pipeline_id' => $pipeline->id,
-                    'stage_id' => $newStage->id,
+                    'stage_id' => $salesPipeline->stages()->first()?->id ?? $salesPipeline->stages->first()->id,
                     'title' => 'Tư vấn CRM - '.$seed['name'],
                     'status' => 'NEW',
                     'source' => $seed['provider'],

@@ -116,7 +116,14 @@ export type ActiveConversation = {
             displayName?: string | null;
             providerUserId: string;
         }[];
-        leads?: { id: string; title: string; status: string; valueAmount?: number | string | null; stage?: string }[];
+        leads?: {
+            id: string;
+            title: string;
+            status: string;
+            valueAmount?: number | string | null;
+            pipeline?: { id: string; name: string } | null;
+            stage?: { id: string; name: string; sortOrder: number; statusGroup: string } | null;
+        }[];
         notes?: { id: string; body: string; pinned: boolean }[];
         otherConversations?: {
             id: string;

@@ -531,29 +531,54 @@ function DealTab({
                         {openLeads.map((lead) => (
                             <div
                                 key={lead.id}
-                                className="flex flex-col gap-1.5 rounded border p-2.5"
+                                className="flex flex-col gap-2 rounded border p-2.5"
                             >
+                                {/* Title + status */}
                                 <div className="flex items-center gap-2">
                                     <span className="flex-1 truncate text-xs font-medium">
                                         Lead · {lead.title}
                                     </span>
                                     <span
                                         className={cn(
-                                            'inline-block size-1.5 shrink-0 rounded-full',
-                                            lead.status === 'OPEN' && '[background-color:var(--status-info-fg)]',
-                                            lead.status === 'QUALIFYING' && '[background-color:var(--status-warn-fg)]',
-                                            lead.status === 'NEW' && '[background-color:var(--status-idle-fg)]',
+                                            'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold',
+                                            lead.status === 'OPEN' &&
+                                                '[background-color:var(--status-info-bg)] [border-color:var(--status-info-border)] [color:var(--status-info-fg)]',
+                                            lead.status === 'QUALIFYING' &&
+                                                '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)]',
+                                            lead.status === 'NEW' &&
+                                                '[background-color:var(--status-idle-bg)] [border-color:var(--status-idle-border)] [color:var(--status-idle-fg)]',
                                         )}
-                                    />
-                                    <span className="text-xs text-muted-foreground">
+                                    >
                                         {lead.status}
                                     </span>
                                 </div>
-                                {lead.valueAmount && (
-                                    <div className="[font-family:var(--font-mono)] text-xs font-semibold tabular-nums">
-                                        {Number(lead.valueAmount).toLocaleString('vi-VN')} ₫
-                                    </div>
+
+                                {/* Kanban strip — current stage highlighted. */}
+                                {lead.stage && lead.pipeline && (
+                                    <KanbanStrip
+                                        currentStage={lead.stage}
+                                        pipelineName={lead.pipeline.name}
+                                    />
                                 )}
+
+                                {/* Meta: pipeline · stage · value */}
+                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                    <span className="truncate">
+                                        {lead.pipeline?.name ?? 'Pipeline'}
+                                    </span>
+                                    <span>·</span>
+                                    <span className="truncate font-medium text-foreground">
+                                        {lead.stage?.name ?? '—'}
+                                    </span>
+                                    {lead.valueAmount && (
+                                        <>
+                                            <span>·</span>
+                                            <span className="[font-family:var(--font-mono)] font-semibold tabular-nums [color:var(--foreground)]">
+                                                {Number(lead.valueAmount).toLocaleString('vi-VN')} ₫
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -563,7 +588,7 @@ function DealTab({
             <div>
                 <SectionTitle>Pipeline</SectionTitle>
                 <Field icon={<Briefcase className="size-3" />} label="Pipeline">
-                    <Empty>—</Empty>
+                    {openLeads[0]?.pipeline?.name ?? <Empty>—</Empty>}
                 </Field>
                 <Field icon={<UserRound className="size-3" />} label="Owner">
                     <Empty>—</Empty>
@@ -572,6 +597,54 @@ function DealTab({
                     {providerLabel(contact.source)}
                 </Field>
             </div>
+        </div>
+    );
+}
+
+/* ── Kanban strip — 6-cell progress bar (mockup §3.5) ─────────────────── */
+function KanbanStrip({
+    currentStage,
+    pipelineName,
+}: {
+    currentStage: { sortOrder: number; statusGroup: string; name: string };
+    pipelineName: string;
+}) {
+    // Derive a synthetic 6-cell strip from the current stage's sortOrder.
+    // This works whether the pipeline has 5 or 6 stages — we render the
+    // current stage as the cell index (sort_order), with surrounding cells
+    // grayed out. For a more precise strip we'd fetch the full stage list
+    // from the pipeline, but this gives a faithful visual at the cheapest cost.
+    const total = 6;
+    const idx = Math.min(Math.max(currentStage.sortOrder - 1, 0), total - 1);
+
+    return (
+        <div
+            className="flex gap-0.5"
+            role="progressbar"
+            aria-label={`Pipeline ${pipelineName}, hiện tại: ${currentStage.name}`}
+            aria-valuenow={idx + 1}
+            aria-valuemin={1}
+            aria-valuemax={total}
+        >
+            {Array.from({ length: total }).map((_, i) => {
+                const isCurrent = i === idx;
+                const isWon = currentStage.statusGroup === 'WON' && i <= idx;
+                const isLost = currentStage.statusGroup === 'LOST' && i === idx;
+                const isPast = i < idx;
+                return (
+                    <span
+                        key={i}
+                        title={isCurrent ? `Hiện tại: ${currentStage.name}` : undefined}
+                        className={cn(
+                            'h-1 flex-1 rounded-sm bg-muted',
+                            isCurrent && !isLost && '[background-color:var(--primary)]',
+                            isWon && '[background-color:var(--status-ok-fg)]',
+                            isLost && '[background-color:var(--status-danger-fg)]',
+                            isPast && !isWon && !isLost && '[background-color:var(--primary)]',
+                        )}
+                    />
+                );
+            })}
         </div>
     );
 }

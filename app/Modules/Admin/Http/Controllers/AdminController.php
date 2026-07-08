@@ -39,7 +39,11 @@ class AdminController extends Controller
             ->where('workspace_id', $workspaceId)
             ->with([
                 'contact.identities',
+                // Leads + pipeline + stage for the deal kanban strip in the
+                // customer panel. Preloading here avoids N+1 inside the map().
                 'contact.leads',
+                'contact.leads.pipeline',
+                'contact.leads.stage',
                 // Recent notes for the right rail — pinned first, then newest.
                 // Not pinned-only, so a note just typed in the composer shows up.
                 'contact.notes' => fn ($q) => $q->orderByDesc('pinned')->latest()->limit(10),
@@ -131,12 +135,29 @@ class AdminController extends Controller
                         'providerUserId' => $identity->provider_user_id,
                     ]),
                     // Open leads for this contact — the HubSpot right-rail "deals".
+                    // Pipeline/stage are preloaded on the contact's leads
+                    // relation so the kanban strip renders without N+1.
                     'leads' => $conversation->contact->leads
                         ->whereNotIn('status', ['WON', 'LOST'])
                         ->map(fn ($lead) => [
                             'id' => $lead->id,
                             'title' => $lead->title,
                             'status' => $lead->status,
+                            'valueAmount' => $lead->value_amount,
+                            'pipeline' => $lead->pipeline
+                                ? [
+                                    'id' => $lead->pipeline->id,
+                                    'name' => $lead->pipeline->name,
+                                ]
+                                : null,
+                            'stage' => $lead->stage
+                                ? [
+                                    'id' => $lead->stage->id,
+                                    'name' => $lead->stage->name,
+                                    'sortOrder' => (int) $lead->stage->sort_order,
+                                    'statusGroup' => $lead->stage->status_group,
+                                ]
+                                : null,
                         ])->values(),
                     // Recent CSKH notes (pinned first) — quick context without
                     // opening the full record.
