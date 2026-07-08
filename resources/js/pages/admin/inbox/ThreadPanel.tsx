@@ -413,8 +413,9 @@ export function ThreadPanel({
                         on a single compact row. */}
                     <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
+                        className="gap-1.5 px-2 text-xs"
                         onClick={() => setTransferOpen(true)}
                     >
                         <UserRoundCheck data-icon="inline-start" />
@@ -527,8 +528,9 @@ export function ThreadPanel({
                     {activeConversation.status === 'CLOSED' ? (
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
+                            className="gap-1.5 px-2 text-xs"
                             onClick={onReopenConversation}
                         >
                             <RotateCcw data-icon="inline-start" />
@@ -537,8 +539,9 @@ export function ThreadPanel({
                     ) : (
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
+                            className="gap-1.5 px-2 text-xs"
                             onClick={onCloseConversation}
                         >
                             <CheckCircle2 data-icon="inline-start" />
@@ -1093,7 +1096,7 @@ function ThreadKebab({
             <DropdownMenuTrigger asChild>
                 <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
                     className="size-11 sm:size-9"
                     title="Thêm"
