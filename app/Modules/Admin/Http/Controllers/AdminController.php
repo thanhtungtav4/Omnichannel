@@ -370,11 +370,29 @@ class AdminController extends Controller
     {
         $workspaceId = $this->workspaceId($request);
 
+        // Pre-fetch pending outbox counts grouped by channel_account_id so the
+        // admin health card can show "12 messages waiting" without N+1 queries.
+        $pendingByAccount = OutboxMessage::query()
+            ->where('workspace_id', $workspaceId)
+            ->whereIn('status', ['QUEUED', 'RETRYING'])
+            ->selectRaw('channel_account_id, COUNT(*) as cnt')
+            ->groupBy('channel_account_id')
+            ->pluck('cnt', 'channel_account_id');
+
+        // Last inbound webhook timestamp per account (for the health card).
+        $lastInboundByAccount = \App\Modules\Channels\Models\WebhookEvent::query()
+            ->where('workspace_id', $workspaceId)
+            ->where('status', 'PROCESSED')
+            ->whereIn('event_type', ['message', 'message_edit'])
+            ->selectRaw('channel_account_id, MAX(processed_at) as last_at')
+            ->groupBy('channel_account_id')
+            ->pluck('last_at', 'channel_account_id');
+
         return Inertia::render('admin/channels', [
             'canManage' => in_array($request->user()->role, ['owner', 'admin'], true),
             'canDelete' => $request->user()->role === 'owner',
             'webhookBase' => url('/webhooks'),
-            'channels' => ChannelAccount::query()->where('workspace_id', $workspaceId)->latest()->get()->map(function (ChannelAccount $account) {
+            'channels' => ChannelAccount::query()->where('workspace_id', $workspaceId)->latest()->get()->map(function (ChannelAccount $account) use ($pendingByAccount, $lastInboundByAccount) {
                 $creds = $account->credentials ?? [];
 
                 return [
@@ -388,6 +406,7 @@ class AdminController extends Controller
                         'FACEBOOK' => 'facebook',
                         'TELEGRAM' => 'telegram',
                         'SHOPEE' => 'shopee',
+                        'TIKTOK_SHOP' => 'tiktok-shop',
                         default => 'zalo',
                     }.'/'.$account->id),
                     'verifyToken' => $account->webhook_secret,
@@ -396,13 +415,27 @@ class AdminController extends Controller
                     'lastHealthCheckAt' => $account->last_health_check_at?->diffForHumans(),
                     'lastErrorCode' => $account->last_error_code,
                     'lastErrorMessage' => $account->last_error_message,
-                    // Shopee-specific (spec 11 W4 health card).
+                    'isReauthRequired' => $account->last_error_code === 'REAUTH_REQUIRED',
+
+                    // ---- Health card (generic across providers) ----
+                    'pendingOutboxCount' => (int) ($pendingByAccount[$account->id] ?? 0),
+                    'lastInboundAt' => isset($lastInboundByAccount[$account->id])
+                        ? \Illuminate\Support\Carbon::parse($lastInboundByAccount[$account->id])->diffForHumans()
+                        : null,
+
+                    // ---- Shopee-specific (spec 11 W4) ----
                     'shopId' => $account->provider === 'SHOPEE' ? ($creds['shop_id'] ?? null) : null,
                     'merchantId' => $account->provider === 'SHOPEE' ? ($creds['merchant_id'] ?? null) : null,
                     'accessTokenExpiresAt' => $account->provider === 'SHOPEE'
                         ? (isset($creds['access_token_expires_at']) ? \Illuminate\Support\Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
                         : null,
-                    'isReauthRequired' => $account->last_error_code === 'REAUTH_REQUIRED',
+
+                    // ---- TikTok Shop-specific (spec 13 W4) ----
+                    'tiktokShopId' => $account->provider === 'TIKTOK_SHOP' ? ($creds['shop_id'] ?? null) : null,
+                    'tiktokShopCipher' => $account->provider === 'TIKTOK_SHOP' ? ($creds['shop_cipher'] ?? null) : null,
+                    'tiktokAccessTokenExpiresAt' => $account->provider === 'TIKTOK_SHOP'
+                        ? (isset($creds['access_token_expires_at']) ? \Illuminate\Support\Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
+                        : null,
                 ];
             }),
         ]);

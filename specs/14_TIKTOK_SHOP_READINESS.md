@@ -54,17 +54,17 @@
 
 > Signature scheme is implemented as TikTok Open Platform format (`TikTok-Signature: t=<unix>,s=<hex>`). To be re-validated against TikTok Shop Partner API on first partner integration; see spec 13 § Verification for the spike note.
 
-### W4 — G1.3: Outbound + hardening
-- [ ] `SendTikTokMessageJob` posts to im/send_message
-- [ ] Image: pre-upload via im/media/upload, then send with image_url
-- [ ] Outbox status transitions `QUEUED → SENDING → SENT` on success
-- [ ] 5xx and network timeout retry with backoff 1m, 5m, 15m, 1h; max 5 attempts
-- [ ] HTTP 429 honors `retry_after`
-- [ ] auth_error: refresh + 1 retry, then `DEGRADED`
-- [ ] `recipient_blocked` / `conversation_closed` / `recipient_not_found`: `FAILED`, no retry
-- [ ] Admin health card: status, last inbound timestamp, pending message count, last error
-- [ ] Channel account CRUD UI shows TikTok-specific fields
-- [ ] All W1-W3 DoDs green
+### W4 — G1.3: Outbound + hardening — ✅ COMPLETE (2026-07-08)
+- [x] `SendChannelMessageJob` (generic, provider-agnostic) posts to im/send_message for TikTok; same job handles Shopee via registry
+- [x] Image: pre-upload via im/media/upload, then send with image_url (in TikTokShopAdapter::sendOutbound)
+- [x] Outbox status transitions `QUEUED → SENDING → SENT` on success (in SendChannelMessageJob)
+- [x] 5xx and network timeout retry with backoff 1m, 5m, 15m, 1h; max 5 attempts
+- [x] HTTP 429 honors `retry_after` (clamped: floor 5s, ceiling 3600s) — adapter returns `_retry_after_seconds`, job uses it instead of static backoff
+- [x] auth_error: refresh + 1 retry, then `DEGRADED` (REAUTH_REQUIRED) — channel marked DEGRADED, outbox FAILED, no retry
+- [x] `recipient_blocked` / `conversation_closed` / `recipient_not_found`: `FAILED`, no retry (in NON_RETRYABLE_ERRORS list)
+- [x] Admin health card: status, last inbound timestamp (from webhook_events), pending outbox count, last error
+- [x] Channel account CRUD UI shows TikTok-specific fields: shop_id, shop_cipher, access_token_expires_at (mirror Shopee)
+- [x] All W1-W3 DoDs green
 
 ### Pilot gate (W5+) — ready for real VN shop
 - [ ] All W4 DoDs green

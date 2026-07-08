@@ -18,11 +18,18 @@ export type ChannelSummary = {
     lastError?: string | null;
     lastErrorCode?: string | null;
     lastErrorMessage?: string | null;
-    // Shopee Chat VN specific (specs/11 W4 health card).
+    isReauthRequired?: boolean;
+    // Health card (generic across providers — specs/11 + 13 W4).
+    pendingOutboxCount?: number;
+    lastInboundAt?: string | null;
+    // Shopee Chat VN specific (specs/11 W4).
     shopId?: number | string | null;
     merchantId?: string | null;
     accessTokenExpiresAt?: string | null;
-    isReauthRequired?: boolean;
+    // TikTok Shop Chat VN specific (specs/13 W4).
+    tiktokShopId?: string | null;
+    tiktokShopCipher?: string | null;
+    tiktokAccessTokenExpiresAt?: string | null;
 };
 
 export type QueueSummary = {

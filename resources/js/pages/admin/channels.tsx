@@ -150,10 +150,11 @@ const PROVIDERS = [
     { value: 'ZALO_PERSONAL', label: 'Zalo Personal (QR)' },
     { value: 'FACEBOOK', label: 'Facebook Messenger' },
     { value: 'SHOPEE', label: 'Shopee Chat (VN)' },
+    { value: 'TIKTOK_SHOP', label: 'TikTok Shop (VN)' },
 ] as const;
 
 // Credential fields shown per provider (matches ChannelAccountController).
-// Shopee uses OAuth — no fields here, the connect button drives the flow.
+// Shopee + TikTok use OAuth — no fields here, the connect button drives the flow.
 const CREDENTIAL_FIELDS: Record<string, { key: string; label: string }[]> = {
     TELEGRAM: [{ key: 'bot_token', label: 'Bot token' }],
     ZALO_OA: [
@@ -168,6 +169,7 @@ const CREDENTIAL_FIELDS: Record<string, { key: string; label: string }[]> = {
         { key: 'page_access_token', label: 'Page access token' },
     ],
     SHOPEE: [],
+    TIKTOK_SHOP: [],
 };
 
 function providerLabel(provider: string) {
@@ -178,6 +180,7 @@ function webhookHint(provider: string, base: string, id?: string) {
     const path = provider === 'FACEBOOK' ? 'facebook'
         : provider === 'TELEGRAM' ? 'telegram'
         : provider === 'SHOPEE' ? 'shopee'
+        : provider === 'TIKTOK_SHOP' ? 'tiktok-shop'
         : 'zalo';
     return `${base}/${path}/${id ?? '{account-id}'}`;
 }
@@ -342,6 +345,13 @@ function setupSteps(channel: ChannelSummary) {
                 { label: 'Webhook URL registered on webhook.qrf.vn', done: !!channel.webhookUrl },
                 { label: 'Send the shop a message from Shopee buyer to test', done: gotMessage },
             ];
+        case 'TIKTOK_SHOP':
+            return [
+                { label: 'Configure app_key + app_secret in workspace settings', done: !!channel.tiktokShopId },
+                { label: 'Click Connect TikTok Shop — OAuth round-trip', done: !!channel.tiktokShopId },
+                { label: 'Webhook URL registered on webhook.qrf.vn', done: !!channel.webhookUrl },
+                { label: 'Send the shop a message from TikTok buyer to test', done: gotMessage },
+            ];
         default:
             return [];
     }
@@ -500,6 +510,7 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
     const isTelegram = channel.provider === 'TELEGRAM';
     const isPersonal = channel.provider === 'ZALO_PERSONAL';
     const isShopee = channel.provider === 'SHOPEE';
+    const isTikTok = channel.provider === 'TIKTOK_SHOP';
 
     function register() {
         setRegistering(true);
@@ -536,6 +547,18 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                             <AlertDescription>
                                 Shopee revoked or expired the connection. Click
                                 "Reconnect Shopee" below to run the OAuth flow again.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {isTikTok && channel.isReauthRequired && (
+                        <Alert className="[border-color:var(--status-danger-border)] [background-color:var(--status-danger-bg)]">
+                            <AlertTriangle />
+                            <AlertTitle>Reconnect required</AlertTitle>
+                            <AlertDescription>
+                                TikTok Shop revoked or expired the connection.
+                                Click "Connect TikTok Shop" below to run the
+                                OAuth flow again.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -577,6 +600,22 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                                     </div>
                                 </>
                             )}
+                            {isTikTok && (
+                                <>
+                                    <CopyRow label="Shop ID" value={channel.tiktokShopId ?? null} />
+                                    <CopyRow label="Shop cipher" value={channel.tiktokShopCipher ?? null} />
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <span className="text-muted-foreground">Token expires:</span>
+                                        <span className={
+                                            channel.tiktokAccessTokenExpiresAt
+                                                ? 'font-medium'
+                                                : 'text-muted-foreground'
+                                        }>
+                                            {channel.tiktokAccessTokenExpiresAt ?? 'unknown'}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
                             {isTelegram ? (
                                 <p className="text-xs text-muted-foreground">
                                     Telegram can register automatically, but the URL
@@ -588,6 +627,14 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                                     The webhook URL is pre-registered. If Shopee ever
                                     unregisters it (token expiry, etc.) the health
                                     card will show REAUTH_REQUIRED.
+                                </p>
+                            ) : isTikTok ? (
+                                <p className="text-xs text-muted-foreground">
+                                    The webhook URL is registered when you connect.
+                                    If TikTok Shop ever unregisters it (token expiry,
+                                    revoke, etc.) the health card will show
+                                    REAUTH_REQUIRED and you can re-run the connect
+                                    flow.
                                 </p>
                             ) : (
                                 <p className="text-xs text-muted-foreground">
@@ -622,6 +669,13 @@ function SetupChannelDialog({ channel }: { channel: ChannelSummary }) {
                             <a href="/admin/channels/shopee/connect">
                                 <Wand2 data-icon="inline-start" />
                                 {channel.isReauthRequired ? 'Reconnect Shopee' : 'Connect Shopee'}
+                            </a>
+                        </Button>
+                    ) : isTikTok ? (
+                        <Button asChild>
+                            <a href="/admin/channels/tiktok/connect">
+                                <Wand2 data-icon="inline-start" />
+                                {channel.isReauthRequired ? 'Reconnect TikTok Shop' : 'Connect TikTok Shop'}
                             </a>
                         </Button>
                     ) : !isPersonal && (
@@ -842,9 +896,11 @@ export default function Channels({ channels, canManage, canDelete, webhookBase }
                                         <TableHead>Provider</TableHead>
                                         <TableHead>Account</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead>Webhook</TableHead>
-                                        <TableHead>Health</TableHead>
-                                        <TableHead>Error</TableHead>
+<TableHead>Webhook</TableHead>
+                                            <TableHead>Last inbound</TableHead>
+                                            <TableHead>Pending</TableHead>
+                                            <TableHead>Health</TableHead>
+                                            <TableHead>Error</TableHead>
                                         <TableHead className="text-right">
                                             Action
                                         </TableHead>
@@ -892,6 +948,22 @@ export default function Channels({ channels, canManage, canDelete, webhookBase }
                                                             open Setup
                                                         </span>
                                                     </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground tabular-nums">
+                                                {channel.lastInboundAt ?? '—'}
+                                            </TableCell>
+                                            <TableCell className="text-xs tabular-nums">
+                                                {(channel.pendingOutboxCount ?? 0) > 0 ? (
+                                                    <StatusBadge
+                                                        status="DUE_SOON"
+                                                        label={String(
+                                                            channel.pendingOutboxCount,
+                                                        )}
+                                                        hint="pending"
+                                                    />
+                                                ) : (
+                                                    <span className="text-muted-foreground">0</span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">

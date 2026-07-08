@@ -54,12 +54,25 @@ class SendChannelMessageJob implements ShouldQueue
                 return;
             }
 
+            // RATE_LIMITED providers may signal a custom retry_after via
+            // _retry_after_seconds (Shopee, TikTok, Zalo Personal all return
+            // this from their adapters). Use it instead of the static backoff
+            // when present.
+            $customRetryAfter = null;
+            if (($result['error_code'] ?? null) === 'RATE_LIMITED'
+                && isset($result['_retry_after_seconds'])
+                && is_int($result['_retry_after_seconds'])
+                && $result['_retry_after_seconds'] > 0) {
+                $customRetryAfter = $result['_retry_after_seconds'];
+            }
+
             $this->markFailedOrRetrying(
                 $outbox,
                 $result['error_code'] ?? 'PROVIDER_SEND_FAILED',
                 $result['error_message'] ?? 'Provider send failed.',
                 (bool) ($result['retryable'] ?? false),
                 $result['response'] ?? null,
+                $customRetryAfter,
             );
         } catch (Throwable $exception) {
             $this->markFailedOrRetrying(
@@ -100,9 +113,19 @@ class SendChannelMessageJob implements ShouldQueue
         string $errorMessage,
         bool $retryable,
         ?array $providerResponse,
+        ?int $customRetryAfterSeconds = null,
     ): void {
         $shouldRetry = $retryable && $outbox->attempts < $this->tries;
-        $nextDelay = $this->backoff[min($outbox->attempts - 1, count($this->backoff) - 1)] ?? 3600;
+        $backoffIndex = min($outbox->attempts - 1, count($this->backoff) - 1);
+        $staticDelay = $this->backoff[$backoffIndex] ?? 3600;
+
+        // Custom retry_after (from RATE_LIMITED) takes precedence over the
+        // static backoff — but we floor it at 5s so a flaky provider can't
+        // pin our queue to a tight loop, and cap it at 1h so we don't lose
+        // messages forever when a provider sends a huge value.
+        $nextDelay = $customRetryAfterSeconds !== null
+            ? max(5, min($customRetryAfterSeconds, 3600))
+            : $staticDelay;
 
         $outbox->forceFill([
             'status' => $shouldRetry ? 'RETRYING' : 'FAILED',
