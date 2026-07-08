@@ -80,6 +80,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, AgentOption } from '@/types';
 import { MessageList } from './MessageBubble';
+import { TransferSheet, CloseSheet } from './TransferSheet';
 import {
     customerName,
     initials,
@@ -256,6 +257,8 @@ export function ThreadPanel({
     // ponytail: client-side over loaded page; add a server search if threads get huge.
     const [search, setSearch] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+    const [transferOpen, setTransferOpen] = useState(false);
+    const [closeOpen, setCloseOpen] = useState(false);
     const [showEmoji, setShowEmoji] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // Object URL for the pending image preview; revoked on change.
@@ -497,6 +500,9 @@ export function ThreadPanel({
                         isFocused={focusMode}
                         isClosed={activeConversation.status === 'CLOSED'}
                         onSearchToggle={() => setShowSearch((v) => !v)}
+                        onTransfer={() => setTransferOpen(true)}
+                        onClose={() => setCloseOpen(true)}
+                        onReopen={onReopenConversation}
                         onMarkSpam={() => toast.error('Đã đánh dấu spam (mockup)')}
                     />
 
@@ -1063,6 +1069,29 @@ export function ThreadPanel({
                     </ScrollArea>
                 </aside>
             </div>
+
+            {/* Mockup §3.6 sheets. */}
+            <TransferSheet
+                open={transferOpen}
+                onOpenChange={setTransferOpen}
+                agents={agents}
+                processing={false}
+                onSubmit={({ agentId }) => {
+                    setTransferOpen(false);
+                    onTransferToChange(agentId);
+                    onSubmitTransfer(agentId);
+                }}
+            />
+            <CloseSheet
+                open={closeOpen}
+                onOpenChange={setCloseOpen}
+                processing={false}
+                onSubmit={(reason) => {
+                    setCloseOpen(false);
+                    void reason; // backend wires reason via TODO endpoint
+                    onCloseConversation();
+                }}
+            />
         </section>
     );
 }
@@ -1228,12 +1257,18 @@ function ThreadKebab({
     isFocused,
     isClosed,
     onSearchToggle,
+    onTransfer,
+    onClose,
+    onReopen,
     onMarkSpam,
 }: {
     onFocusToggle: () => void;
     isFocused: boolean;
     isClosed: boolean;
     onSearchToggle: () => void;
+    onTransfer: () => void;
+    onClose: () => void;
+    onReopen: () => void;
     onMarkSpam: () => void;
 }) {
     return (
@@ -1270,6 +1305,12 @@ function ThreadKebab({
                     <UserPlus />
                     <span>Thêm vào CRM</span>
                 </DropdownMenuItem>
+                {!isClosed && (
+                    <DropdownMenuItem onSelect={onTransfer}>
+                        <UserRoundCheck />
+                        <span>Chuyển hội thoại</span>
+                    </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 {isClosed ? (
                     <DropdownMenuItem

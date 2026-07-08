@@ -12,13 +12,20 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
-    CommandDialog,
+    Command,
     CommandEmpty,
     CommandGroup,
     CommandInput,
     CommandItem,
     CommandList,
 } from '@/components/ui/command';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+} from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
     Empty,
     EmptyDescription,
@@ -34,6 +41,7 @@ import { close, reply, transfer } from '@/routes/admin/conversations';
 import type { ActiveConversation, AgentOption, ConversationSummary } from '@/types';
 import {
     type InboxStats,
+    providerClass,
     providerLabel,
     type QueueTab,
     queueTabValue,
@@ -365,38 +373,82 @@ export default function Inbox({
         <>
             <Head title="Hộp thư đa kênh" />
 
-            <CommandDialog
-                open={paletteOpen}
-                onOpenChange={setPaletteOpen}
-                title="Tìm nhanh"
-                description="Nhảy tới hội thoại bất kỳ"
-            >
-                <CommandInput placeholder="Tìm khách, kênh, tin nhắn…" />
-                <CommandList>
-                    <CommandEmpty>Không tìm thấy.</CommandEmpty>
-                    <CommandGroup heading="Hội thoại">
-                        {conversations.map((c) => (
-                            <CommandItem
-                                key={c.id}
-                                value={`${c.contact?.name ?? ''} ${c.contact?.phone ?? ''} ${c.channelName ?? ''} ${c.lastMessage ?? ''}`}
-                                onSelect={() => {
-                                    setPaletteOpen(false);
-                                    router.visit(`/admin/inbox?conversation=${c.id}`);
-                                }}
-                            >
-                                <span className="truncate">
-                                    {c.contact?.name ?? 'Khách'}
-                                </span>
-                                {!!c.unreadCount && c.unreadCount > 0 && (
-                                    <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-semibold tabular-nums text-primary-foreground">
-                                        {c.unreadCount > 99 ? '99+' : c.unreadCount}
-                                    </span>
-                                )}
-                            </CommandItem>
-                        ))}
-                    </CommandGroup>
-                </CommandList>
-            </CommandDialog>
+            <Dialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+                <DialogContent
+                    showCloseButton={false}
+                    className="!top-[12vh] !translate-y-0 !left-1/2 !-translate-x-1/2 w-[560px] max-w-[90vw] gap-0 overflow-hidden p-0"
+                >
+                    <Command
+                        className="border-0 **:data-[slot=command-input-wrapper]:h-12"
+                        filter={false}
+                    >
+                        <CommandInput placeholder="Tìm khách, SĐT, kênh, mã hội thoại…" />
+                        <CommandList className="max-h-[420px]">
+                            <CommandEmpty>Không tìm thấy.</CommandEmpty>
+                            <CommandGroup heading="Hội thoại">
+                                {conversations.map((c) => (
+                                    <CommandItem
+                                        key={c.id}
+                                        value={`${c.contact?.name ?? ''} ${c.contact?.phone ?? ''} ${c.channelName ?? ''} ${c.lastMessage ?? ''}`}
+                                        onSelect={() => {
+                                            setPaletteOpen(false);
+                                            router.visit(
+                                                `/admin/inbox?conversation=${c.id}`,
+                                            );
+                                        }}
+                                    >
+                                        <Avatar className="size-6 text-[10px]">
+                                            {c.contact?.avatarUrl && (
+                                                <AvatarImage
+                                                    src={c.contact.avatarUrl}
+                                                    alt={c.contact?.name ?? ''}
+                                                />
+                                            )}
+                                            <AvatarFallback>
+                                                {(c.contact?.name ?? '?')
+                                                    .split(' ')
+                                                    .map((p) => p[0])
+                                                    .join('')
+                                                    .slice(0, 2)
+                                                    .toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate font-medium">
+                                                {c.contact?.name ?? 'Khách'}
+                                            </div>
+                                            {c.lastMessage && (
+                                                <div className="truncate text-xs text-muted-foreground">
+                                                    {c.lastMessage}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    'shrink-0 text-[10px]',
+                                                    providerClass(c.channel),
+                                                )}
+                                            >
+                                                {providerLabel(c.channel)}
+                                            </Badge>
+                                            {!!c.unreadCount &&
+                                                c.unreadCount > 0 && (
+                                                    <span className="rounded-full bg-destructive px-1.5 text-[10px] font-semibold tabular-nums text-destructive-foreground">
+                                                        {c.unreadCount > 99
+                                                            ? '99+'
+                                                            : c.unreadCount}
+                                                    </span>
+                                                )}
+                                        </div>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </DialogContent>
+            </Dialog>
 
             <main
                 data-mobile-view={isMobile ? mobileView : undefined}
