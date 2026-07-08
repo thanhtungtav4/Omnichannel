@@ -19,11 +19,7 @@ import {
     CommandList,
 } from '@/components/ui/command';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-} from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
     Empty,
@@ -32,12 +28,20 @@ import {
     EmptyMedia,
     EmptyTitle,
 } from '@/components/ui/empty';
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
+} from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { close, reply, transfer } from '@/routes/admin/conversations';
-import type { ActiveConversation, AgentOption, ConversationSummary } from '@/types';
+import type {
+    ActiveConversation,
+    AgentOption,
+    ConversationSummary,
+} from '@/types';
 import {
     type InboxStats,
     providerClass,
@@ -75,9 +79,9 @@ export default function Inbox({
     // 'unassigned' = conversations with no owner assigned. 'failed' = a
     // pill reserved for per-conversation failed-message count (backend
     // join not wired yet — for now clicking it surfaces a hint via toast).
-    const [statFilter, setStatFilter] = useState<'failed' | 'unassigned' | null>(
-        null,
-    );
+    const [statFilter, setStatFilter] = useState<
+        'failed' | 'unassigned' | null
+    >(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     // Focus mode hides the queue + side panel so the thread gets the full width.
     const [focusMode, setFocusMode] = useState(false);
@@ -112,7 +116,8 @@ export default function Inbox({
     // Sync mobileView when user taps a conversation (URL changes).
     useEffect(() => {
         if (isMobile && showThread) setMobileView('thread');
-        if (isMobile && !showThread && mobileView === 'thread') setMobileView('queue');
+        if (isMobile && !showThread && mobileView === 'thread')
+            setMobileView('queue');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showThread, isMobile]);
     // Reset to queue when growing past the breakpoint so we don't strand
@@ -208,14 +213,20 @@ export default function Inbox({
         try {
             const AudioCtx =
                 window.AudioContext ??
-                (window as unknown as { webkitAudioContext: typeof AudioContext })
-                    .webkitAudioContext;
+                (
+                    window as unknown as {
+                        webkitAudioContext: typeof AudioContext;
+                    }
+                ).webkitAudioContext;
             const ctx = new AudioCtx();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.frequency.value = 880;
             gain.gain.setValueAtTime(0.15, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            gain.gain.exponentialRampToValueAtTime(
+                0.001,
+                ctx.currentTime + 0.3,
+            );
             osc.connect(gain).connect(ctx.destination);
             osc.start();
             osc.stop(ctx.currentTime + 0.3);
@@ -392,7 +403,7 @@ export default function Inbox({
             <Dialog open={paletteOpen} onOpenChange={setPaletteOpen}>
                 <DialogContent
                     showCloseButton={false}
-                    className="!top-[12vh] !translate-y-0 !left-1/2 !-translate-x-1/2 w-[560px] max-w-[90vw] gap-0 overflow-hidden p-0"
+                    className="!top-[12vh] !left-1/2 w-[560px] max-w-[90vw] !-translate-x-1/2 !translate-y-0 gap-0 overflow-hidden p-0"
                 >
                     <Command
                         className="border-0 **:data-[slot=command-input-wrapper]:h-12"
@@ -451,7 +462,7 @@ export default function Inbox({
                                             </Badge>
                                             {!!c.unreadCount &&
                                                 c.unreadCount > 0 && (
-                                                    <span className="rounded-full bg-destructive px-1.5 text-[10px] font-semibold tabular-nums text-destructive-foreground">
+                                                    <span className="rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground tabular-nums">
                                                         {c.unreadCount > 99
                                                             ? '99+'
                                                             : c.unreadCount}
@@ -470,7 +481,6 @@ export default function Inbox({
                 data-mobile-view={isMobile ? mobileView : undefined}
                 className="flex h-[calc(100vh-var(--topbar-height))] flex-col gap-3 overflow-hidden bg-background p-3 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-4"
             >
-
                 <section
                     className={cn(
                         'grid min-h-0 flex-1 overflow-hidden rounded-lg border bg-card',
@@ -480,30 +490,73 @@ export default function Inbox({
                         //   mobile  (< md): 1fr; panes mutually exclusive
                         //   focus-mode (mockup line 367-369): 380px | 1fr  (queue + thread kept, customer dropped)
                         focusMode
-                            ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)] grid-cols-1'
+                            ? 'grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]'
                             : activeConversation
-                              ? 'lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)_340px] grid-cols-1'
+                              ? 'grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)_340px]'
                               : 'grid-cols-1',
                     )}
                 >
                     {!focusMode && (
-                        <aside className={cn(
-                            "flex min-h-0 flex-col border-b lg:border-r lg:border-b-0 bg-muted/20",
-                            // On mobile: queue hidden when in 'thread' view.
-                            // On lg+: queue hidden only when an explicit thread
-                            // is open (so landing on /admin/inbox shows the list).
-                            isMobile
-                                ? (mobileView === 'queue' ? 'flex w-full' : 'hidden')
-                                : (showThread ? 'hidden lg:flex' : 'flex w-full')
-                        )}>
+                        <aside
+                            className={cn(
+                                'min-h-0 w-full flex-col border-b bg-muted/20 lg:border-r lg:border-b-0',
+                                // Visibility owns flex/hidden so base stays layout-only.
+                                // Mobile: queue hidden in 'thread' view.
+                                // lg+: queue hidden only when an explicit thread is
+                                // open (landing on /admin/inbox shows the list).
+                                isMobile
+                                    ? mobileView === 'queue'
+                                        ? 'flex'
+                                        : 'hidden'
+                                    : showThread
+                                      ? 'hidden lg:flex'
+                                      : 'flex',
+                            )}
+                        >
                             <div className="flex items-center justify-between gap-2 border-b p-3">
                                 <div className="min-w-0 flex-1">
                                     <h1 className="truncate text-base font-semibold">
                                         Hộp thư đa kênh
                                     </h1>
                                     <p className="truncate text-xs text-muted-foreground tabular-nums">
-                                        {stats.open}/{conversations.length} hội thoại đang mở
+                                        {stats.open}/{conversations.length} hội
+                                        thoại đang mở
                                     </p>
+                                </div>
+                                {/* Signal pills next to the title (mockup §3.5
+                                    stat-strip): only Chưa gán / Lỗi — the two
+                                    that need action. Mở / Chờ already live in
+                                    the filter tabs, so they'd be redundant. */}
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                    {stats.unassigned > 0 && (
+                                        <SubStatPill
+                                            tone="warn"
+                                            count={stats.unassigned}
+                                            label="Chưa gán"
+                                            active={statFilter === 'unassigned'}
+                                            onClick={() =>
+                                                setStatFilter((current) =>
+                                                    current === 'unassigned'
+                                                        ? null
+                                                        : 'unassigned',
+                                                )
+                                            }
+                                        />
+                                    )}
+                                    {stats.failedOutbox > 0 && (
+                                        <SubStatPill
+                                            tone="danger"
+                                            count={stats.failedOutbox}
+                                            label="Lỗi"
+                                            active={statFilter === 'failed'}
+                                            onClick={() =>
+                                                toast.error(
+                                                    `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
+                                                    { duration: 5000 },
+                                                )
+                                            }
+                                        />
+                                    )}
                                 </div>
                                 <Button
                                     type="button"
@@ -514,13 +567,13 @@ export default function Inbox({
                                     aria-label="Làm mới"
                                     disabled={isRefreshing}
                                 >
-                                        {isRefreshing ? (
-                                            <LoaderCircle className="size-3.5" />
-                                        ) : (
-                                            <RefreshCcw className="size-3.5" />
-                                        )}
-                                    </Button>
-                                </div>
+                                    {isRefreshing ? (
+                                        <LoaderCircle className="size-3.5" />
+                                    ) : (
+                                        <RefreshCcw className="size-3.5" />
+                                    )}
+                                </Button>
+                            </div>
 
                             <div className="flex flex-col gap-3 border-b p-3">
                                 <InputGroup>
@@ -576,62 +629,6 @@ export default function Inbox({
                                     </TabsList>
                                 </Tabs>
 
-                                {/* Sub-stats row — mockup §3.5: 4 colored pills
-                                    (Mở / Chờ / Chưa gán / Lỗi) under the filter tabs.
-                                    Click a pill to apply that filter; the active
-                                    filter is highlighted. */}
-                                <div
-                                    data-test="queue-substats"
-                                    className="flex flex-wrap items-center gap-1.5 px-3 pb-3"
-                                >
-                                    <SubStatPill
-                                        tone="ok"
-                                        count={stats.open}
-                                        label="Mở"
-                                        active={statFilter === null && tab === 'all'}
-                                        onClick={() => {
-                                            setStatFilter(null);
-                                            setTab('all');
-                                        }}
-                                    />
-                                    <SubStatPill
-                                        tone="info"
-                                        count={stats.waitingAgent}
-                                        label="Chờ"
-                                        active={tab === 'waiting'}
-                                        onClick={() => {
-                                            setStatFilter(null);
-                                            setTab('waiting');
-                                        }}
-                                    />
-                                    <SubStatPill
-                                        tone="warn"
-                                        count={stats.unassigned}
-                                        label="Chưa gán"
-                                        active={statFilter === 'unassigned'}
-                                        onClick={() =>
-                                            setStatFilter((current) =>
-                                                current === 'unassigned'
-                                                    ? null
-                                                    : 'unassigned',
-                                            )
-                                        }
-                                    />
-                                    <SubStatPill
-                                        tone="danger"
-                                        count={stats.failedOutbox}
-                                        label="Lỗi"
-                                        active={statFilter === 'failed'}
-                                        onClick={() => {
-                                            if (stats.failedOutbox === 0) return;
-                                            toast.error(
-                                                `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
-                                                { duration: 5000 },
-                                            );
-                                        }}
-                                    />
-                                </div>
-
                                 {/* Cảnh báo banner — mockup §3.5: red border
                                     alert when there are failed messages or
                                     unassigned conversations. Hidden when both
@@ -649,16 +646,18 @@ export default function Inbox({
                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">
                                             {stats.failedOutbox > 0 && (
                                                 <span>
-                                                    {stats.failedOutbox} tin gửi đi lỗi
+                                                    {stats.failedOutbox} tin gửi
+                                                    đi lỗi
                                                 </span>
                                             )}
                                             {stats.failedOutbox > 0 &&
                                                 stats.unassigned > 0 && (
-                                                <span aria-hidden>·</span>
-                                            )}
+                                                    <span aria-hidden>·</span>
+                                                )}
                                             {stats.unassigned > 0 && (
                                                 <span>
-                                                    {stats.unassigned} cuộc chưa gán
+                                                    {stats.unassigned} cuộc chưa
+                                                    gán
                                                 </span>
                                             )}
                                         </div>
@@ -703,7 +702,7 @@ export default function Inbox({
                         </aside>
                     )}
 
-{activeConversation && (
+                    {activeConversation && (
                         <>
                             {/*
                               A1 fix: render ThreadPanel and CustomerPanel as
@@ -730,13 +729,13 @@ export default function Inbox({
                                 className={cn(
                                     'flex min-h-0 min-w-0 flex-col overflow-hidden',
                                     isMobile
-                                        ? (mobileView === 'thread' ||
+                                        ? mobileView === 'thread' ||
                                           mobileView === 'customer'
                                             ? 'flex'
-                                            : 'hidden')
-                                        : (showThread
-                                            ? 'flex'
-                                            : 'hidden lg:flex'),
+                                            : 'hidden'
+                                        : showThread
+                                          ? 'flex'
+                                          : 'hidden lg:flex',
                                 )}
                             >
                                 <ThreadPanel
