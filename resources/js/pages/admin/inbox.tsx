@@ -3,8 +3,10 @@ import {
     AlertTriangle,
     InboxIcon,
     LoaderCircle,
+    MessageCircleX,
     RefreshCcw,
     Search,
+    UserRoundX,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -53,7 +55,7 @@ import {
     ConversationRow,
     QueueSkeleton,
     QueueTabTrigger,
-    SubStatPill,
+    StatPill,
 } from './inbox/QueueParts';
 import { InboxBottomNav } from './inbox/InboxBottomNav';
 import { ThreadPanel } from './inbox/ThreadPanel';
@@ -527,32 +529,35 @@ export default function Inbox({
                                     stat-strip): only Chưa gán / Lỗi — the two
                                     that need action. Mở / Chờ already live in
                                     the filter tabs, so they'd be redundant. */}
-                                <div className="flex shrink-0 items-center gap-1.5">
+                                <div className="flex shrink-0 items-center gap-1">
+                                    {stats.failedOutbox > 0 && (
+                                        <StatPill
+                                            icon={MessageCircleX}
+                                            tone="danger"
+                                            count={stats.failedOutbox}
+                                            label={`${stats.failedOutbox} tin gửi đi lỗi`}
+                                            active={statFilter === 'failed'}
+                                            pulse
+                                            onClick={() =>
+                                                toast.error(
+                                                    `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
+                                                    { duration: 5000 },
+                                                )
+                                            }
+                                        />
+                                    )}
                                     {stats.unassigned > 0 && (
-                                        <SubStatPill
+                                        <StatPill
+                                            icon={UserRoundX}
                                             tone="warn"
                                             count={stats.unassigned}
-                                            label="Chưa gán"
+                                            label={`${stats.unassigned} cuộc chưa gán`}
                                             active={statFilter === 'unassigned'}
                                             onClick={() =>
                                                 setStatFilter((current) =>
                                                     current === 'unassigned'
                                                         ? null
                                                         : 'unassigned',
-                                                )
-                                            }
-                                        />
-                                    )}
-                                    {stats.failedOutbox > 0 && (
-                                        <SubStatPill
-                                            tone="danger"
-                                            count={stats.failedOutbox}
-                                            label="Lỗi"
-                                            active={statFilter === 'failed'}
-                                            onClick={() =>
-                                                toast.error(
-                                                    `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
-                                                    { duration: 5000 },
                                                 )
                                             }
                                         />
