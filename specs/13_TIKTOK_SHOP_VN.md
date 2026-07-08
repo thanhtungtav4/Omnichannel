@@ -322,12 +322,12 @@ on live smoke — covered by cut 1 GA gate.
 
 ## Cut 1 milestones (parallel to Shopee cut 1)
 
-| Week | Milestone |
-|------|-----------|
-| W1 (G0) | Spec 13 + 14 merged; TikTok auth model spike; signature scheme spike; TikTokShopAdapter skeleton + verify middleware skeleton |
-| W2 (G1.1) | OAuth round-trip + state token + refresh job + DEGRADED/REAUTH_REQUIRED transition; unit + integration tests |
-| W3 (G1.2) | Inbound webhook controller + HMAC verify + idempotency + edit handling + unsupported routing |
-| W4 (G1.3) | Outbound send + retry policy + admin health card; cut 1 ready for first VN shop pilot |
+| Week | Milestone | Status |
+|------|-----------|--------|
+| W1 (G0) | Spec 13 + 14 merged; TikTok auth model spike; signature scheme spike; TikTokShopAdapter skeleton + verify middleware skeleton | ✅ done 2026-07-08 |
+| W2 (G1.1) | OAuth round-trip + state token + refresh job + DEGRADED/REAUTH_REQUIRED transition; unit + integration tests | ✅ done 2026-07-08 |
+| W3 (G1.2) | Inbound webhook controller + HMAC verify + idempotency + edit handling + unsupported routing | ✅ done 2026-07-08 (commit `feat(tiktok): W3 — adapter inbound + webhook + signature middleware`) |
+| W4 (G1.3) | Outbound send + retry policy + admin health card; cut 1 ready for first VN shop pilot | ⏳ next (SendChannelMessageJob wired for TIKTOK_SHOP provider) |
 
 Cut 2 (post-cut-1 GA): typing/read indicators, attachment round-trip beyond
 images, cold-start conversation sync, shop-owner onboarding UX.

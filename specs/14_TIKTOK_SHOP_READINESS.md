@@ -41,15 +41,18 @@
 - [ ] Failed refresh flips channel account to `DEGRADED` + `REAUTH_REQUIRED`
 - [ ] Unit + integration tests
 
-### W3 — G1.2: Inbound
-- [ ] `ProviderWebhookController::tiktok` mounted on `webhook.qrf.vn`
-- [ ] `VerifyTikTokSignature` middleware: HMAC-SHA256 over `timestamp.body`, keyed by `app_secret`; reject timestamp drift > 5 min
-- [ ] Idempotency: `tiktok:{account_id}:msg:{message_id}` enforced
-- [ ] Text + image normalized via adapter
-- [ ] Unsupported types persisted as `IGNORED`
-- [ ] Edit (version > 1): in-place update of existing message
-- [ ] Sender info mapped to external identity
-- [ ] Smoke test: real TikTok sandbox pushes NEW_MESSAGE → conversation appears in Inbox within 2s
+### W3 — G1.2: Inbound — ✅ COMPLETE (2026-07-08)
+- [x] `ProviderWebhookController::tiktok` mounted on `webhook.qrf.vn` at `POST /webhooks/tiktok-shop/{uuid}`
+- [x] `VerifyTikTokSignature` middleware: HMAC-SHA256 over `${timestamp}.${raw_body}` keyed by `app_secret`; reject timestamp drift > 300s (configurable)
+- [x] Idempotency: `tiktok:{account_id}:msg:{message_id}` enforced
+- [x] Text + image normalized via adapter; video/sticker/product/order/voucher marked UNSUPPORTED
+- [x] Unsupported types persisted as `webhook_events.status=IGNORED` (audit visible, no Inbox pollution)
+- [x] Edit (version > 1): in-place update of existing message body_text + new webhook_events row
+- [x] Non-NEW_MESSAGE envelopes (e.g. CONVERSATION_UPDATE) recorded as envelope + IGNORED
+- [x] Sender info mapped to external identity via InboundMessageIngestor
+- [ ] Smoke test: real TikTok sandbox pushes NEW_MESSAGE → conversation appears in Inbox within 2s — pending Tùng's partner sandbox access (action #6 in §Risks)
+
+> Signature scheme is implemented as TikTok Open Platform format (`TikTok-Signature: t=<unix>,s=<hex>`). To be re-validated against TikTok Shop Partner API on first partner integration; see spec 13 § Verification for the spike note.
 
 ### W4 — G1.3: Outbound + hardening
 - [ ] `SendTikTokMessageJob` posts to im/send_message
