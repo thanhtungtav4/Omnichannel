@@ -135,6 +135,23 @@ export default function Inbox({
 
     // ⌘K / Ctrl+K opens the command palette (jump to any conversation).
     const [paletteOpen, setPaletteOpen] = useState(false);
+
+    // Auto-open the Cmd palette when the topbar search button navigates
+    // to /admin/inbox?openPalette=1. Strips the param after opening so a
+    // page reload doesn't re-open it.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('openPalette') === '1') {
+            setPaletteOpen(true);
+            params.delete('openPalette');
+            const next =
+                window.location.pathname +
+                (params.toString() ? `?${params.toString()}` : '') +
+                window.location.hash;
+            window.history.replaceState({}, '', next);
+        }
+    }, []);
+
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
