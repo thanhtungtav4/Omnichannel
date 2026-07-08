@@ -45,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'workspace.channel' => ResolveWorkspaceFromChannel::class,
             'platform.admin' => EnsurePlatformAdmin::class,
             'shopee.signature' => \App\Modules\Channels\Http\Middleware\VerifyShopeeSignature::class,
+            'tiktok.signature' => \App\Modules\Channels\Http\Middleware\VerifyTikTokSignature::class,
         ]);
 
         // Runs before auth on every web request. Tenant hosts get pinned (or

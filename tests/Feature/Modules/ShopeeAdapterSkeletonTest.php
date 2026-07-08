@@ -120,13 +120,19 @@ class ShopeeAdapterSkeletonTest extends TestCase
         $this->assertSame('MISSING_CREDENTIALS', $result['error_code']);
     }
 
-    public function test_tiktok_shop_adapter_is_registered_as_placeholder(): void
+    public function test_tiktok_shop_adapter_is_registered_and_implemented(): void
     {
+        // As of W3, TikTokShopAdapter is fully implemented (normalizeInbound,
+        // buildOutboundPayload, sendOutbound). The registry must route a
+        // TIKTOK_SHOP account to it, and the adapter must handle empty input
+        // payloads by raising a RuntimeException with the spec reference
+        // (instead of silently no-op'ing or throwing 'not implemented').
         $tiktokAccount = ChannelAccount::create([
             'workspace_id' => $this->workspace->id,
             'provider' => 'TIKTOK_SHOP',
             'name' => 'TikTok Test Shop',
-            'status' => 'DRAFT',
+            'status' => 'ACTIVE',
+            'credentials' => ['shop_id' => 'S-1'],
         ]);
 
         $registry = app(ChannelAdapterRegistry::class);
@@ -136,9 +142,8 @@ class ShopeeAdapterSkeletonTest extends TestCase
 
         try {
             $adapter->normalizeInbound($tiktokAccount, []);
-            $this->fail('Expected RuntimeException');
+            $this->fail('Expected RuntimeException for empty payload');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('not implemented', $e->getMessage());
             $this->assertStringContainsString('specs/13_TIKTOK_SHOP_VN.md', $e->getMessage());
         }
     }

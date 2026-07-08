@@ -216,4 +216,124 @@ class ProviderWebhookController extends Controller
 
         return response()->json(['ok' => true, 'duplicate' => $result['duplicate']]);
     }
+
+    /**
+     * TikTok Shop Chat VN webhook (specs/13_TIKTOK_SHOP_VN.md, W3 G1.2).
+     *
+     * HMAC verification happens in VerifyTikTokSignature middleware (mounted
+     * on the route). This method handles three branches mirroring Shopee:
+     *
+     *   1. Edit (version > 1): update the existing Message row in place,
+     *      persisting a new WebhookEvent record for the audit log.
+     *   2. Unsupported type (video/sticker/product/order/voucher): persist as
+     *      WebhookEvent with status IGNORED. Cut 1 only renders text + image.
+     *   3. Normal text/image: hand off to InboundMessageIngestor.
+     *
+     * TikTok events may also arrive as a non-NEW_MESSAGE envelope (e.g.
+     * CONVERSATION_UPDATE for read state). Those are silently ignored in
+     * cut 1 — they don't carry a message to ingest.
+     */
+    public function tiktok(Request $request, ChannelAccount $channelAccount, InboundMessageIngestor $ingestor): JsonResponse
+    {
+        $payload = $request->all();
+        $eventType = (string) ($payload['event_type'] ?? '');
+        $messageId = (string) ($payload['message_id'] ?? '');
+        $rawType = strtolower((string) ($payload['message_type'] ?? ''));
+        $version = (int) ($payload['version'] ?? 1);
+        $isEdit = $version > 1;
+
+        // ---- Branch 0: non-NEW_MESSAGE envelope (read state etc.) ----
+        // Cut 1 ignores; keep the event recorded if it has a usable key.
+        if ($eventType !== '' && $eventType !== 'NEW_MESSAGE') {
+            WebhookEvent::create([
+                'workspace_id' => $channelAccount->workspace_id,
+                'channel_account_id' => $channelAccount->id,
+                'provider' => $channelAccount->provider,
+                'provider_event_id' => $eventType.':'.($messageId !== '' ? $messageId : bin2hex(random_bytes(6))),
+                'idempotency_key' => "tiktok:{$channelAccount->id}:evt:{$eventType}:".($messageId !== '' ? $messageId : 'nomid'),
+                'event_type' => 'envelope',
+                'headers' => $request->headers->all(),
+                'payload' => $payload,
+                'status' => 'IGNORED',
+                'processed_at' => now(),
+            ]);
+
+            return response()->json(['ok' => true, 'ignored' => $eventType]);
+        }
+
+        // ---- Branch 1: edit (update existing message in place) ----
+        if ($isEdit && $messageId !== '') {
+            $existing = Message::query()
+                ->where('channel_account_id', $channelAccount->id)
+                ->where('provider_message_id', $messageId)
+                ->first();
+
+            if ($existing) {
+                $content = (array) ($payload['content'] ?? []);
+                $bodyText = match ($rawType) {
+                    'text' => (string) ($content['text'] ?? ''),
+                    'image' => (string) ($content['caption'] ?? ''),
+                    default => $existing->body_text,
+                };
+
+                DB::transaction(function () use ($existing, $bodyText, $payload, $channelAccount, $messageId, $version, $request) {
+                    $existing->forceFill([
+                        'body_text' => $bodyText,
+                        'raw_payload' => $payload,
+                        'updated_at' => Carbon::now(),
+                    ])->save();
+
+                    WebhookEvent::create([
+                        'workspace_id' => $channelAccount->workspace_id,
+                        'channel_account_id' => $channelAccount->id,
+                        'provider' => $channelAccount->provider,
+                        'provider_event_id' => $messageId.':edit:'.$version,
+                        'idempotency_key' => "tiktok:{$channelAccount->id}:msg:{$messageId}:v{$version}",
+                        'event_type' => 'message_edit',
+                        'headers' => $request->headers->all(),
+                        'payload' => $payload,
+                        'status' => 'PROCESSED',
+                        'processed_at' => now(),
+                    ]);
+                });
+
+                return response()->json(['ok' => true, 'edit' => true]);
+            }
+
+            // No existing message — fall through to ingest which will create one.
+            // This handles the rare case of receiving an edit before the original.
+        }
+
+        // ---- Branch 2: unsupported message type ----
+        if (! in_array($rawType, ['text', 'image'], true)) {
+            if ($messageId === '') {
+                Log::warning('TikTok webhook with unsupported type and no message_id', [
+                    'channel_account_id' => $channelAccount->id,
+                    'payload' => $payload,
+                ]);
+
+                return response()->json(['ok' => true, 'ignored' => 'no_message_id'], 200);
+            }
+
+            WebhookEvent::create([
+                'workspace_id' => $channelAccount->workspace_id,
+                'channel_account_id' => $channelAccount->id,
+                'provider' => $channelAccount->provider,
+                'provider_event_id' => $messageId.':ignored',
+                'idempotency_key' => "tiktok:{$channelAccount->id}:msg:{$messageId}:ignored",
+                'event_type' => 'unsupported',
+                'headers' => $request->headers->all(),
+                'payload' => $payload,
+                'status' => 'IGNORED',
+                'processed_at' => now(),
+            ]);
+
+            return response()->json(['ok' => true, 'ignored' => $rawType]);
+        }
+
+        // ---- Branch 3: normal ingest ----
+        $result = $ingestor->ingest($channelAccount, $payload, $request->headers->all());
+
+        return response()->json(['ok' => true, 'duplicate' => $result['duplicate']]);
+    }
 }

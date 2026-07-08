@@ -115,6 +115,14 @@ $webhookRoutes = function (): void {
     Route::middleware(['throttle:600,1', 'workspace.channel', 'shopee.signature'])
         ->post('webhooks/shopee/{channelAccount}', [ProviderWebhookController::class, 'shopee'])
         ->name('webhooks.shopee');
+
+    // TikTok Shop Chat VN (specs/13). HMAC verification in middleware. Same
+    // host binding + throttling posture as Shopee. Signature scheme: TikTok
+    // Open Platform format (TikTok-Signature: t=<unix>,s=<hex>); to be
+    // re-validated against Shop Partner API on first real partner webhook.
+    Route::middleware(['throttle:600,1', 'workspace.channel', 'tiktok.signature'])
+        ->post('webhooks/tiktok-shop/{channelAccount}', [ProviderWebhookController::class, 'tiktok'])
+        ->name('webhooks.tiktok-shop');
 };
 
 if (config('tenant.webhook_host')) {
