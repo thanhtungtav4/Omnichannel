@@ -32,10 +32,20 @@ class PlatformAdminTest extends TestCase
         $this->get($this->adminHost())->assertOk();
     }
 
-    public function test_tenant_user_cannot_access_platform_console(): void
+    public function test_tenant_user_is_redirected_to_their_workspace(): void
     {
         $ws = Workspace::create(['name' => 'T', 'slug' => 'tenant-x', 'status' => 'ACTIVE']);
         $user = User::factory()->create(['workspace_id' => $ws->id, 'role' => 'owner', 'status' => 'ACTIVE']);
+
+        $this->actingAs($user);
+
+        $this->get($this->adminHost())
+            ->assertRedirect('https://tenant-x.'.config('tenant.domain').'/admin');
+    }
+
+    public function test_orphan_user_without_workspace_is_forbidden(): void
+    {
+        $user = User::factory()->create(['workspace_id' => null, 'status' => 'ACTIVE']);
 
         $this->actingAs($user);
 
