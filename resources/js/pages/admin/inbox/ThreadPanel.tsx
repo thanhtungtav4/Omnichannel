@@ -23,6 +23,7 @@ import {
     UserRoundCheck,
     UserPlus,
     X,
+    Zap,
 } from 'lucide-react';
 import {  useEffect, useMemo, useRef, useState } from 'react';
 import type {FormEvent} from 'react';
@@ -275,6 +276,7 @@ return;
     const [transferOpen, setTransferOpen] = useState(false);
     const [closeOpen, setCloseOpen] = useState(false);
     const [showEmoji, setShowEmoji] = useState(false);
+    const [showTemplates, setShowTemplates] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // Object URL for the pending image preview; revoked on change.
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -672,7 +674,7 @@ return allMessages;
                                         : 'text-muted-foreground',
                                 )}
                             >
-                                Ghi chú khách
+                                Ghi chú nội bộ
                             </button>
                         </div>
                         {/* Emoji picker: toggled by the smile button. */}
@@ -756,7 +758,7 @@ return allMessages;
                                 <FieldLabel htmlFor="reply-body">
                                     {composerMode === 'comment' ? (
                                         <span className="[color:var(--status-warn-fg)]">
-                                            Ghi chú khách (lưu vào hồ sơ, chỉ nhân viên thấy)
+                                            Ghi chú nội bộ (lưu vào hồ sơ, chỉ nhân viên thấy)
                                         </span>
                                     ) : (
                                         <>
@@ -830,9 +832,21 @@ return allMessages;
                                     >
                                         <Smile />
                                     </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-8 text-muted-foreground"
+                                        onClick={() => setShowTemplates((v) => !v)}
+                                        aria-label="Mẫu trả lời nhanh"
+                                        title="Mẫu trả lời nhanh (gõ /)"
+                                    >
+                                        <Zap />
+                                    </Button>
                                     <div className="flex-1" />
-                                    <span className="[font-family:var(--font-mono)] hidden text-[11px] text-muted-foreground sm:inline">
-                                        Enter ↵
+                                    <span className="[font-family:var(--font-mono)] hidden items-center gap-1 text-[11px] text-muted-foreground sm:flex">
+                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">⌘</kbd>
+                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">Enter</kbd>
                                     </span>
                                     <Button
                                         type="submit"

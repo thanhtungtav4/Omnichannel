@@ -146,6 +146,46 @@ export function StatPill({
 
 export { MessageCircleX, UserRoundX };
 
+/* Sub-stat pill — mockup §3.5: 4 colored pills under the queue
+   filter tabs. Tone picks the status color; click toggles a
+   filter (or a hint toast for failed). */
+export function SubStatPill({
+    tone,
+    count,
+    label,
+    active = false,
+    onClick,
+}: {
+    tone: 'ok' | 'info' | 'warn' | 'danger';
+    count: number;
+    label: string;
+    active?: boolean;
+    onClick?: () => void;
+}) {
+    const toneClass = {
+        ok: '[color:var(--status-ok-fg)] [border-color:var(--status-ok-border)] [background-color:var(--status-ok-bg)]',
+        info: '[color:var(--status-info-fg)] [border-color:var(--status-info-border)] [background-color:var(--status-info-bg)]',
+        warn: '[color:var(--status-warn-fg)] [border-color:var(--status-warn-border)] [background-color:var(--status-warn-bg)]',
+        danger:
+            '[color:var(--status-danger-fg)] [border-color:var(--status-danger-border)] [background-color:var(--status-danger-bg)]',
+    }[tone];
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={cn(
+                'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium tabular-nums transition-colors',
+                toneClass,
+                active && 'ring-2 ring-offset-1 ring-primary',
+            )}
+            aria-pressed={active}
+        >
+            <span className="font-semibold">{count}</span>
+            <span className="font-normal opacity-90">{label}</span>
+        </button>
+    );
+}
+
 export function ConversationRow({
     conversation,
     active,

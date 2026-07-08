@@ -29,14 +29,24 @@ const navSections: NavSection[] = [
         label: 'Tổng quan',
         items: [
             { title: 'Tổng quan', href: '/admin', icon: LayoutDashboard },
-            { title: 'Hộp thư', href: '/admin/inbox', icon: Inbox },
+            {
+                title: 'Hộp thư',
+                href: '/admin/inbox',
+                icon: Inbox,
+                badge: { count: 0, tone: 'info' },
+            },
         ],
     },
     {
         label: 'CRM',
         items: [
             { title: 'Khách hàng', href: '/admin/contacts', icon: Users },
-            { title: 'Cơ hội', href: '/admin/leads', icon: Briefcase },
+            {
+                title: 'Cơ hội',
+                href: '/admin/leads',
+                icon: Briefcase,
+                badge: { count: 0, tone: 'info' },
+            },
             { title: 'Deal', href: '/admin/leads', icon: Target },
         ],
     },
@@ -44,7 +54,12 @@ const navSections: NavSection[] = [
         label: 'Vận hành',
         items: [
             { title: 'Phân bổ', href: '/admin/routing', icon: Route },
-            { title: 'Kênh', href: '/admin/channels', icon: Plug },
+            {
+                title: 'Kênh',
+                href: '/admin/channels',
+                icon: Plug,
+                badge: { count: 0, tone: 'warn' },
+            },
         ],
     },
     {

@@ -1,11 +1,10 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
+    AlertTriangle,
     InboxIcon,
     LoaderCircle,
-    MessageCircleX,
     RefreshCcw,
     Search,
-    UserRoundX,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -50,7 +49,7 @@ import {
     ConversationRow,
     QueueSkeleton,
     QueueTabTrigger,
-    StatPill,
+    SubStatPill,
 } from './inbox/QueueParts';
 import { InboxBottomNav } from './inbox/InboxBottomNav';
 import { ThreadPanel } from './inbox/ThreadPanel';
@@ -483,55 +482,21 @@ export default function Inbox({
                             <div className="flex items-center justify-between gap-2 border-b p-3">
                                 <div className="min-w-0 flex-1">
                                     <h1 className="truncate text-base font-semibold">
-                                        Hộp thư
+                                        Hộp thư đa kênh
                                     </h1>
                                     <p className="truncate text-xs text-muted-foreground tabular-nums">
-                                        {stats.open}/{conversations.length} mở · {stats.waitingAgent} chờ
+                                        {stats.open}/{conversations.length} hội thoại đang mở
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-0.5">
-                                    <StatPill
-                                        icon={MessageCircleX}
-                                        count={stats.failedOutbox}
-                                        tone="danger"
-                                        pulse
-                                        label="Tin nhắn gửi đi lỗi — bấm để xem"
-                                        active={statFilter === 'failed'}
-                                        onClick={() => {
-                                            if (stats.failedOutbox === 0) return;
-                                            // Per-conversation failed-message data isn't
-                                            // wired to the queue yet. Surface a hint and
-                                            // keep the existing failedOutbox count visible
-                                            // for ops to dig via OPS_WEBHOOKS.md.
-                                            toast.error(
-                                                `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
-                                                { duration: 5000 },
-                                            );
-                                        }}
-                                    />
-                                    <StatPill
-                                        icon={UserRoundX}
-                                        count={stats.unassigned}
-                                        tone="warn"
-                                        label="Chưa gán nhân viên — bấm để lọc"
-                                        active={statFilter === 'unassigned'}
-                                        onClick={() =>
-                                            setStatFilter((current) =>
-                                                current === 'unassigned'
-                                                    ? null
-                                                    : 'unassigned',
-                                            )
-                                        }
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="size-8"
-                                        onClick={refreshNow}
-                                        aria-label="Làm mới"
-                                        disabled={isRefreshing}
-                                    >
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8"
+                                    onClick={refreshNow}
+                                    aria-label="Làm mới"
+                                    disabled={isRefreshing}
+                                >
                                         {isRefreshing ? (
                                             <LoaderCircle className="size-3.5" />
                                         ) : (
@@ -539,7 +504,6 @@ export default function Inbox({
                                         )}
                                     </Button>
                                 </div>
-                            </div>
 
                             <div className="flex flex-col gap-3 border-b p-3">
                                 <InputGroup>
@@ -594,6 +558,95 @@ export default function Inbox({
                                         />
                                     </TabsList>
                                 </Tabs>
+
+                                {/* Sub-stats row — mockup §3.5: 4 colored pills
+                                    (Mở / Chờ / Chưa gán / Lỗi) under the filter tabs.
+                                    Click a pill to apply that filter; the active
+                                    filter is highlighted. */}
+                                <div
+                                    data-test="queue-substats"
+                                    className="flex flex-wrap items-center gap-1.5 px-3 pb-3"
+                                >
+                                    <SubStatPill
+                                        tone="ok"
+                                        count={stats.open}
+                                        label="Mở"
+                                        active={statFilter === null && tab === 'all'}
+                                        onClick={() => {
+                                            setStatFilter(null);
+                                            setTab('all');
+                                        }}
+                                    />
+                                    <SubStatPill
+                                        tone="info"
+                                        count={stats.waitingAgent}
+                                        label="Chờ"
+                                        active={tab === 'waiting'}
+                                        onClick={() => {
+                                            setStatFilter(null);
+                                            setTab('waiting');
+                                        }}
+                                    />
+                                    <SubStatPill
+                                        tone="warn"
+                                        count={stats.unassigned}
+                                        label="Chưa gán"
+                                        active={statFilter === 'unassigned'}
+                                        onClick={() =>
+                                            setStatFilter((current) =>
+                                                current === 'unassigned'
+                                                    ? null
+                                                    : 'unassigned',
+                                            )
+                                        }
+                                    />
+                                    <SubStatPill
+                                        tone="danger"
+                                        count={stats.failedOutbox}
+                                        label="Lỗi"
+                                        active={statFilter === 'failed'}
+                                        onClick={() => {
+                                            if (stats.failedOutbox === 0) return;
+                                            toast.error(
+                                                `${stats.failedOutbox} tin gửi đi lỗi — xem docs/OPS_WEBHOOKS.md §Troubleshooting.`,
+                                                { duration: 5000 },
+                                            );
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Cảnh báo banner — mockup §3.5: red border
+                                    alert when there are failed messages or
+                                    unassigned conversations. Hidden when both
+                                    counters are 0. */}
+                                {(stats.failedOutbox > 0 ||
+                                    stats.unassigned > 0) && (
+                                    <div
+                                        data-test="queue-alert"
+                                        className="mx-3 mb-3 flex flex-col gap-1 rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs text-[var(--status-danger-fg)]"
+                                    >
+                                        <div className="flex items-center gap-1.5 font-semibold">
+                                            <AlertTriangle className="size-3.5" />
+                                            <span>Cản xử lý</span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">
+                                            {stats.failedOutbox > 0 && (
+                                                <span>
+                                                    {stats.failedOutbox} tin gửi đi lỗi
+                                                </span>
+                                            )}
+                                            {stats.failedOutbox > 0 &&
+                                                stats.unassigned > 0 && (
+                                                <span aria-hidden>·</span>
+                                            )}
+                                            {stats.unassigned > 0 && (
+                                                <span>
+                                                    {stats.unassigned} cuộc chưa gán
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <ScrollArea className="min-h-0 flex-1">
