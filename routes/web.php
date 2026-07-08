@@ -4,6 +4,8 @@ use App\Modules\Admin\Http\Controllers\AdminController;
 use App\Modules\Admin\Http\Controllers\MockInboundController;
 use App\Modules\Channels\Http\Controllers\ChannelAccountController;
 use App\Modules\Channels\Http\Controllers\ProviderWebhookController;
+use App\Modules\Channels\Http\Controllers\ShopeeOAuthController;
+use App\Modules\Channels\Http\Controllers\TikTokOAuthController;
 use App\Modules\Crm\Http\Controllers\ContactController;
 use App\Modules\Crm\Http\Controllers\LeadController;
 use App\Modules\Inbox\Http\Controllers\ConversationActionController;
@@ -78,15 +80,47 @@ Route::middleware(['workspace.required', 'auth', 'verified', 'workspace.member']
         Route::get('api/admin/channels/{channelAccount}/zalo-status', [ChannelAccountController::class, 'zaloStatus'])->name('admin.channels.zalo-status');
         Route::post('api/admin/channels/{channelAccount}/zalo-sync', [ChannelAccountController::class, 'zaloSync'])->name('admin.channels.zalo-sync');
         Route::delete('api/admin/channels/{channelAccount}', [ChannelAccountController::class, 'destroy'])->name('admin.channels.destroy');
+
+        // Shopee Chat VN OAuth round-trip (specs/11). The callback is on the
+        // tenant host (not webhook.qrf.vn) because it's a Shopee→CRM redirect,
+        // not a provider webhook.
+        Route::get('admin/channels/shopee/connect', [ShopeeOAuthController::class, 'connect'])
+            ->name('admin.channels.shopee.connect');
+        Route::get('admin/channels/shopee/callback', [ShopeeOAuthController::class, 'callback'])
+            ->name('admin.channels.shopee.callback');
+
+        // TikTok Shop Chat VN OAuth round-trip (specs/13). Same pattern as
+        // Shopee: tenant-host, not webhook host.
+        Route::get('admin/channels/tiktok/connect', [TikTokOAuthController::class, 'connect'])
+            ->name('admin.channels.tiktok.connect');
+        Route::get('admin/channels/tiktok/callback', [TikTokOAuthController::class, 'callback'])
+            ->name('admin.channels.tiktok.callback');
     });
 
-// Throttle inbound webhooks per IP so a spammer can't flood ingest / bloat the
-// DB with fake contacts. 600/min is well above any real provider's send rate.
-Route::middleware(['throttle:600,1', 'workspace.channel'])->group(function () {
-    Route::post('webhooks/telegram/{channelAccount}', [ProviderWebhookController::class, 'telegram'])->name('webhooks.telegram');
-    Route::post('webhooks/zalo/{channelAccount}', [ProviderWebhookController::class, 'zalo'])->name('webhooks.zalo');
-    Route::get('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebookVerify'])->name('webhooks.facebook.verify');
-    Route::post('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebook'])->name('webhooks.facebook');
-});
+// Provider webhook ingress. Bind to the dedicated webhook host (webhook.qrf.vn)
+// when configured so these routes only answer on the ingress vhost — defense in
+// depth on top of the per-account secret / signature verification. The host
+// binding is env-gated (APP_WEBHOOK_SUBDOMAIN) so dev/test can run without it.
+$webhookRoutes = function (): void {
+    Route::middleware(['throttle:600,1', 'workspace.channel'])->group(function () {
+        Route::post('webhooks/telegram/{channelAccount}', [ProviderWebhookController::class, 'telegram'])->name('webhooks.telegram');
+        Route::post('webhooks/zalo/{channelAccount}', [ProviderWebhookController::class, 'zalo'])->name('webhooks.zalo');
+        Route::get('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebookVerify'])->name('webhooks.facebook.verify');
+        Route::post('webhooks/facebook/{channelAccount}', [ProviderWebhookController::class, 'facebook'])->name('webhooks.facebook');
+    });
+
+    // Shopee Chat VN (specs/11). HMAC verification in middleware — must run
+    // before the controller body. Mounted INSIDE the webhook host binding so
+    // the route only resolves on webhook.qrf.vn (defense in depth).
+    Route::middleware(['throttle:600,1', 'workspace.channel', 'shopee.signature'])
+        ->post('webhooks/shopee/{channelAccount}', [ProviderWebhookController::class, 'shopee'])
+        ->name('webhooks.shopee');
+};
+
+if (config('tenant.webhook_host')) {
+    Route::domain(config('tenant.webhook_host'))->group($webhookRoutes);
+} else {
+    $webhookRoutes();
+}
 
 require __DIR__.'/settings.php';

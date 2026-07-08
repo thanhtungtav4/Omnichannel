@@ -4,7 +4,9 @@ namespace App\Modules\Channels\Services;
 
 use App\Modules\Channels\Adapters\FacebookAdapter;
 use App\Modules\Channels\Adapters\MockAdapter;
+use App\Modules\Channels\Adapters\ShopeeAdapter;
 use App\Modules\Channels\Adapters\TelegramAdapter;
+use App\Modules\Channels\Adapters\TikTokShopAdapter;
 use App\Modules\Channels\Adapters\ZaloOaAdapter;
 use App\Modules\Channels\Adapters\ZaloPersonalAdapter;
 use App\Modules\Channels\Contracts\ChannelAdapter;
@@ -17,6 +19,8 @@ class ChannelAdapterRegistry
         private readonly ZaloOaAdapter $zaloOa,
         private readonly ZaloPersonalAdapter $zaloPersonal,
         private readonly FacebookAdapter $facebook,
+        private readonly ShopeeAdapter $shopee,
+        private readonly TikTokShopAdapter $tiktokShop,
         private readonly MockAdapter $mock,
     ) {}
 
@@ -27,6 +31,8 @@ class ChannelAdapterRegistry
             'ZALO_OA' => $this->zaloOa,
             'ZALO_PERSONAL' => $this->zaloPersonal,
             'FACEBOOK' => $this->facebook,
+            'SHOPEE' => $this->shopee,
+            'TIKTOK_SHOP' => $this->tiktokShop,
             default => $this->mock,
         };
     }
