@@ -25,8 +25,8 @@ import {
     X,
     Zap,
 } from 'lucide-react';
-import {  useEffect, useMemo, useRef, useState } from 'react';
-import type {FormEvent} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -56,14 +56,6 @@ import {
     InputGroupInput,
 } from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import {
     Sheet,
     SheetContent,
@@ -165,8 +157,8 @@ export function ThreadPanel({
         const el = threadEndRef.current;
 
         if (!el) {
-return;
-}
+            return;
+        }
 
         const root = el.closest('[data-radix-scroll-area-viewport]');
         const io = new IntersectionObserver(
@@ -193,11 +185,14 @@ return;
     const topSentinelRef = useRef<HTMLDivElement>(null);
     async function loadOlder() {
         if (loadingOlder || !hasMore || !activeId) {
-return;
-}
+            return;
+        }
 
         setLoadingOlder(true);
-        const shown = [...olderMessages, ...(activeConversation?.messages ?? [])];
+        const shown = [
+            ...olderMessages,
+            ...(activeConversation?.messages ?? []),
+        ];
         const before = shown[0]?.id;
 
         try {
@@ -217,8 +212,8 @@ return;
         const el = topSentinelRef.current;
 
         if (!el || !hasMore) {
-return;
-}
+            return;
+        }
 
         const io = new IntersectionObserver(
             ([entry]) => entry.isIntersecting && loadOlder(),
@@ -236,13 +231,12 @@ return;
     // bottom-padding on the composer.
     useEffect(() => {
         if (typeof window === 'undefined' || !window.visualViewport) {
-return;
-}
+            return;
+        }
 
         const vv = window.visualViewport;
         const onResize = () => {
-            const offsetBottom =
-                window.innerHeight - vv.height - vv.offsetTop;
+            const offsetBottom = window.innerHeight - vv.height - vv.offsetTop;
             const isMobile = window.matchMedia('(max-width: 767px)').matches;
             const form = document.querySelector(
                 'form[data-composer]',
@@ -263,9 +257,10 @@ return;
     const allMessages = useMemo(() => {
         const seen = new Set<string>();
 
-        return [...olderMessages, ...(activeConversation?.messages ?? [])].filter(
-            (m) => (seen.has(m.id) ? false : seen.add(m.id)),
-        );
+        return [
+            ...olderMessages,
+            ...(activeConversation?.messages ?? []),
+        ].filter((m) => (seen.has(m.id) ? false : seen.add(m.id)));
     }, [olderMessages, activeConversation?.messages]);
 
     // Search-in-thread: filters the loaded messages by body text (only what's
@@ -300,8 +295,8 @@ return;
         const q = search.trim().toLowerCase();
 
         if (!q) {
-return allMessages;
-}
+            return allMessages;
+        }
 
         return allMessages.filter((m) => m.body?.toLowerCase().includes(q));
     }, [allMessages, search]);
@@ -327,7 +322,7 @@ return allMessages;
 
     return (
         <section className="flex min-h-0 flex-col overflow-hidden">
-            <header className="flex shrink-0 flex-col gap-3 border-b p-3 xl:flex-row xl:items-center xl:justify-between">
+            <header className="flex shrink-0 items-center justify-between gap-2 border-b p-3">
                 <div className="flex min-w-0 items-center gap-3">
                     <Link
                         href="/admin/inbox"
@@ -365,8 +360,12 @@ return allMessages;
                                         .toLowerCase()
                                         .replace(/_.*$/, '')})`,
                                 }}
-                                title={providerLabel(activeConversation.channel)}
-                                aria-label={providerLabel(activeConversation.channel)}
+                                title={providerLabel(
+                                    activeConversation.channel,
+                                )}
+                                aria-label={providerLabel(
+                                    activeConversation.channel,
+                                )}
                             />
                             <span className="font-medium text-foreground">
                                 {providerLabel(activeConversation.channel)}
@@ -383,7 +382,8 @@ return allMessages;
                                         )}
                                     />
                                     <span>
-                                        {activeConversation.owner.name} đang xử lý
+                                        {activeConversation.owner.name} đang xử
+                                        lý
                                     </span>
                                 </span>
                             ) : (
@@ -395,7 +395,7 @@ return allMessages;
                     </div>
                 </div>
 
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
                     {/* SLA countdown pill — visible on every open conversation
                         so the operator can see at a glance whether they're
                         tracking against the first-response SLA. */}
@@ -408,34 +408,17 @@ return allMessages;
                         next to the SLA pill. Tighter than the full StatusBadge. */}
                     <PriorityDot priority={activeConversation.priority} />
 
-                    {/* Inline assign — HubSpot puts the owner picker on the header. */}
-                    <Select
-                        value={
-                            activeConversation.owner
-                                ? String(activeConversation.owner.id)
-                                : ''
-                        }
-                        onValueChange={(id) => {
-                            onTransferToChange(id);
-                            onSubmitTransfer(id);
-                        }}
+                    {/* Transfer — opens the assign sheet (mockup header "Chuyển").
+                        Replaces the wide inline owner Select to keep the header
+                        on a single compact row. */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setTransferOpen(true)}
                     >
-                        <SelectTrigger className="h-9 w-40">
-                            <SelectValue placeholder="Chưa gán" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectGroup>
-                                {agents.map((agent) => (
-                                    <SelectItem
-                                        key={agent.id}
-                                        value={String(agent.id)}
-                                    >
-                                        {agent.display_name ?? agent.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
+                        <UserRoundCheck data-icon="inline-start" />
+                        Chuyển
+                    </Button>
 
                     {/* Mobile-only customer info sheet trigger. */}
                     <Sheet>
@@ -462,12 +445,20 @@ return allMessages;
                                 <div className="flex items-center gap-3">
                                     <Avatar className="size-12">
                                         {contact?.avatarUrl && (
-                                            <AvatarImage src={contact.avatarUrl} alt={name} />
+                                            <AvatarImage
+                                                src={contact.avatarUrl}
+                                                alt={name}
+                                            />
                                         )}
-                                        <AvatarFallback>{initials(name)}</AvatarFallback>
+                                        <AvatarFallback>
+                                            {initials(name)}
+                                        </AvatarFallback>
                                     </Avatar>
                                     <div className="min-w-0">
-                                        <p className="truncate font-semibold" title={name}>
+                                        <p
+                                            className="truncate font-semibold"
+                                            title={name}
+                                        >
                                             {name}
                                         </p>
                                         {contact?.source && (
@@ -481,21 +472,36 @@ return allMessages;
                                     icon={<Phone className="size-3.5" />}
                                     label="SĐT"
                                     value={contact?.phone}
-                                    href={contact?.phone ? `tel:${contact.phone}` : undefined}
+                                    href={
+                                        contact?.phone
+                                            ? `tel:${contact.phone}`
+                                            : undefined
+                                    }
                                 />
                                 <ContactInfoRow
                                     icon={<Mail className="size-3.5" />}
                                     label="Email"
                                     value={contact?.email}
-                                    href={contact?.email ? `mailto:${contact.email}` : undefined}
+                                    href={
+                                        contact?.email
+                                            ? `mailto:${contact.email}`
+                                            : undefined
+                                    }
                                 />
                                 <PanelRow
                                     label="Tin gần nhất"
                                     value={contact?.lastInboundAt ?? '—'}
                                 />
                                 {contact?.id && (
-                                    <Button asChild variant="outline" size="sm" className="mt-2">
-                                        <Link href={`/admin/contacts/${contact.id}`}>
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-2"
+                                    >
+                                        <Link
+                                            href={`/admin/contacts/${contact.id}`}
+                                        >
                                             <UserRoundCheck data-icon="inline-start" />
                                             Xem hồ sơ đầy đủ
                                         </Link>
@@ -505,19 +511,6 @@ return allMessages;
                         </SheetContent>
                     </Sheet>
 
-                    {/* Search-in-thread button (also exposed in the kebab). */}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-11 sm:size-9"
-                        onClick={() => setShowSearch((v) => !v)}
-                        title="Tìm trong hội thoại (⌘F)"
-                        aria-label="Search in thread"
-                    >
-                        <Search />
-                    </Button>
-
                     {/* Kebab menu — secondary actions (mockup). */}
                     <ThreadKebab
                         onFocusToggle={onToggleFocus}
@@ -525,7 +518,9 @@ return allMessages;
                         isClosed={activeConversation.status === 'CLOSED'}
                         onSearchToggle={() => setShowSearch((v) => !v)}
                         onTransfer={() => setTransferOpen(true)}
-                        onMarkSpam={() => toast.error('Đã đánh dấu spam (mockup)')}
+                        onMarkSpam={() =>
+                            toast.error('Đã đánh dấu spam (mockup)')
+                        }
                     />
 
                     {activeConversation.status === 'CLOSED' ? (
@@ -578,7 +573,7 @@ return allMessages;
                                     <Search />
                                 </InputGroupAddon>
                             </InputGroup>
-                            <span className="[font-family:var(--font-mono)] shrink-0 text-xs tabular-nums text-muted-foreground">
+                            <span className="shrink-0 [font-family:var(--font-mono)] text-xs text-muted-foreground tabular-nums">
                                 {search.trim() ? shownMessages.length : ''}
                             </span>
                             <Button
@@ -600,7 +595,7 @@ return allMessages;
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-full shadow-md min-h-11 sm:min-h-8"
+                            className="absolute bottom-24 left-1/2 z-10 min-h-11 -translate-x-1/2 rounded-full shadow-md sm:min-h-8"
                             onClick={() =>
                                 threadEndRef.current?.scrollIntoView({
                                     behavior: 'smooth',
@@ -634,7 +629,9 @@ return allMessages;
                                         <EmptyMedia variant="icon">
                                             <InboxIcon />
                                         </EmptyMedia>
-                                        <EmptyTitle>Chưa có tin nhắn</EmptyTitle>
+                                        <EmptyTitle>
+                                            Chưa có tin nhắn
+                                        </EmptyTitle>
                                         <EmptyDescription>
                                             Tin của khách sẽ hiện ở đây.
                                         </EmptyDescription>
@@ -656,7 +653,7 @@ return allMessages;
                                 type="button"
                                 onClick={() => onComposerModeChange('reply')}
                                 className={cn(
-                                    'rounded px-3 py-1.5 font-medium min-h-9 sm:min-h-0 sm:py-1',
+                                    'min-h-9 rounded px-3 py-1.5 font-medium sm:min-h-0 sm:py-1',
                                     composerMode === 'reply'
                                         ? 'bg-primary text-primary-foreground'
                                         : 'text-muted-foreground',
@@ -668,7 +665,7 @@ return allMessages;
                                 type="button"
                                 onClick={() => onComposerModeChange('comment')}
                                 className={cn(
-                                    'rounded px-3 py-1.5 font-medium min-h-9 sm:min-h-0 sm:py-1',
+                                    'min-h-9 rounded px-3 py-1.5 font-medium sm:min-h-0 sm:py-1',
                                     composerMode === 'comment'
                                         ? '[background-color:var(--status-warn-fg)] text-white'
                                         : 'text-muted-foreground',
@@ -679,7 +676,7 @@ return allMessages;
                         </div>
                         {/* Emoji picker: toggled by the smile button. */}
                         {showEmoji && (
-                            <div className="absolute bottom-full right-3 z-10 mb-1 grid max-w-72 grid-cols-10 gap-0.5 rounded-lg border bg-popover p-2 shadow-md">
+                            <div className="absolute right-3 bottom-full z-10 mb-1 grid max-w-72 grid-cols-10 gap-0.5 rounded-lg border bg-popover p-2 shadow-md">
                                 {EMOJIS.map((e) => (
                                     <button
                                         key={e}
@@ -697,19 +694,26 @@ return allMessages;
                         )}
                         {/* Quick-reply picker: shows when the composer starts with "/". */}
                         {replyBody.startsWith('/') && (
-                            <div className="absolute bottom-full left-3 right-3 z-10 mb-1 max-h-56 overflow-auto rounded-lg border bg-popover p-1 shadow-md">
-                                {QUICK_TEMPLATES.filter((t) =>
-                                    t.key.includes(
-                                        replyBody.slice(1).toLowerCase(),
-                                    ) ||
-                                    t.label
-                                        .toLowerCase()
-                                        .includes(replyBody.slice(1).toLowerCase()),
+                            <div className="absolute right-3 bottom-full left-3 z-10 mb-1 max-h-56 overflow-auto rounded-lg border bg-popover p-1 shadow-md">
+                                {QUICK_TEMPLATES.filter(
+                                    (t) =>
+                                        t.key.includes(
+                                            replyBody.slice(1).toLowerCase(),
+                                        ) ||
+                                        t.label
+                                            .toLowerCase()
+                                            .includes(
+                                                replyBody
+                                                    .slice(1)
+                                                    .toLowerCase(),
+                                            ),
                                 ).map((t) => (
                                     <button
                                         key={t.key}
                                         type="button"
-                                        onClick={() => onReplyBodyChange(t.text)}
+                                        onClick={() =>
+                                            onReplyBodyChange(t.text)
+                                        }
                                         className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                                     >
                                         <span className="font-medium">
@@ -745,7 +749,7 @@ return allMessages;
                                     type="button"
                                     variant="secondary"
                                     size="icon"
-                                    className="absolute -right-2 -top-2 size-6 rounded-full shadow"
+                                    className="absolute -top-2 -right-2 size-6 rounded-full shadow"
                                     onClick={() => onReplyImageChange(null)}
                                     aria-label="Bỏ ảnh"
                                 >
@@ -758,7 +762,8 @@ return allMessages;
                                 <FieldLabel htmlFor="reply-body">
                                     {composerMode === 'comment' ? (
                                         <span className="[color:var(--status-warn-fg)]">
-                                            Ghi chú khách (lưu vào hồ sơ, chỉ nhân viên thấy)
+                                            Ghi chú khách (lưu vào hồ sơ, chỉ
+                                            nhân viên thấy)
                                         </span>
                                     ) : (
                                         <>
@@ -837,16 +842,22 @@ return allMessages;
                                         variant="ghost"
                                         size="icon"
                                         className="size-8 text-muted-foreground"
-                                        onClick={() => setShowTemplates((v) => !v)}
+                                        onClick={() =>
+                                            setShowTemplates((v) => !v)
+                                        }
                                         aria-label="Mẫu trả lời nhanh"
                                         title="Mẫu trả lời nhanh (gõ /)"
                                     >
                                         <Zap />
                                     </Button>
                                     <div className="flex-1" />
-                                    <span className="[font-family:var(--font-mono)] hidden items-center gap-1 text-[11px] text-muted-foreground sm:flex">
-                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">⌘</kbd>
-                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">Enter</kbd>
+                                    <span className="hidden items-center gap-1 [font-family:var(--font-mono)] text-[11px] text-muted-foreground sm:flex">
+                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                                            ⌘
+                                        </kbd>
+                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                                            Enter
+                                        </kbd>
                                     </span>
                                     <Button
                                         type="submit"
@@ -876,7 +887,6 @@ return allMessages;
                         </FieldGroup>
                     </form>
                 </div>
-
             </div>
 
             {/* Mockup §3.6 sheets. */}
@@ -985,14 +995,14 @@ function SlaPill({
     seconds: number | null;
 }) {
     if (seconds === null) {
-return null;
-}
+        return null;
+    }
 
-    const tone = state === 'BREACHED' ? 'danger' : state === 'DUE_SOON' ? 'warn' : 'ok';
+    const tone =
+        state === 'BREACHED' ? 'danger' : state === 'DUE_SOON' ? 'warn' : 'ok';
     const text = slaText(state, seconds);
     const toneCls = {
-        danger:
-            '[background-color:var(--status-danger-bg)] [border-color:var(--status-danger-border)] [color:var(--status-danger-fg)] animate-sla-blink',
+        danger: '[background-color:var(--status-danger-bg)] [border-color:var(--status-danger-border)] [color:var(--status-danger-fg)] animate-sla-blink',
         warn: '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)]',
         ok: '[background-color:var(--status-ok-bg)] [border-color:var(--status-ok-border)] [color:var(--status-ok-fg)]',
     }[tone as 'ok' | 'warn' | 'danger'];
@@ -1001,7 +1011,7 @@ return null;
         <span
             title="Phản hồi đầu tiên SLA"
             className={cn(
-                'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 [font-family:var(--font-mono)] [font-variant-numeric:tabular-nums] text-[11px] font-semibold',
+                'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 [font-family:var(--font-mono)] text-[11px] font-semibold [font-variant-numeric:tabular-nums]',
                 toneCls,
             )}
         >
@@ -1017,19 +1027,22 @@ function slaText(state: string, secs: number): string {
     const stamp = `${m}:${s.toString().padStart(2, '0')}`;
 
     if (state === 'BREACHED') {
-return `Trễ ${stamp}`;
-}
+        return `Trễ ${stamp}`;
+    }
 
     if (state === 'DUE_SOON') {
-return `Còn ${stamp}`;
-}
+        return `Còn ${stamp}`;
+    }
 
     return stamp;
 }
 
 /* ── Priority dot (compact version of StatusBadge — mockup) ───────────────── */
 function PriorityDot({ priority }: { priority: string }) {
-    const map: Record<string, { tone: 'danger' | 'warn' | 'idle'; label: string }> = {
+    const map: Record<
+        string,
+        { tone: 'danger' | 'warn' | 'idle'; label: string }
+    > = {
         URGENT: { tone: 'danger', label: 'Khẩn' },
         HIGH: { tone: 'warn', label: 'Cao' },
         NORMAL: { tone: 'idle', label: 'Thường' },
@@ -1045,7 +1058,7 @@ function PriorityDot({ priority }: { priority: string }) {
     return (
         <span
             title={`Ưu tiên: ${entry.label}`}
-          className={cn(
+            className={cn(
                 'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold',
                 toneCls,
             )}
@@ -1135,7 +1148,9 @@ function ThreadKebab({
                 )}
                 <DropdownMenuItem onSelect={onFocusToggle}>
                     <Maximize2 />
-                    <span>{isFocused ? 'Thoát toàn màn hình' : 'Phóng to'}</span>
+                    <span>
+                        {isFocused ? 'Thoát toàn màn hình' : 'Phóng to'}
+                    </span>
                     <span className="ml-auto [font-family:var(--font-mono)] text-[10px] text-muted-foreground">
                         Esc
                     </span>
