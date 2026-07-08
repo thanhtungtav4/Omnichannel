@@ -414,6 +414,7 @@ export function ThreadPanel({
                     <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={() => setTransferOpen(true)}
                     >
                         <UserRoundCheck data-icon="inline-start" />
@@ -527,6 +528,7 @@ export function ThreadPanel({
                         <Button
                             type="button"
                             variant="outline"
+                            size="sm"
                             onClick={onReopenConversation}
                         >
                             <RotateCcw data-icon="inline-start" />
@@ -536,6 +538,7 @@ export function ThreadPanel({
                         <Button
                             type="button"
                             variant="outline"
+                            size="sm"
                             onClick={onCloseConversation}
                         >
                             <CheckCircle2 data-icon="inline-start" />
