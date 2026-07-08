@@ -12,7 +12,6 @@ import {
     Maximize2,
     MessageCirclePlus,
     ImagePlus,
-    Minimize2,
     MoreHorizontal,
     Phone,
     RotateCcw,
@@ -25,12 +24,10 @@ import {
     UserPlus,
     X,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {  useEffect, useMemo, useRef, useState } from 'react';
+import type {FormEvent} from 'react';
 import { toast } from 'sonner';
-import { StatusBadge } from '@/components/admin/status-badge';
-import { TagEditor } from '@/components/admin/tag-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -61,14 +58,6 @@ import {
 } from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
-import {
     Select,
     SelectContent,
     SelectGroup,
@@ -76,11 +65,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, AgentOption } from '@/types';
-import { MessageList } from './MessageBubble';
-import { TransferSheet, CloseSheet } from './TransferSheet';
 import {
     customerName,
     initials,
@@ -89,6 +83,8 @@ import {
     EMOJIS,
     QUICK_TEMPLATES,
 } from './lib';
+import { MessageList } from './MessageBubble';
+import { TransferSheet, CloseSheet } from './TransferSheet';
 
 export function ThreadPanel({
     activeConversation,
@@ -99,7 +95,6 @@ export function ThreadPanel({
     replyProcessing,
     composerMode,
     onComposerModeChange,
-    transferTo,
     focusMode,
     onToggleFocus,
     onReplyBodyChange,
@@ -118,7 +113,6 @@ export function ThreadPanel({
     replyProcessing: boolean;
     composerMode: 'reply' | 'comment';
     onComposerModeChange: (mode: 'reply' | 'comment') => void;
-    transferTo: string;
     focusMode: boolean;
     onToggleFocus: () => void;
     onReplyBodyChange: (body: string) => void;
@@ -154,10 +148,12 @@ export function ThreadPanel({
     useEffect(() => {
         if (messageCount > prevCountRef.current) {
             const last = activeConversation?.messages[messageCount - 1];
+
             if (last?.direction === 'INBOUND') {
                 toast(`Tin mới: ${last.body ?? ''}`.slice(0, 80));
             }
         }
+
         prevCountRef.current = messageCount;
     }, [messageCount, activeConversation]);
 
@@ -167,13 +163,18 @@ export function ThreadPanel({
     const [atBottom, setAtBottom] = useState(true);
     useEffect(() => {
         const el = threadEndRef.current;
-        if (!el) return;
+
+        if (!el) {
+return;
+}
+
         const root = el.closest('[data-radix-scroll-area-viewport]');
         const io = new IntersectionObserver(
             ([entry]) => setAtBottom(entry.isIntersecting),
             { root, threshold: 0.1 },
         );
         io.observe(el);
+
         return () => io.disconnect();
     }, [activeId]);
 
@@ -191,10 +192,14 @@ export function ThreadPanel({
 
     const topSentinelRef = useRef<HTMLDivElement>(null);
     async function loadOlder() {
-        if (loadingOlder || !hasMore || !activeId) return;
+        if (loadingOlder || !hasMore || !activeId) {
+return;
+}
+
         setLoadingOlder(true);
         const shown = [...olderMessages, ...(activeConversation?.messages ?? [])];
         const before = shown[0]?.id;
+
         try {
             const res = await fetch(
                 `/api/admin/conversations/${activeId}/messages-older?before=${before}`,
@@ -210,12 +215,17 @@ export function ThreadPanel({
     // Trigger load when the top sentinel scrolls into view.
     useEffect(() => {
         const el = topSentinelRef.current;
-        if (!el || !hasMore) return;
+
+        if (!el || !hasMore) {
+return;
+}
+
         const io = new IntersectionObserver(
             ([entry]) => entry.isIntersecting && loadOlder(),
             { threshold: 0.5 },
         );
         io.observe(el);
+
         return () => io.disconnect();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasMore, olderMessages.length, activeId]);
@@ -225,7 +235,10 @@ export function ThreadPanel({
     // mobile keyboards opening/closing; we mirror the keyboard height as
     // bottom-padding on the composer.
     useEffect(() => {
-        if (typeof window === 'undefined' || !window.visualViewport) return;
+        if (typeof window === 'undefined' || !window.visualViewport) {
+return;
+}
+
         const vv = window.visualViewport;
         const onResize = () => {
             const offsetBottom =
@@ -234,6 +247,7 @@ export function ThreadPanel({
             const form = document.querySelector(
                 'form[data-composer]',
             ) as HTMLElement | null;
+
             if (form && isMobile && offsetBottom > 80) {
                 form.style.paddingBottom = `calc(12px + ${offsetBottom}px + env(safe-area-inset-bottom, 0px))`;
             } else if (form && isMobile) {
@@ -241,12 +255,14 @@ export function ThreadPanel({
             }
         };
         vv.addEventListener('resize', onResize);
+
         return () => vv.removeEventListener('resize', onResize);
     }, [activeId]);
 
     // Full thread = older (client-loaded) + current server page, deduped.
     const allMessages = useMemo(() => {
         const seen = new Set<string>();
+
         return [...olderMessages, ...(activeConversation?.messages ?? [])].filter(
             (m) => (seen.has(m.id) ? false : seen.add(m.id)),
         );
@@ -266,10 +282,13 @@ export function ThreadPanel({
     useEffect(() => {
         if (!replyImage) {
             setImagePreview(null);
+
             return;
         }
+
         const url = URL.createObjectURL(replyImage);
         setImagePreview(url);
+
         return () => URL.revokeObjectURL(url);
     }, [replyImage]);
     useEffect(() => {
@@ -278,7 +297,11 @@ export function ThreadPanel({
     }, [activeId]);
     const shownMessages = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return allMessages;
+
+        if (!q) {
+return allMessages;
+}
+
         return allMessages.filter((m) => m.body?.toLowerCase().includes(q));
     }, [allMessages, search]);
 
@@ -501,8 +524,6 @@ export function ThreadPanel({
                         isClosed={activeConversation.status === 'CLOSED'}
                         onSearchToggle={() => setShowSearch((v) => !v)}
                         onTransfer={() => setTransferOpen(true)}
-                        onClose={() => setCloseOpen(true)}
-                        onReopen={onReopenConversation}
                         onMarkSpam={() => toast.error('Đã đánh dấu spam (mockup)')}
                     />
 
@@ -762,6 +783,7 @@ export function ThreadPanel({
                                                 !replyBody.startsWith('/')
                                             ) {
                                                 event.preventDefault();
+
                                                 if (
                                                     replyBody.trim() &&
                                                     !replyProcessing
@@ -837,237 +859,6 @@ export function ThreadPanel({
                     </form>
                 </div>
 
-                <aside
-                    className={cn(
-                        'min-h-0 flex-col border-l bg-muted/20 shrink-0 lg:w-[300px] xl:w-[320px]',
-                        focusMode ? 'hidden' : 'hidden lg:flex',
-                    )}
-                >
-                    <ScrollArea className="min-h-0 flex-1">
-                        <div className="flex flex-col gap-4 p-3 w-full min-w-0 overflow-hidden">
-                            {/* About contact — HubSpot right-rail. */}
-                            <div className="flex flex-col items-center gap-2 text-center w-full min-w-0">
-                                <Avatar className="size-16">
-                                    {activeConversation.contact?.avatarUrl && (
-                                        <AvatarImage
-                                            src={
-                                                activeConversation.contact
-                                                    .avatarUrl
-                                            }
-                                            alt={name}
-                                        />
-                                    )}
-                                    <AvatarFallback className="text-lg">
-                                        {initials(name)}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 w-full px-4 text-center">
-                                    <p className="truncate text-base font-semibold" title={name}>
-                                        {name}
-                                    </p>
-                                    {activeConversation.contact?.source && (
-                                        <p className="text-xs text-muted-foreground">
-                                            Nguồn:{' '}
-                                            {activeConversation.contact.source}
-                                        </p>
-                                    )}
-                                </div>
-                                {activeConversation.contact?.id && (
-                                    <Button
-                                        asChild
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full"
-                                    >
-                                        <Link
-                                            href={`/admin/contacts/${activeConversation.contact.id}`}
-                                        >
-                                            <UserRoundCheck data-icon="inline-start" />
-                                            Xem hồ sơ đầy đủ
-                                        </Link>
-                                    </Button>
-                                )}
-                            </div>
-
-                            <PanelSection title="Thông tin">
-                                <ContactInfoRow
-                                    icon={<Phone className="size-3.5" />}
-                                    label="SĐT"
-                                    value={activeConversation.contact?.phone}
-                                    href={
-                                        activeConversation.contact?.phone
-                                            ? `tel:${activeConversation.contact.phone}`
-                                            : undefined
-                                    }
-                                />
-                                <ContactInfoRow
-                                    icon={<Mail className="size-3.5" />}
-                                    label="Email"
-                                    value={activeConversation.contact?.email}
-                                    href={
-                                        activeConversation.contact?.email
-                                            ? `mailto:${activeConversation.contact.email}`
-                                            : undefined
-                                    }
-                                />
-                                <PanelRow
-                                    label="Tin gần nhất"
-                                    value={
-                                        activeConversation.contact
-                                            ?.lastInboundAt ?? '—'
-                                    }
-                                />
-                            </PanelSection>
-
-                            {activeConversation.contact?.id && (
-                                <PanelSection title="Tag">
-                                    <TagEditor
-                                        contactId={activeConversation.contact.id}
-                                        tags={
-                                            activeConversation.contact.tags ?? []
-                                        }
-                                    />
-                                </PanelSection>
-                            )}
-
-                            {!!activeConversation.contact?.identities?.length && (
-                                <PanelSection title="Định danh kênh">
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {activeConversation.contact.identities.map(
-                                            (id) => (
-                                                <Badge
-                                                    key={id.id}
-                                                    variant="outline"
-                                                    className={cn(
-                                                        'max-w-full truncate',
-                                                        providerClass(
-                                                            id.provider,
-                                                        ),
-                                                    )}
-                                                    title={id.providerUserId}
-                                                >
-                                                    {providerLabel(id.provider)}
-                                                </Badge>
-                                            ),
-                                        )}
-                                    </div>
-                                </PanelSection>
-                            )}
-
-                            {!!activeConversation.contact?.leads?.length && (
-                                <PanelSection title="Cơ hội / Lead">
-                                    {activeConversation.contact.leads.map(
-                                        (lead) => (
-                                            <div
-                                                key={lead.id}
-                                                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm min-w-0 overflow-hidden"
-                                            >
-                                                <span className="min-w-0 truncate" title={lead.title}>
-                                                    {lead.title}
-                                                </span>
-                                                <StatusBadge
-                                                    status={lead.status}
-                                                    className="shrink-0"
-                                                />
-                                            </div>
-                                        ),
-                                    )}
-                                </PanelSection>
-                            )}
-
-                            {!!activeConversation.contact?.notes?.length && (
-                                <PanelSection title="Ghi chú">
-                                    {activeConversation.contact.notes.map(
-                                        (note) => (
-                                            <p
-                                                key={note.id}
-                                                className={cn(
-                                                    'rounded-md border px-2 py-1.5 text-sm',
-                                                    note.pinned
-                                                        ? '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)]'
-                                                        : 'bg-muted/40',
-                                                )}
-                                            >
-                                                {note.body}
-                                            </p>
-                                        ),
-                                    )}
-                                </PanelSection>
-                            )}
-
-                            {!!activeConversation.contact?.otherConversations
-                                ?.length && (
-                                <PanelSection title="Hội thoại khác">
-                                    {activeConversation.contact.otherConversations.map(
-                                        (c) => (
-                                            <Link
-                                                key={c.id}
-                                                href={`/admin/inbox?conversation=${c.id}`}
-                                                preserveScroll
-                                                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-accent"
-                                            >
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        'shrink-0',
-                                                        providerClass(c.channel),
-                                                    )}
-                                                >
-                                                    {providerLabel(c.channel)}
-                                                </Badge>
-                                                <span className="truncate text-xs text-muted-foreground">
-                                                    {c.lastMessageAt ?? ''}
-                                                </span>
-                                            </Link>
-                                        ),
-                                    )}
-                                </PanelSection>
-                            )}
-
-                            <Separator />
-
-                            <FieldGroup>
-                                <Field>
-                                    <FieldLabel>Chuyển cho</FieldLabel>
-                                    <div className="flex gap-2 w-full min-w-0">
-                                        <Select
-                                            value={transferTo}
-                                            onValueChange={onTransferToChange}
-                                        >
-                                            <SelectTrigger className="min-w-0 flex-1">
-                                                <SelectValue placeholder="Chọn nhân viên" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectGroup>
-                                                    {agents.map((agent) => (
-                                                        <SelectItem
-                                                            key={agent.id}
-                                                            value={String(
-                                                                agent.id,
-                                                            )}
-                                                        >
-                                                            {agent.display_name ??
-                                                                agent.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectGroup>
-                                            </SelectContent>
-                                        </Select>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => onSubmitTransfer()}
-                                            disabled={!transferTo}
-                                        >
-                                            <UserRoundCheck data-icon="inline-start" />
-                                            Chuyển
-                                        </Button>
-                                    </div>
-                                </Field>
-                            </FieldGroup>
-                        </div>
-                    </ScrollArea>
-                </aside>
             </div>
 
             {/* Mockup §3.6 sheets. */}
@@ -1093,23 +884,6 @@ export function ThreadPanel({
                 }}
             />
         </section>
-    );
-}
-
-function PanelSection({
-    title,
-    children,
-}: {
-    title: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {title}
-            </p>
-            {children}
-        </div>
     );
 }
 
@@ -1148,6 +922,7 @@ function ContactInfoRow({
             </div>
         );
     }
+
     return (
         <div className="flex items-center justify-between gap-2 text-sm">
             <span className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
@@ -1191,7 +966,10 @@ function SlaPill({
     state: 'OK' | 'DUE_SOON' | 'BREACHED' | string;
     seconds: number | null;
 }) {
-    if (seconds === null) return null;
+    if (seconds === null) {
+return null;
+}
+
     const tone = state === 'BREACHED' ? 'danger' : state === 'DUE_SOON' ? 'warn' : 'ok';
     const text = slaText(state, seconds);
     const toneCls = {
@@ -1200,6 +978,7 @@ function SlaPill({
         warn: '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)]',
         ok: '[background-color:var(--status-ok-bg)] [border-color:var(--status-ok-border)] [color:var(--status-ok-fg)]',
     }[tone as 'ok' | 'warn' | 'danger'];
+
     return (
         <span
             title="Phản hồi đầu tiên SLA"
@@ -1218,8 +997,15 @@ function slaText(state: string, secs: number): string {
     const m = Math.floor(Math.abs(secs) / 60);
     const s = Math.abs(secs) % 60;
     const stamp = `${m}:${s.toString().padStart(2, '0')}`;
-    if (state === 'BREACHED') return `Trễ ${stamp}`;
-    if (state === 'DUE_SOON') return `Còn ${stamp}`;
+
+    if (state === 'BREACHED') {
+return `Trễ ${stamp}`;
+}
+
+    if (state === 'DUE_SOON') {
+return `Còn ${stamp}`;
+}
+
     return stamp;
 }
 
@@ -1237,6 +1023,7 @@ function PriorityDot({ priority }: { priority: string }) {
         warn: '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)]',
         idle: 'border-border text-muted-foreground',
     }[entry.tone];
+
     return (
         <span
             title={`Ưu tiên: ${entry.label}`}
@@ -1258,8 +1045,6 @@ function ThreadKebab({
     isClosed,
     onSearchToggle,
     onTransfer,
-    onClose,
-    onReopen,
     onMarkSpam,
 }: {
     onFocusToggle: () => void;
@@ -1267,8 +1052,6 @@ function ThreadKebab({
     isClosed: boolean;
     onSearchToggle: () => void;
     onTransfer: () => void;
-    onClose: () => void;
-    onReopen: () => void;
     onMarkSpam: () => void;
 }) {
     return (
