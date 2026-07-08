@@ -115,6 +115,7 @@
     --status-idle-border: oklch(85% 0.006 250);
     --channel-telegram: oklch(60% 0.13 235);
     --channel-zalo: oklch(58% 0.15 250);
+    --channel-facebook: oklch(58% 0.15 285);
     --row-height: 40px;
     --topbar-height: 56px;
     --content-pad: 1rem;
@@ -173,6 +174,18 @@
     --status-idle-border: oklch(38% 0.008 250);
     --channel-telegram: oklch(68% 0.12 235);
     --channel-zalo: oklch(66% 0.14 250);
+    --channel-facebook: oklch(68% 0.14 285);
+}
+
+/* Operator-scan: SLA-breached pill blinks softly so the eye catches it
+   without flaring into the periphery. */
+@keyframes sla-blink {
+    50% {
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--status-danger-fg) 20%, transparent);
+    }
+}
+.animate-sla-blink {
+    animation: sla-blink 1.5s infinite;
 }
 
 @layer base {

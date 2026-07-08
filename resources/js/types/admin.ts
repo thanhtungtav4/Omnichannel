@@ -83,7 +83,12 @@ export type ConversationSummary = {
     lastMessageAt?: string | null;
     isUnanswered?: boolean;
     unreadCount?: number;
-    slaState: string;
+    slaState: 'OK' | 'DUE_SOON' | 'BREACHED' | string;
+    // Seconds until next_response_due_at (negative when BREACHED). Null
+    // when no SLA clock is set (e.g. closed conversations).
+    slaSeconds?: number | null;
+    // Group chats need a "sender: text" prefix on each inbound message.
+    isGroup?: boolean;
 };
 
 export type ActiveConversation = {
@@ -92,6 +97,9 @@ export type ActiveConversation = {
     status: string;
     priority: string;
     channel?: string | null;
+    slaState?: 'OK' | 'DUE_SOON' | 'BREACHED' | string;
+    slaSeconds?: number | null;
+    isGroup?: boolean;
     contact?: {
         id: string;
         name: string;
@@ -108,13 +116,14 @@ export type ActiveConversation = {
             displayName?: string | null;
             providerUserId: string;
         }[];
-        leads?: { id: string; title: string; status: string }[];
+        leads?: { id: string; title: string; status: string; valueAmount?: number | string | null; stage?: string }[];
         notes?: { id: string; body: string; pinned: boolean }[];
         otherConversations?: {
             id: string;
             channel?: string | null;
             status: string;
             lastMessageAt?: string | null;
+            preview?: string | null;
         }[];
     } | null;
     owner?: {
@@ -122,12 +131,12 @@ export type ActiveConversation = {
         name: string;
         online?: boolean;
     } | null;
-    isGroup?: boolean;
     hasMoreMessages?: boolean;
     messages: {
         id: string;
         direction: 'INBOUND' | 'OUTBOUND';
-        senderType?: string;
+        senderType?: 'CUSTOMER' | 'AGENT' | 'SYSTEM' | string;
+        senderName?: string | null;
         senderId?: string | null;
         body?: string | null;
         messageType?: string | null;
@@ -137,6 +146,8 @@ export type ActiveConversation = {
         outboxError?: string | null;
         timeLabel?: string | null;
         dateIso?: string | null;
+        /** Distinct event rows that aren't customer/agent messages. */
+        kind?: 'message' | 'system' | 'note';
     }[];
 };
 

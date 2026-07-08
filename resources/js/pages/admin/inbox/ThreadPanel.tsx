@@ -4,6 +4,7 @@ import {
     CheckCircle2,
     ChevronDown,
     Copy,
+    Flag,
     InboxIcon,
     Info,
     LoaderCircle,
@@ -12,12 +13,16 @@ import {
     MessageCirclePlus,
     ImagePlus,
     Minimize2,
+    MoreHorizontal,
     Phone,
     RotateCcw,
     Search,
     Send,
     Smile,
+    Tag as TagIcon,
+    Timer,
     UserRoundCheck,
+    UserPlus,
     X,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +32,13 @@ import { TagEditor } from '@/components/admin/tag-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Empty,
     EmptyDescription,
@@ -67,10 +79,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, AgentOption } from '@/types';
-import { DayDivider, MessageBubble } from './MessageBubble';
+import { MessageList } from './MessageBubble';
 import {
     customerName,
-    groupByDay,
     initials,
     providerClass,
     providerLabel,
@@ -289,43 +300,63 @@ export function ThreadPanel({
                         <h2 className="truncate text-base font-semibold">
                             {name}
                         </h2>
-                        <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <Badge
-                                variant="outline"
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            {/* Compact channel dot (mockup). Hover shows full name. */}
+                            <span
                                 className={cn(
-                                    'max-w-40 truncate',
+                                    'inline-block size-2 shrink-0 rounded-full',
                                     providerClass(activeConversation.channel),
                                 )}
-                            >
+                                style={{
+                                    backgroundColor: `var(--channel-${(
+                                        activeConversation.channel ?? ''
+                                    )
+                                        .toLowerCase()
+                                        .replace(/_.*$/, '')})`,
+                                }}
+                                title={providerLabel(activeConversation.channel)}
+                                aria-label={providerLabel(activeConversation.channel)}
+                            />
+                            <span className="font-medium text-foreground">
                                 {providerLabel(activeConversation.channel)}
-                            </Badge>
-                            <span className="flex items-center gap-1 truncate">
-                                {activeConversation.owner && (
+                            </span>
+                            <span>·</span>
+                            {activeConversation.owner ? (
+                                <span className="flex items-center gap-1">
                                     <span
                                         className={cn(
-                                            'size-2 rounded-full',
+                                            'inline-block size-1.5 rounded-full',
                                             activeConversation.owner.online
                                                 ? '[background-color:var(--status-ok-fg)]'
                                                 : '[background-color:var(--status-idle-fg)]',
                                         )}
-                                        title={
-                                            activeConversation.owner.online
-                                                ? 'Đang online'
-                                                : 'Offline'
-                                        }
                                     />
-                                )}
-                                {activeConversation.owner
-                                    ? `${activeConversation.owner.name} đang xử lý`
-                                    : 'Chưa gán'}
-                            </span>
+                                    <span>
+                                        {activeConversation.owner.name} đang xử lý
+                                    </span>
+                                </span>
+                            ) : (
+                                <span className="font-medium [color:var(--status-warn-fg)]">
+                                    Chưa gán ai
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge status={activeConversation.priority} />
-                    <StatusBadge status={activeConversation.status} />
+                    {/* SLA countdown pill — visible on every open conversation
+                        so the operator can see at a glance whether they're
+                        tracking against the first-response SLA. */}
+                    <SlaPill
+                        state={activeConversation.slaState ?? 'OK'}
+                        seconds={activeConversation.slaSeconds ?? null}
+                    />
+
+                    {/* Priority dot (mockup) — URGENT/HIGH/NORMAL visual signal
+                        next to the SLA pill. Tighter than the full StatusBadge. */}
+                    <PriorityDot priority={activeConversation.priority} />
+
                     {/* Inline assign — HubSpot puts the owner picker on the header. */}
                     <Select
                         value={
@@ -354,6 +385,8 @@ export function ThreadPanel({
                             </SelectGroup>
                         </SelectContent>
                     </Select>
+
+                    {/* Mobile-only customer info sheet trigger. */}
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button
@@ -420,28 +453,29 @@ export function ThreadPanel({
                             </div>
                         </SheetContent>
                     </Sheet>
+
+                    {/* Search-in-thread button (also exposed in the kebab). */}
                     <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         className="size-11 sm:size-9"
                         onClick={() => setShowSearch((v) => !v)}
-                        title="Tìm trong hội thoại"
+                        title="Tìm trong hội thoại (⌘F)"
                         aria-label="Search in thread"
                     >
                         <Search />
                     </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-11 sm:size-9"
-                        onClick={onToggleFocus}
-                        title={focusMode ? 'Thoát toàn màn (Esc)' : 'Toàn màn hình'}
-                        aria-label={focusMode ? 'Exit focus mode' : 'Focus mode'}
-                    >
-                        {focusMode ? <Minimize2 /> : <Maximize2 />}
-                    </Button>
+
+                    {/* Kebab menu — secondary actions (mockup). */}
+                    <ThreadKebab
+                        onFocusToggle={onToggleFocus}
+                        isFocused={focusMode}
+                        isClosed={activeConversation.status === 'CLOSED'}
+                        onSearchToggle={() => setShowSearch((v) => !v)}
+                        onMarkSpam={() => toast.error('Đã đánh dấu spam (mockup)')}
+                    />
+
                     {activeConversation.status === 'CLOSED' ? (
                         <Button
                             type="button"
@@ -534,21 +568,10 @@ export function ThreadPanel({
                                 </div>
                             )}
                             {shownMessages.length > 0 ? (
-                                groupByDay(shownMessages).map((group) => (
-                                    <div
-                                        key={group.date}
-                                        className="flex min-w-0 flex-col gap-1.5"
-                                    >
-                                        <DayDivider label={group.label} />
-                                        {group.messages.map((message) => (
-                                            <MessageBubble
-                                                key={message.id}
-                                                message={message}
-                                                isGroup={activeConversation.isGroup}
-                                            />
-                                        ))}
-                                    </div>
-                                ))
+                                <MessageList
+                                    messages={shownMessages}
+                                    isGroup={activeConversation.isGroup}
+                                />
                             ) : (
                                 <Empty className="border-0 py-12">
                                     <EmptyHeader>
@@ -1100,5 +1123,157 @@ function ContactInfoRow({
                 </button>
             </span>
         </div>
+    );
+}
+
+/* ── SLA countdown pill (mockup §3.1) ────────────────────────────────────── */
+function SlaPill({
+    state,
+    seconds,
+}: {
+    state: 'OK' | 'DUE_SOON' | 'BREACHED' | string;
+    seconds: number | null;
+}) {
+    if (seconds === null) return null;
+    const tone = state === 'BREACHED' ? 'danger' : state === 'DUE_SOON' ? 'warn' : 'ok';
+    const text = slaText(state, seconds);
+    const toneCls = {
+        danger:
+            '[background-color:var(--status-danger-bg)] [border-color:var(--status-danger-border)] [color:var(--status-danger-fg)] animate-sla-blink',
+        warn: '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)]',
+        ok: '[background-color:var(--status-ok-bg)] [border-color:var(--status-ok-border)] [color:var(--status-ok-fg)]',
+    }[tone as 'ok' | 'warn' | 'danger'];
+    return (
+        <span
+            title="Phản hồi đầu tiên SLA"
+            className={cn(
+                'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 [font-family:var(--font-mono)] [font-variant-numeric:tabular-nums] text-[11px] font-semibold',
+                toneCls,
+            )}
+        >
+            <Timer className="size-2.5" />
+            {text}
+        </span>
+    );
+}
+
+function slaText(state: string, secs: number): string {
+    const m = Math.floor(Math.abs(secs) / 60);
+    const s = Math.abs(secs) % 60;
+    const stamp = `${m}:${s.toString().padStart(2, '0')}`;
+    if (state === 'BREACHED') return `Trễ ${stamp}`;
+    if (state === 'DUE_SOON') return `Còn ${stamp}`;
+    return stamp;
+}
+
+/* ── Priority dot (compact version of StatusBadge — mockup) ───────────────── */
+function PriorityDot({ priority }: { priority: string }) {
+    const map: Record<string, { tone: 'danger' | 'warn' | 'idle'; label: string }> = {
+        URGENT: { tone: 'danger', label: 'Khẩn' },
+        HIGH: { tone: 'warn', label: 'Cao' },
+        NORMAL: { tone: 'idle', label: 'Thường' },
+        LOW: { tone: 'idle', label: 'Thấp' },
+    };
+    const entry = map[priority] ?? { tone: 'idle' as const, label: priority };
+    const toneCls = {
+        danger: '[background-color:var(--status-danger-bg)] [border-color:var(--status-danger-border)] [color:var(--status-danger-fg)]',
+        warn: '[background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)]',
+        idle: 'border-border text-muted-foreground',
+    }[entry.tone];
+    return (
+        <span
+            title={`Ưu tiên: ${entry.label}`}
+          className={cn(
+                'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold',
+                toneCls,
+            )}
+        >
+            <span className="size-1.5 rounded-full bg-current" />
+            {entry.label}
+        </span>
+    );
+}
+
+/* ── Kebab menu — secondary actions (mockup §3.4) ────────────────────────── */
+function ThreadKebab({
+    onFocusToggle,
+    isFocused,
+    isClosed,
+    onSearchToggle,
+    onMarkSpam,
+}: {
+    onFocusToggle: () => void;
+    isFocused: boolean;
+    isClosed: boolean;
+    onSearchToggle: () => void;
+    onMarkSpam: () => void;
+}) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-11 sm:size-9"
+                    title="Thêm"
+                    aria-label="More actions"
+                >
+                    <MoreHorizontal className="size-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={onSearchToggle}>
+                    <Search />
+                    <span>Tìm trong hội thoại</span>
+                    <span className="ml-auto [font-family:var(--font-mono)] text-[10px] text-muted-foreground">
+                        ⌘F
+                    </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onSelect={() => toast.info('Mở panel gắn nhãn (TODO)')}
+                >
+                    <TagIcon />
+                    <span>Gắn nhãn</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onSelect={() => toast.info('Mở CRM để thêm khách (TODO)')}
+                >
+                    <UserPlus />
+                    <span>Thêm vào CRM</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {isClosed ? (
+                    <DropdownMenuItem
+                        onSelect={() => toast.info('Mở lại hội thoại (TODO)')}
+                    >
+                        <RotateCcw />
+                        <span>Mở lại hội thoại</span>
+                    </DropdownMenuItem>
+                ) : (
+                    <DropdownMenuItem
+                        onSelect={() => toast.info('Mở form đóng (TODO)')}
+                    >
+                        <CheckCircle2 />
+                        <span>Đóng hội thoại</span>
+                    </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={onFocusToggle}>
+                    <Maximize2 />
+                    <span>{isFocused ? 'Thoát toàn màn hình' : 'Phóng to'}</span>
+                    <span className="ml-auto [font-family:var(--font-mono)] text-[10px] text-muted-foreground">
+                        Esc
+                    </span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    onSelect={onMarkSpam}
+                    className="text-destructive focus:text-destructive"
+                >
+                    <Flag />
+                    <span>Đánh dấu spam</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

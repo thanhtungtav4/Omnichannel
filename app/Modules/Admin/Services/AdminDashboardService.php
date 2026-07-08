@@ -132,6 +132,12 @@ class AdminDashboardService
                     // count badge. Capped display at 99+ on the frontend.
                     'unreadCount' => (int) $conversation->unread_count,
                     'slaState' => $dueAt && $dueAt->isPast() ? 'BREACHED' : ($dueAt && $dueAt->lessThan(Carbon::now()->addMinutes(5)) ? 'DUE_SOON' : 'OK'),
+                    // Seconds until next_response_due_at — drives the SLA countdown
+                    // pill in the thread header. Negative when BREACHED.
+                    'slaSeconds' => $dueAt ? (int) (Carbon::now()->diffInSeconds($dueAt, false)) : null,
+                    // Group chats (e.g. Zalo group threads) need a "sender: text"
+                    // prefix on each inbound message.
+                    'isGroup' => (bool) $conversation->is_group,
                 ];
             })
             ->all();

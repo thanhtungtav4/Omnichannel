@@ -1,0 +1,545 @@
+import {
+    Briefcase,
+    Mail,
+    MapPin,
+    MessageCircle,
+    Phone,
+    Pin,
+    Send,
+    StickyNote,
+    Tag as TagIcon,
+    UserRound,
+    UserRoundCheck,
+} from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+import type { ActiveConversation, AgentOption } from '@/types';
+import { customerName, initials, providerClass, providerLabel } from './lib';
+
+/* ── Mockup §3.5: right-side customer panel with 4 tabs ─────────────── */
+
+export function CustomerPanel({
+    activeConversation,
+}: {
+    activeConversation: ActiveConversation | null;
+    agents: AgentOption[];
+}) {
+    const contact = activeConversation?.contact;
+    const name = customerName(activeConversation);
+    if (!contact || !activeConversation) {
+        return (
+            <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card xl:flex">
+                <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                    Chọn hội thoại để xem hồ sơ khách.
+                </div>
+            </aside>
+        );
+    }
+
+    return (
+        <aside className="hidden min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card xl:flex">
+            <Tabs defaultValue="profile" className="flex min-h-0 flex-1 flex-col">
+                <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b bg-card p-0">
+                    <TabsTrigger
+                        value="profile"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                    >
+                        Hồ sơ
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="activity"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                    >
+                        Hoạt động
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="deal"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                    >
+                        Cơ hội
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="conversations"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                    >
+                        Hội thoại
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent
+                    value="profile"
+                    className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                >
+                    <ProfileTab contact={contact} name={name} owner={activeConversation.owner} />
+                </TabsContent>
+                <TabsContent
+                    value="activity"
+                    className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                >
+                    <ActivityTab
+                        conversation={activeConversation}
+                    />
+                </TabsContent>
+                <TabsContent
+                    value="deal"
+                    className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                >
+                    <DealTab
+                        contact={contact}
+                    />
+                </TabsContent>
+                <TabsContent
+                    value="conversations"
+                    className="m-0 flex-1 overflow-y-auto p-4 data-[state=inactive]:hidden"
+                >
+                    <ConversationsTab
+                        contact={contact}
+                        activeId={activeConversation.id}
+                    />
+                </TabsContent>
+            </Tabs>
+        </aside>
+    );
+}
+
+/* ── Profile ──────────────────────────────────────────────────────────── */
+function ProfileTab({
+    contact,
+    name,
+    owner,
+}: {
+    contact: NonNullable<ActiveConversation['contact']>;
+    name: string;
+    owner: ActiveConversation['owner'];
+}) {
+    const tags = contact.tags ?? [];
+    const identities = contact.identities ?? [];
+    const notes = contact.notes ?? [];
+
+    return (
+        <div className="flex flex-col gap-5 text-sm">
+            {/* Avatar + name + source */}
+            <div className="flex flex-col items-center gap-2 text-center">
+                <Avatar className="size-14 text-base">
+                    {contact.avatarUrl && (
+                        <AvatarImage src={contact.avatarUrl} alt={name} />
+                    )}
+                    <AvatarFallback>{initials(name)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                    <p className="font-semibold">{name}</p>
+                    {contact.source && (
+                        <p className="text-xs text-muted-foreground">
+                            Nguồn: {providerLabel(contact.source)}
+                        </p>
+                    )}
+                </div>
+                <div className="flex w-full gap-1.5">
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                        <a href={contact.phone ? `tel:${contact.phone}` : '#'}>
+                            <Phone data-icon="inline-start" />
+                            Gọi
+                        </a>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                        <Link href={`/admin/contacts/${contact.id}`}>
+                            <UserRound data-icon="inline-start" />
+                            Hồ sơ
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+
+            {/* Thông tin */}
+            <div>
+                <SectionTitle>Thông tin</SectionTitle>
+                <Field icon={<Phone className="size-3" />} label="SĐT">
+                    {contact.phone ? (
+                        <a href={`tel:${contact.phone}`} className="truncate text-primary hover:underline" title={contact.phone}>
+                            {contact.phone}
+                        </a>
+                    ) : (
+                        <Empty>—</Empty>
+                    )}
+                </Field>
+                <Field icon={<Mail className="size-3" />} label="Email">
+                    {contact.email ? (
+                        <a href={`mailto:${contact.email}`} className="truncate text-primary hover:underline" title={contact.email}>
+                            {contact.email}
+                        </a>
+                    ) : (
+                        <Empty>—</Empty>
+                    )}
+                </Field>
+                <Field icon={<MapPin className="size-3" />} label="Khu vực">
+                    <Empty>—</Empty>
+                </Field>
+                <Field icon={<MessageCircle className="size-3" />} label="Tin gần nhất">
+                    {contact.lastInboundAt ?? <Empty>—</Empty>}
+                </Field>
+                <Field icon={<Briefcase className="size-3" />} label="Nhân viên">
+                    {owner ? (
+                        <span className="flex items-center gap-1.5">
+                            <span
+                                className={cn(
+                                    'inline-block size-1.5 rounded-full',
+                                    owner.online
+                                        ? '[background-color:var(--status-ok-fg)]'
+                                        : '[background-color:var(--status-idle-fg)]',
+                                )}
+                            />
+                            {owner.name}
+                        </span>
+                    ) : (
+                        <span className="font-medium [color:var(--status-warn-fg)]">Chưa gán</span>
+                    )}
+                </Field>
+            </div>
+
+            {/* Tag */}
+            <div>
+                <SectionTitle>Tag</SectionTitle>
+                <div className="flex flex-wrap gap-1.5">
+                    {tags.map((tag) => (
+                        <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 rounded-full border bg-accent px-2 py-0.5 text-xs font-medium"
+                        >
+                            {tag}
+                            <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label={`Xóa tag ${tag}`}
+                                title={`Xóa tag ${tag}`}
+                            >
+                                ×
+                            </button>
+                        </span>
+                    ))}
+                    <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
+                    >
+                        <TagIcon className="size-3" />
+                        Thêm
+                    </button>
+                </div>
+            </div>
+
+            {/* Định danh kênh */}
+            <div>
+                <SectionTitle>Định danh kênh</SectionTitle>
+                <div className="flex flex-col gap-1.5">
+                    {identities.length === 0 && <Empty>Chưa liên kết.</Empty>}
+                    {identities.map((identity) => (
+                        <div
+                            key={identity.id}
+                            className="inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 text-xs [font-family:var(--font-mono)]"
+                        >
+                            <span
+                                className={cn(
+                                    'inline-block size-1.5 rounded-full',
+                                    providerClass(identity.provider),
+                                )}
+                            />
+                            {providerLabel(identity.provider)} ·{' '}
+                            <span className="text-muted-foreground">
+                                {identity.providerUserId}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Ghi chú nhanh (mockup = first pinned note, or all recent) */}
+            {notes.length > 0 && (
+                <div>
+                    <SectionTitle>Ghi chú nhanh</SectionTitle>
+                    <div className="flex flex-col gap-1.5">
+                        {notes.slice(0, 3).map((note) => (
+                            <div
+                                key={note.id}
+                                className="flex items-start gap-1.5 rounded border [background-color:var(--status-warn-bg)] [border-color:var(--status-warn-border)] [color:var(--status-warn-fg)] px-2.5 py-1.5 text-xs"
+                            >
+                                <Pin className="mt-0.5 size-3 shrink-0" />
+                                <div className="min-w-0">
+                                    <div className="font-semibold text-[11px]">
+                                        {note.pinned && (
+                                            <Pin className="mr-1 inline size-2.5" />
+                                        )}
+                                        Ghi chú
+                                    </div>
+                                    <p className="mt-0.5 whitespace-pre-wrap">
+                                        {note.body}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ── Activity ─────────────────────────────────────────────────────────── */
+function ActivityTab({
+    conversation,
+}: {
+    conversation: ActiveConversation;
+}) {
+    // Derive activity timeline from system events in messages. For cut 1 this is
+    // sufficient; cut 2 will introduce a dedicated activity_events table for
+    // CRM-level events (lead created, tag changed, etc.).
+    const events: Array<{
+        id: string;
+        icon: typeof UserRoundCheck;
+        title: string;
+        meta: string;
+        body?: string;
+        tone: 'info' | 'ok' | 'warn' | 'danger';
+    }> = [];
+
+    conversation.messages.forEach((m) => {
+        const kind = (m as { kind?: string }).kind;
+        if (kind !== 'system') return;
+        const time = m.timeLabel ?? '—';
+        const body = m.body ?? '';
+        if (/gán|assign/i.test(body)) {
+            events.push({
+                id: m.id,
+                icon: UserRoundCheck,
+                title: 'Auto-assigned',
+                meta: `${time} · bởi hệ thống`,
+                tone: 'ok',
+            });
+        } else if (/gửi đến|sent|delivered/i.test(body)) {
+            events.push({
+                id: m.id,
+                icon: Send,
+                title: 'Đã gửi đến khách',
+                meta: `${time}`,
+                tone: 'ok',
+            });
+        } else if (/đóng hội thoại|closed/i.test(body)) {
+            events.push({
+                id: m.id,
+                icon: StickyNote,
+                title: 'Đã đóng hội thoại',
+                meta: `${time}`,
+                tone: 'info',
+            });
+        } else {
+            events.push({
+                id: m.id,
+                icon: MessageCircle,
+                title: body || 'Hoạt động',
+                meta: time,
+                tone: 'info',
+            });
+        }
+    });
+
+    if (events.length === 0) {
+        return (
+            <Empty className="border-0 py-12 text-sm text-muted-foreground">
+                Chưa có hoạt động nào.
+            </Empty>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-3">
+            <SectionTitle>Hoạt động ({events.length})</SectionTitle>
+            <div className="flex flex-col">
+                {events.map((e, idx) => (
+                    <div
+                        key={e.id}
+                        className="relative flex gap-2 pb-3 last:pb-0"
+                    >
+                        {idx < events.length - 1 && (
+                            <span
+                                aria-hidden
+                                className="absolute left-[10px] top-5 bottom-0 w-px bg-border"
+                            />
+                        )}
+                        <span
+                            className={cn(
+                                'z-[1] grid size-5 shrink-0 place-items-center rounded-full',
+                                e.tone === 'ok' && '[background-color:var(--status-ok-bg)] [color:var(--status-ok-fg)]',
+                                e.tone === 'warn' && '[background-color:var(--status-warn-bg)] [color:var(--status-warn-fg)]',
+                                e.tone === 'danger' && '[background-color:var(--status-danger-bg)] [color:var(--status-danger-fg)]',
+                                e.tone === 'info' && '[background-color:var(--status-info-bg)] [color:var(--status-info-fg)]',
+                            )}
+                        >
+                            <e.icon className="size-3" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium">{e.title}</div>
+                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                {e.meta}
+                            </div>
+                            {e.body && (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {e.body}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/* ── Deal ────────────────────────────────────────────────────────────── */
+function DealTab({
+    contact,
+}: {
+    contact: NonNullable<ActiveConversation['contact']>;
+}) {
+    const openLeads = (contact.leads ?? []).filter(
+        (l) => !['WON', 'LOST'].includes(l.status),
+    );
+
+    return (
+        <div className="flex flex-col gap-4 text-sm">
+            <div>
+                <SectionTitle>Cơ hội đang mở</SectionTitle>
+                {openLeads.length === 0 ? (
+                    <Empty>Chưa có cơ hội.</Empty>
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        {openLeads.map((lead) => (
+                            <div
+                                key={lead.id}
+                                className="flex flex-col gap-1.5 rounded border p-2.5"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="flex-1 truncate text-xs font-medium">
+                                        Lead · {lead.title}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'inline-block size-1.5 shrink-0 rounded-full',
+                                            lead.status === 'OPEN' && '[background-color:var(--status-info-fg)]',
+                                            lead.status === 'QUALIFYING' && '[background-color:var(--status-warn-fg)]',
+                                            lead.status === 'NEW' && '[background-color:var(--status-idle-fg)]',
+                                        )}
+                                    />
+                                    <span className="text-xs text-muted-foreground">
+                                        {lead.status}
+                                    </span>
+                                </div>
+                                {lead.valueAmount && (
+                                    <div className="[font-family:var(--font-mono)] text-xs font-semibold tabular-nums">
+                                        {Number(lead.valueAmount).toLocaleString('vi-VN')} ₫
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div>
+                <SectionTitle>Pipeline</SectionTitle>
+                <Field icon={<Briefcase className="size-3" />} label="Pipeline">
+                    <Empty>—</Empty>
+                </Field>
+                <Field icon={<UserRound className="size-3" />} label="Owner">
+                    <Empty>—</Empty>
+                </Field>
+                <Field icon={<MapPin className="size-3" />} label="Nguồn">
+                    {providerLabel(contact.source)}
+                </Field>
+            </div>
+        </div>
+    );
+}
+
+/* ── Conversations ────────────────────────────────────────────────────── */
+function ConversationsTab({
+    contact,
+    activeId,
+}: {
+    contact: NonNullable<ActiveConversation['contact']>;
+    activeId: string;
+}) {
+    const others = (contact.otherConversations ?? []).filter(
+        (c) => c.id !== activeId,
+    );
+
+    return (
+        <div className="flex flex-col gap-2 text-sm">
+            <SectionTitle>
+                Hội thoại khác{others.length > 0 ? ` (${others.length})` : ''}
+            </SectionTitle>
+            {others.length === 0 ? (
+                <Empty>Khách chỉ có hội thoại này.</Empty>
+            ) : (
+                <div className="flex flex-col gap-1.5">
+                    {others.map((c) => (
+                        <Link
+                            key={c.id}
+                            href={`/admin/inbox?conversation=${c.id}`}
+                            className="flex items-center gap-2 rounded border p-2 hover:bg-accent"
+                        >
+                            <span
+                                className={cn(
+                                    'inline-block size-1.5 shrink-0 rounded-full',
+                                    providerClass(c.channel),
+                                )}
+                            />
+                            <span className="text-xs font-medium">
+                                {providerLabel(c.channel)}
+                            </span>
+                            <span className="flex-1 truncate text-xs text-muted-foreground">
+                                {c.preview ?? '—'}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground [font-family:var(--font-mono)]">
+                                {c.lastMessageAt ?? '—'}
+                            </span>
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {children}
+        </div>
+    );
+}
+
+function Field({
+    icon,
+    label,
+    children,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="flex items-center gap-2 border-b border-dashed py-1.5 text-sm first:pt-0 last:border-0">
+            <span className="flex w-20 shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                {icon}
+                {label}
+            </span>
+            <span className="min-w-0 flex-1 truncate">{children}</span>
+        </div>
+    );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+    return <span className="text-muted-foreground">{children}</span>;
+}

@@ -105,6 +105,15 @@ class AdminController extends Controller
                 'status' => $conversation->status,
                 'priority' => $conversation->priority,
                 'channel' => $conversation->channelAccount?->provider,
+                'isGroup' => (bool) $conversation->is_group,
+                'slaState' => $conversation->next_response_due_at
+                    ? ($conversation->next_response_due_at->isPast()
+                        ? 'BREACHED'
+                        : ($conversation->next_response_due_at->lessThan(now()->addMinutes(5)) ? 'DUE_SOON' : 'OK'))
+                    : 'OK',
+                'slaSeconds' => $conversation->next_response_due_at
+                    ? (int) now()->diffInSeconds($conversation->next_response_due_at, false)
+                    : null,
                 'contact' => $conversation->contact ? [
                     'id' => $conversation->contact->id,
                     'name' => $conversation->contact->full_name,
@@ -139,15 +148,17 @@ class AdminController extends Controller
                     // Other conversations this contact has had (channel history).
                     'otherConversations' => $conversation->contact->conversations()
                         ->where('id', '!=', $conversation->id)
-                        ->with('channelAccount')
+                        ->with(['channelAccount', 'lastMessage'])
                         ->latest('last_message_at')
                         ->limit(8)
                         ->get()
                         ->map(fn ($c) => [
                             'id' => $c->id,
                             'channel' => $c->channelAccount?->provider,
+                            'channelName' => $c->channelAccount?->name,
                             'status' => $c->status,
                             'lastMessageAt' => $c->last_message_at?->diffForHumans(),
+                            'preview' => $c->lastMessage?->body_text,
                         ]),
                 ] : null,
                 'owner' => $conversation->owner ? [
@@ -166,6 +177,22 @@ class AdminController extends Controller
                     'id' => $message->id,
                     'direction' => $message->direction,
                     'senderType' => $message->sender_type,
+                    // For group chats the sender's display name is the actual
+                    // group member name (e.g. "Hà Linh"). For 1:1 we fall back
+                    // to the contact name. null for SYSTEM messages.
+                    'senderName' => $message->sender_type === 'SYSTEM'
+                        ? null
+                        : ($message->sender_id
+                            ? optional($conversation->contact?->identities->firstWhere('id', $message->sender_id))->display_name
+                                ?? $conversation->contact?->full_name
+                            : $conversation->contact?->full_name),
+                    // system = assignment/close events; note = internal note.
+                    // Default to 'message' for everything else.
+                    'kind' => match (true) {
+                        $message->sender_type === 'SYSTEM' => 'system',
+                        $message->sender_type === 'AGENT' && $message->message_type === 'NOTE' => 'note',
+                        default => 'message',
+                    },
                     'senderId' => $message->sender_id,
                     'body' => $message->body_text,
                     'messageType' => $message->message_type,
@@ -263,6 +290,17 @@ class AdminController extends Controller
                     'id' => $m->id,
                     'direction' => $m->direction,
                     'senderType' => $m->sender_type,
+                    'senderName' => $m->sender_type === 'SYSTEM'
+                        ? null
+                        : ($m->sender_id
+                            ? optional($conversation->contact?->identities->firstWhere('id', $m->sender_id))->display_name
+                                ?? $conversation->contact?->full_name
+                            : $conversation->contact?->full_name),
+                    'kind' => match (true) {
+                        $m->sender_type === 'SYSTEM' => 'system',
+                        $m->sender_type === 'AGENT' && $m->message_type === 'NOTE' => 'note',
+                        default => 'message',
+                    },
                     'senderId' => $m->sender_id,
                     'body' => $m->body_text,
                     'messageType' => $m->message_type,

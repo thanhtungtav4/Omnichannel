@@ -44,6 +44,7 @@ import {
     StatPill,
 } from './inbox/QueueParts';
 import { ThreadPanel } from './inbox/ThreadPanel';
+import { CustomerPanel } from './inbox/CustomerPanel';
 
 type InboxProps = {
     stats: InboxStats;
@@ -364,7 +365,7 @@ export default function Inbox({
                         focusMode
                             ? 'grid-cols-1'
                             : activeConversation
-                              ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)] grid-cols-1'
+                              ? 'lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_340px] grid-cols-1'
                               : 'grid-cols-1',
                     )}
                 >
@@ -526,32 +527,36 @@ export default function Inbox({
                         </aside>
                     )}
 
-                    {activeConversation && (
+{activeConversation && (
                         <div className={cn('min-h-0 min-w-0 grid grid-rows-1 [&>section]:min-h-0', showThread ? 'grid' : 'hidden lg:grid')}>
-                        <ThreadPanel
-                            focusMode={focusMode}
-                            onToggleFocus={() => setFocusMode((v) => !v)}
-                            activeConversation={activeConversation}
-                            agents={agents}
-                            replyBody={replyForm.data.body}
-                            replyImage={replyForm.data.image}
-                            replyError={replyForm.errors.body}
-                            replyProcessing={replyForm.processing}
-                            composerMode={composerMode}
-                            onComposerModeChange={setComposerMode}
-                            transferTo={transferTo}
-                            onReplyBodyChange={(body) =>
-                                replyForm.setData('body', body)
-                            }
-                            onReplyImageChange={(image) =>
-                                replyForm.setData('image', image)
-                            }
-                            onSubmitReply={submitReply}
-                            onTransferToChange={setTransferTo}
-                            onSubmitTransfer={submitTransfer}
-                            onCloseConversation={closeConversation}
-                            onReopenConversation={reopenConversation}
-                        />
+                            <ThreadPanel
+                                focusMode={focusMode}
+                                onToggleFocus={() => setFocusMode((v) => !v)}
+                                activeConversation={activeConversation}
+                                agents={agents}
+                                replyBody={replyForm.data.body}
+                                replyImage={replyForm.data.image}
+                                replyError={replyForm.errors.body}
+                                replyProcessing={replyForm.processing}
+                                composerMode={composerMode}
+                                onComposerModeChange={setComposerMode}
+                                transferTo={transferTo}
+                                onReplyBodyChange={(body) =>
+                                    replyForm.setData('body', body)
+                                }
+                                onReplyImageChange={(image) =>
+                                    replyForm.setData('image', image)
+                                }
+                                onSubmitReply={submitReply}
+                                onTransferToChange={setTransferTo}
+                                onSubmitTransfer={submitTransfer}
+                                onCloseConversation={closeConversation}
+                                onReopenConversation={reopenConversation}
+                            />
+                            <CustomerPanel
+                                activeConversation={activeConversation}
+                                agents={agents}
+                            />
                         </div>
                     )}
                 </section>
