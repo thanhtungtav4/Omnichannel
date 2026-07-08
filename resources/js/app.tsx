@@ -16,10 +16,19 @@ import SettingsLayout from '@/layouts/settings/layout';
  * infinite retry loop. We force a hard top-level navigation and never
  * resolve the promise so Inertia does not retry.
  *
+ * Important: this shim must NOT mutate request headers, especially
+ * `X-Inertia`. The browser's initial document load is a fetch under the
+ * hood, and prepending X-Inertia: true on that load makes Laravel's
+ * HandleInertiaRequests middleware render an Inertia component-only
+ * response — the browser shows a blank / unstyled page. Inertia's own
+ * client sets X-Inertia on subsequent visits, so the header is already
+ * in the right place when this shim is the only one that needs to be
+ * passive.
+ *
  * This shim only owns the client-side failure mode. The server-side
- * counterpart (AppFrameGuard middleware) sets X-Frame-Options /
- * Content-Security-Policy: frame-ancestors so the SPA cannot be embedded
- * by opaque wrappers in the first place.
+ * counterpart (AppFrameGuard via AppServiceProvider::RequestHandled
+ * listener) sets X-Frame-Options / Content-Security-Policy frame-ancestors
+ * so the SPA cannot be embedded by opaque wrappers in the first place.
  */
 function installInertiaFetchShim(): void {
     if (typeof window === 'undefined') {
@@ -42,11 +51,7 @@ function installInertiaFetchShim(): void {
                 : input instanceof URL
                   ? input.toString()
                   : (input as Request).url;
-        const headers = new Headers(init?.headers);
-        if (!headers.has('X-Inertia')) {
-            headers.set('X-Inertia', 'true');
-        }
-        return nativeFetch(input, { ...init, headers }).then((response) => {
+        return nativeFetch(input, init).then((response) => {
             if (response.status !== 403) {
                 return response;
             }

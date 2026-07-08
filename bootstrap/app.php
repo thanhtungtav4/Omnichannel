@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\AppFrameGuard;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Modules\Platform\Http\Middleware\EnsurePlatformAdmin;
@@ -55,16 +54,15 @@ return Application::configure(basePath: dirname(__DIR__))
             ResolveWorkspace::class,
         ]);
 
-        $middleware->appendToGroup('web', AppFrameGuard::class);
-
+        // AppFrameGuard is NOT registered in the web group — it is wired
+        // via AppServiceProvider::registerAppFrameGuard() on RequestHandled,
+        // which fires after the exception handler, so it covers abort() /
+        // 404 / 401 / 403 paths that a post-handle middleware hook would
+        // never see.
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            // Must run last so it sees the final response — X-Frame-Options and
-            // frame-ancestors must close the SPA / admin / settings surfaces
-            // against opaque (about:srcdoc) iframe wrappers. See AppFrameGuard.
-            AppFrameGuard::class,
         ]);
 
         // Provider webhooks come from external servers/the sidecar and carry no
