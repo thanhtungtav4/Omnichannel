@@ -674,7 +674,7 @@ return allMessages;
                                         : 'text-muted-foreground',
                                 )}
                             >
-                                Ghi chú nội bộ
+                                Ghi chú khách
                             </button>
                         </div>
                         {/* Emoji picker: toggled by the smile button. */}
@@ -758,7 +758,7 @@ return allMessages;
                                 <FieldLabel htmlFor="reply-body">
                                     {composerMode === 'comment' ? (
                                         <span className="[color:var(--status-warn-fg)]">
-                                            Ghi chú nội bộ (lưu vào hồ sơ, chỉ nhân viên thấy)
+                                            Ghi chú khách (lưu vào hồ sơ, chỉ nhân viên thấy)
                                         </span>
                                     ) : (
                                         <>
