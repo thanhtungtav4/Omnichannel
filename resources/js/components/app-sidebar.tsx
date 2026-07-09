@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import {
     Activity,
     Briefcase,
+    GitMerge,
     Inbox,
     LayoutDashboard,
     Plug,
@@ -41,6 +42,7 @@ const navSections: NavSection[] = [
         label: 'CRM',
         items: [
             { title: 'Khách hàng', href: '/admin/contacts', icon: Users },
+            { title: 'Gộp liên hệ', href: '/admin/contacts/merge', icon: GitMerge },
             {
                 title: 'Cơ hội',
                 href: '/admin/leads',

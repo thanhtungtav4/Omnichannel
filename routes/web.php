@@ -7,15 +7,17 @@ use App\Modules\Channels\Http\Controllers\ProviderWebhookController;
 use App\Modules\Channels\Http\Controllers\ShopeeOAuthController;
 use App\Modules\Channels\Http\Controllers\TikTokOAuthController;
 use App\Modules\Crm\Http\Controllers\ContactController;
+use App\Modules\Crm\Http\Controllers\ContactMergeController;
 use App\Modules\Crm\Http\Controllers\IngestTokenAdminController;
 use App\Modules\Crm\Http\Controllers\LeadController;
 use App\Modules\Crm\Http\Controllers\PublicIngestController;
 use App\Modules\Inbox\Http\Controllers\ConversationActionController;
 use App\Modules\Platform\Http\Controllers\PlatformAdminController;
 use App\Modules\Routing\Http\Controllers\PresenceController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (\Illuminate\Http\Request $request) {
+Route::get('/', function (Request $request) {
     $adminSubdomain = config('tenant.admin_subdomain', 'admin');
     $domain = config('tenant.domain', 'qrf.vn');
 
@@ -50,7 +52,21 @@ Route::middleware(['workspace.required', 'auth', 'verified', 'workspace.member']
         Route::post('api/admin/presence/heartbeat', [PresenceController::class, 'heartbeat'])->name('admin.presence.heartbeat');
         Route::post('api/admin/presence/offline', [PresenceController::class, 'offline'])->name('admin.presence.offline');
         Route::get('admin/contacts', [AdminController::class, 'contacts'])->name('admin.contacts');
+        // Merge UI MUST come BEFORE the /{contact} show route — Laravel
+        // matches in declaration order, otherwise "merge" is bound as a
+        // contact UUID and 404s.
+        Route::get('admin/contacts/merge', [ContactMergeController::class, 'index'])
+            ->name('admin.contacts.merge');
         Route::get('admin/contacts/{contact}', [AdminController::class, 'contactShow'])->name('admin.contacts.show');
+
+        // Merge UI + JSON endpoints (spec 15 § C5). Owner-only — see
+        // ContactMergeController::authorizeMerge.
+        Route::get('api/admin/contacts/duplicates', [ContactMergeController::class, 'duplicates'])
+            ->name('admin.contacts.duplicates');
+        Route::post('api/admin/contacts/{contactId}/merge/preview', [ContactMergeController::class, 'preview'])
+            ->name('admin.contacts.merge.preview');
+        Route::post('api/admin/contacts/{contactId}/merge', [ContactMergeController::class, 'store'])
+            ->name('admin.contacts.merge.store');
         Route::post('api/admin/contacts', [ContactController::class, 'store'])->name('admin.contacts.store');
         Route::put('api/admin/contacts/{contact}', [ContactController::class, 'update'])->name('admin.contacts.update');
         Route::delete('api/admin/contacts/{contact}', [ContactController::class, 'destroy'])->name('admin.contacts.destroy');
