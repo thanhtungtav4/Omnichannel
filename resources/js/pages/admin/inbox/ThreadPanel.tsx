@@ -346,42 +346,47 @@ export function ThreadPanel({
                         <h2 className="truncate text-base font-semibold">
                             {name}
                         </h2>
-                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                            {/* Compact channel dot (mockup). Hover shows full name. */}
-                            <span
-                                className={cn(
-                                    'inline-block size-2 shrink-0 rounded-full',
-                                    providerClass(activeConversation.channel),
-                                )}
-                                style={{
-                                    backgroundColor: `var(--channel-${(
-                                        activeConversation.channel ?? ''
-                                    )
-                                        .toLowerCase()
-                                        .replace(/_.*$/, '')})`,
-                                }}
-                                title={providerLabel(
-                                    activeConversation.channel,
-                                )}
-                                aria-label={providerLabel(
-                                    activeConversation.channel,
-                                )}
-                            />
-                            <span className="font-medium text-foreground">
-                                {providerLabel(activeConversation.channel)}
-                            </span>
-                            <span>·</span>
+                        <div className="flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground">
+                            {/* Row 1: channel dot + label. */}
+                            <div className="flex min-w-0 items-center gap-1.5">
+                                {/* Compact channel dot (mockup). Hover shows full name. */}
+                                <span
+                                    className={cn(
+                                        'inline-block size-2 shrink-0 rounded-full',
+                                        providerClass(
+                                            activeConversation.channel,
+                                        ),
+                                    )}
+                                    style={{
+                                        backgroundColor: `var(--channel-${(
+                                            activeConversation.channel ?? ''
+                                        )
+                                            .toLowerCase()
+                                            .replace(/_.*$/, '')})`,
+                                    }}
+                                    title={providerLabel(
+                                        activeConversation.channel,
+                                    )}
+                                    aria-label={providerLabel(
+                                        activeConversation.channel,
+                                    )}
+                                />
+                                <span className="truncate font-medium text-foreground">
+                                    {providerLabel(activeConversation.channel)}
+                                </span>
+                            </div>
+                            {/* Row 2: owner / unassigned. */}
                             {activeConversation.owner ? (
-                                <span className="flex items-center gap-1">
+                                <span className="flex min-w-0 items-center gap-1">
                                     <span
                                         className={cn(
-                                            'inline-block size-1.5 rounded-full',
+                                            'inline-block size-1.5 shrink-0 rounded-full',
                                             activeConversation.owner.online
                                                 ? '[background-color:var(--status-ok-fg)]'
                                                 : '[background-color:var(--status-idle-fg)]',
                                         )}
                                     />
-                                    <span>
+                                    <span className="truncate">
                                         {activeConversation.owner.name} đang xử
                                         lý
                                     </span>
