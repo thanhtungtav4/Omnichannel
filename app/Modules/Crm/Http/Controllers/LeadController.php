@@ -3,6 +3,7 @@
 namespace App\Modules\Crm\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Crm\Events\LeadStatusChanged;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\Pipeline;
@@ -10,6 +11,7 @@ use App\Modules\Crm\Models\Stage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class LeadController extends Controller
@@ -30,12 +32,29 @@ class LeadController extends Controller
 
         $data = $request->validate([
             'status' => ['required', Rule::in(['NEW', 'QUALIFYING', 'OPEN', 'WON', 'LOST', 'ARCHIVED'])],
+            // UI toggle on the kanban dialog — when true, the listener sends
+            // a Mini App template (spec 15 § C4). Defaults to false so
+            // existing API consumers don't accidentally fire notifications.
+            'notify_user' => ['sometimes', 'boolean'],
         ]);
+
+        $previousStatus = (string) $lead->status;
 
         $lead->update([
             'status' => $data['status'],
             'last_activity_at' => now(),
         ]);
+
+        // Fire domain event for Mini App re-engagement (spec 15 § C4).
+        // Listener decides whether the transition is interesting enough
+        // to fire a template — only WON/LOST are interesting when
+        // notify_user is true.
+        LeadStatusChanged::dispatch(
+            $lead->id,
+            $previousStatus,
+            $data['status'],
+            (bool) ($data['notify_user'] ?? false),
+        );
 
         return back()->with('success', 'Lead moved.');
     }
@@ -55,7 +74,7 @@ class LeadController extends Controller
 
         // Same role gate as updateStatus — viewer can't open leads either.
         if (! in_array($request->user()->role, ['owner', 'admin', 'support_lead', 'sales'], true)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'title' => 'Bạn không có quyền mở lead cho khách này.',
             ]);
         }

@@ -4,15 +4,19 @@ namespace App\Modules\Crm\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Crm\Events\ContactArchived;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Crm\Models\ExternalIdentity;
 use App\Modules\Platform\Models\Workspace;
+use App\Modules\Platform\Services\WorkspaceSettings;
 use App\Modules\Platform\Tenancy\CurrentWorkspace;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ContactController extends Controller
 {
@@ -46,6 +50,14 @@ class ContactController extends Controller
         abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
         // owner/admin only — deleting a contact cascades its identities & links.
         abort_unless(in_array($request->user()->role, ['owner', 'admin'], true), 403);
+
+        // Fire the archive event BEFORE the row is hard-deleted so the
+        // MiniApp listener can still load the contact's identities and
+        // queue a "we removed your data" template (spec 15 § C4).
+        ContactArchived::dispatch(
+            $contact->id,
+            (string) $contact->workspace_id,
+        );
 
         $contact->delete();
 
@@ -135,7 +147,7 @@ class ContactController extends Controller
         // a contact auto-joins the workspace's vocabulary so other agents see
         // it as a suggestion next time. We don't delete vocabulary entries on
         // tag removal (admins curate the vocabulary separately).
-        $settings = app(\App\Modules\Platform\Services\WorkspaceSettings::class);
+        $settings = app(WorkspaceSettings::class);
         $vocab = $settings->get($contact->workspace, 'tags.vocabulary', []);
         if (! is_array($vocab)) {
             $vocab = [];
@@ -154,10 +166,10 @@ class ContactController extends Controller
      * automatically as agents add new tags via updateTags(). Admins curate
      * it via the /settings surface (cut 2).
      */
-    public function vocabulary(Request $request, Workspace $workspace): \Illuminate\Http\JsonResponse
+    public function vocabulary(Request $request, Workspace $workspace): JsonResponse
     {
         abort_unless($workspace->id === $this->workspaceId($request), 403);
-        $settings = app(\App\Modules\Platform\Services\WorkspaceSettings::class);
+        $settings = app(WorkspaceSettings::class);
         $vocab = $settings->get($workspace, 'tags.vocabulary', []);
 
         return response()->json(['vocabulary' => is_array($vocab) ? $vocab : []]);
@@ -260,7 +272,7 @@ class ContactController extends Controller
                 // ValidationException handles both JSON 422 (XHR) and
                 // redirect-back-with-errors (Inertia form) for free — no
                 // need to branch on request type.
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'owner_id' => 'Owner không hợp lệ hoặc không ở workspace này.',
                 ]);
             }

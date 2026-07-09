@@ -5,9 +5,14 @@ namespace App\Providers;
 use App\Http\Middleware\AppFrameGuard;
 use App\Modules\Channels\Events\OutboundMessageDelivered;
 use App\Modules\Channels\Events\OutboundMessageFailed;
+use App\Modules\Crm\Events\ContactArchived;
+use App\Modules\Crm\Events\LeadStatusChanged;
+use App\Modules\Crm\Listeners\NotifyContactOnContactArchived;
+use App\Modules\Crm\Listeners\NotifyContactOnLeadStatusChanged;
 use App\Modules\Inbox\Listeners\SyncOutboundMessageResult;
 use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -47,6 +52,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(OutboundMessageDelivered::class, [SyncOutboundMessageResult::class, 'delivered']);
         Event::listen(OutboundMessageFailed::class, [SyncOutboundMessageResult::class, 'failed']);
+
+        // Mini App re-engagement (spec 15 § C4). Listeners always run —
+        // they self-skip when notify_user is false or the contact has no
+        // OA identity, so the cost is one extra dispatch per lead move.
+        Event::listen(LeadStatusChanged::class, [NotifyContactOnLeadStatusChanged::class, 'handle']);
+        Event::listen(ContactArchived::class, [NotifyContactOnContactArchived::class, 'handle']);
     }
 
     /**
@@ -117,7 +128,7 @@ class AppServiceProvider extends ServiceProvider
             // ever changes (the token middleware should always run first).
             $key = $token ? 'ingest:token:'.$token->id : 'ingest:ip:'.$request->ip();
 
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute($perMinute)->by($key);
+            return Limit::perMinute($perMinute)->by($key);
         });
 
         RateLimiter::for('ingest.workspace', function (Request $request) {
@@ -126,7 +137,7 @@ class AppServiceProvider extends ServiceProvider
                 ? 'ingest:workspace:'.$token->workspace_id
                 : 'ingest:workspace:ip:'.$request->ip();
 
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute(1000)->by($key);
+            return Limit::perMinute(1000)->by($key);
         });
     }
 }
