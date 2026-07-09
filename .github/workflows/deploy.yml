@@ -59,3 +59,10 @@ jobs:
             # provider. The worker itself must be supervised (see
             # deploy/supervisor/crm-queue.conf).
             sudo -u www-data php8.4 artisan queue:restart
+
+            # Install sidecar deps (separate node_modules) and restart the Zalo
+            # sidecar so it runs the new code. Outbound Zalo Personal delivery
+            # goes through this Node service (systemd: zalo-sidecar.service on
+            # :4501); if it is stale or down, Zalo replies fail to deliver.
+            sudo npm ci --prefix /var/www/crm/sidecar --omit=dev || sudo npm ci --prefix /var/www/crm/sidecar
+            sudo systemctl restart zalo-sidecar.service
