@@ -15,11 +15,19 @@ use App\Modules\Routing\Services\AssignmentService;
 use App\Modules\Routing\Services\PresenceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ConversationActionController extends Controller
 {
     public function __construct(private readonly PresenceService $presence) {}
+
+    /**
+     * Max images per reply. 9 keeps total payload comfortably under the 100M
+     * nginx cap with worst-case 10 MB per file, and matches Telegram's
+     * sendMediaGroup limit (10) while leaving headroom.
+     */
+    private const MAX_REPLY_IMAGES = 9;
 
     public function reply(Request $request, Conversation $conversation, AssignmentService $assignmentService): RedirectResponse
     {
@@ -33,13 +41,26 @@ class ConversationActionController extends Controller
             $assignmentService->claim($conversation, $request->user());
             $conversation->refresh();
         }
-        // Body optional when an image is attached; one of the two is required.
+        // Body optional when at least one image is attached; one of the two is required.
+        // Two input shapes accepted:
+        //   - images[] (array, multi-file picker — the current composer)
+        //   - image (single — legacy / 3rd-party callers still on the old shape)
+        // We validate BOTH independently instead of trying to normalise via
+        // $request->merge(), because merge() only writes to the input bag —
+        // $request->file('images') would still return empty since the file
+        // bag is separate.
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:4000'],
-            'image' => ['nullable', 'image', 'max:10240'], // 10 MB
+            'images' => ['nullable', 'array', 'max:'.self::MAX_REPLY_IMAGES],
+            'images.*' => ['image', 'max:10240'], // 10 MB per file
+            'image' => ['nullable', 'image', 'max:10240'], // legacy single-file
         ]);
-        $hasImage = $request->hasFile('image');
-        abort_if(! $hasImage && blank($data['body'] ?? null), 422, 'Cần nội dung hoặc ảnh.');
+        $imageFiles = $this->collectUploadedImages($request);
+        abort_if(
+            $imageFiles === [] && blank($data['body'] ?? null),
+            422,
+            'Cần nội dung hoặc ảnh.',
+        );
 
         $identity = ExternalIdentity::query()
             ->where('workspace_id', $conversation->workspace_id)
@@ -47,73 +68,145 @@ class ConversationActionController extends Controller
             ->where('provider_account_id', $conversation->channel_account_id)
             ->first();
 
-        // Store the image under public disk; keep the absolute path for the
-        // sidecar (zca-js needs a local file) and a public URL for Telegram/UI.
-        $imageUrl = null;
-        $imagePath = null;
-        if ($hasImage) {
-            $stored = $request->file('image')->store('outbound', 'public');
-            $imagePath = storage_path('app/public/'.$stored);
-            $imageUrl = asset('storage/'.$stored);
-        }
-
-        $message = Message::create([
-            'workspace_id' => $conversation->workspace_id,
-            'conversation_id' => $conversation->id,
-            'channel_account_id' => $conversation->channel_account_id,
-            'direction' => 'OUTBOUND',
-            'sender_type' => 'AGENT',
-            'sender_id' => (string) $request->user()->id,
-            'body_text' => $data['body'] ?? '',
-            'message_type' => $hasImage ? 'IMAGE' : 'TEXT',
-            'status' => 'QUEUED',
-        ]);
-
-        if ($hasImage) {
-            MessageAttachment::create([
-                'workspace_id' => $conversation->workspace_id,
-                'message_id' => $message->id,
-                'mime_type' => $request->file('image')->getMimeType(),
-                'size_bytes' => $request->file('image')->getSize(),
-                'metadata' => ['url' => $imageUrl, 'type' => 'IMAGE'],
-            ]);
-        }
-
         // Group replies target the group thread; DMs target the individual.
         $recipient = $conversation->is_group
             ? $conversation->provider_thread_id
             : ($identity?->provider_chat_id ?: $identity?->provider_user_id);
 
-        $outbox = OutboxMessage::create([
-            'workspace_id' => $conversation->workspace_id,
-            'channel_account_id' => $conversation->channel_account_id,
-            'conversation_id' => $conversation->id,
-            'message_id' => $message->id,
-            'provider' => $conversation->channelAccount->provider,
-            'recipient_external_id' => $recipient,
-            'payload' => [
-                'text' => $data['body'] ?? '',
-                'is_group' => (bool) $conversation->is_group,
-                // Snapshot the group thread id so Channels can build the outbound
-                // payload from the outbox alone, without reading Inbox models.
-                'provider_thread_id' => $conversation->provider_thread_id,
-                'image_url' => $imageUrl,   // public URL — Telegram sendPhoto, UI
-                'image_path' => $imagePath, // local abs path — Zalo sidecar
-            ],
-            'status' => 'QUEUED',
-            'next_attempt_at' => now(),
-        ]);
+        // -----------------------------------------------------------------
+        // Fan-out: one image = one Message row + one OutboxMessage row + one
+        // queued job. Telegram/Zalo providers all build payloads from a single
+        // OutboxMessage, so per-image rows keep provider adapters unchanged
+        // (Zalo OA sends each photo as its own bubble — exactly what customers
+        // expect). The shared text (body) goes on the FIRST image only; the
+        // remaining images ride as caption-less media so they don't duplicate
+        // the message. The InboxConversation's `last_message_*` pointers are
+        // set to the LAST queued row so the queue/UI scrolls to the most recent
+        // outbound.
+        // -----------------------------------------------------------------
+        $body = $data['body'] ?? '';
+        $lastMessageId = null;
+        $queuedOutboxIds = [];
+
+        DB::transaction(function () use (
+            $conversation,
+            $request,
+            $imageFiles,
+            $body,
+            $recipient,
+            &$lastMessageId,
+            &$queuedOutboxIds,
+        ) {
+            $totalImages = count($imageFiles);
+            $provider = $conversation->channelAccount->provider;
+
+            // If there are no images, keep the legacy single-message path so
+            // existing tests/contracts for text-only replies stay intact.
+            if ($totalImages === 0) {
+                $message = Message::create([
+                    'workspace_id' => $conversation->workspace_id,
+                    'conversation_id' => $conversation->id,
+                    'channel_account_id' => $conversation->channel_account_id,
+                    'direction' => 'OUTBOUND',
+                    'sender_type' => 'AGENT',
+                    'sender_id' => (string) $request->user()->id,
+                    'body_text' => $body,
+                    'message_type' => 'TEXT',
+                    'status' => 'QUEUED',
+                ]);
+                $outbox = OutboxMessage::create([
+                    'workspace_id' => $conversation->workspace_id,
+                    'channel_account_id' => $conversation->channel_account_id,
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
+                    'provider' => $provider,
+                    'recipient_external_id' => $recipient,
+                    'payload' => [
+                        'text' => $body,
+                        'is_group' => (bool) $conversation->is_group,
+                        'provider_thread_id' => $conversation->provider_thread_id,
+                    ],
+                    'status' => 'QUEUED',
+                    'next_attempt_at' => now(),
+                ]);
+                $lastMessageId = $message->id;
+                $queuedOutboxIds[] = $outbox->id;
+
+                return;
+            }
+
+            foreach ($imageFiles as $index => $file) {
+                // Sharded by date so a busy day's outbound folder doesn't end
+                // up with thousands of files in one directory (ext4 max-links
+                // / S3 list cost).
+                $stored = $file->store('outbound/'.now()->format('Y/m/d'), 'public');
+                $imageUrl = asset('storage/'.$stored);
+                $imagePath = storage_path('app/public/'.$stored);
+
+                // Caption only on the first image so the same body isn't
+                // stamped onto every photo in the customer's thread.
+                $caption = $index === 0 ? $body : '';
+
+                $message = Message::create([
+                    'workspace_id' => $conversation->workspace_id,
+                    'conversation_id' => $conversation->id,
+                    'channel_account_id' => $conversation->channel_account_id,
+                    'direction' => 'OUTBOUND',
+                    'sender_type' => 'AGENT',
+                    'sender_id' => (string) $request->user()->id,
+                    'body_text' => $caption,
+                    'message_type' => 'IMAGE',
+                    'status' => 'QUEUED',
+                ]);
+
+                MessageAttachment::create([
+                    'workspace_id' => $conversation->workspace_id,
+                    'message_id' => $message->id,
+                    'mime_type' => $file->getMimeType(),
+                    'size_bytes' => $file->getSize(),
+                    'metadata' => ['url' => $imageUrl, 'type' => 'IMAGE'],
+                ]);
+
+                $outbox = OutboxMessage::create([
+                    'workspace_id' => $conversation->workspace_id,
+                    'channel_account_id' => $conversation->channel_account_id,
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
+                    'provider' => $provider,
+                    'recipient_external_id' => $recipient,
+                    'payload' => [
+                        'text' => $caption,
+                        'is_group' => (bool) $conversation->is_group,
+                        'provider_thread_id' => $conversation->provider_thread_id,
+                        'image_url' => $imageUrl,   // public URL — Telegram sendPhoto, UI
+                        'image_path' => $imagePath, // local abs path — Zalo sidecar
+                    ],
+                    'status' => 'QUEUED',
+                    'next_attempt_at' => now(),
+                ]);
+
+                $lastMessageId = $message->id;
+                $queuedOutboxIds[] = $outbox->id;
+            }
+        });
 
         $conversation->forceFill([
             'status' => 'WAITING_CUSTOMER',
-            'last_message_id' => $message->id,
+            'last_message_id' => $lastMessageId,
             'last_message_at' => now(),
             'last_agent_message_at' => now(),
         ])->save();
 
-        SendChannelMessageJob::dispatch($outbox->id);
+        foreach ($queuedOutboxIds as $outboxId) {
+            SendChannelMessageJob::dispatch($outboxId);
+        }
 
-        return back()->with('success', 'Reply queued for provider delivery.');
+        $count = count($queuedOutboxIds);
+        $success = $count > 1
+            ? "Đã queue {$count} tin (ảnh gửi riêng từng cái)."
+            : 'Reply queued for provider delivery.';
+
+        return back()->with('success', $success);
     }
 
     /**
@@ -236,5 +329,31 @@ class ConversationActionController extends Controller
         $isUnassigned = $conversation->owner_id === null;
 
         abort_unless($isOwner || $isUnassigned, 403, 'Hội thoại này do người khác phụ trách.');
+    }
+
+    /**
+     * Read uploaded images from either the multi-file (`images[]`) or legacy
+     * single-file (`image`) input. Wrapping in a method gives phpstan a clear
+     * `array<int, UploadedFile>` return type so the call site doesn't have
+     * to fight the ternary narrowing.
+     *
+     * @return array<int, UploadedFile>
+     */
+    private function collectUploadedImages(Request $request): array
+    {
+        if ($request->hasFile('images')) {
+            /** @var array<int, UploadedFile> $files */
+            $files = $request->file('images');
+
+            return array_values($files);
+        }
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+
+            return $file instanceof UploadedFile ? [$file] : [];
+        }
+
+        return [];
     }
 }

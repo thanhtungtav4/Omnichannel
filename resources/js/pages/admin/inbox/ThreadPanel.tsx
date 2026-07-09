@@ -82,7 +82,7 @@ export function ThreadPanel({
     activeConversation,
     agents,
     replyBody,
-    replyImage,
+    replyImages,
     replyError,
     replyProcessing,
     composerMode,
@@ -90,7 +90,7 @@ export function ThreadPanel({
     focusMode,
     onToggleFocus,
     onReplyBodyChange,
-    onReplyImageChange,
+    onReplyImagesChange,
     onSubmitReply,
     onTransferToChange,
     onSubmitTransfer,
@@ -100,7 +100,7 @@ export function ThreadPanel({
     activeConversation: ActiveConversation | null;
     agents: AgentOption[];
     replyBody: string;
-    replyImage: File | null;
+    replyImages: File[];
     replyError?: string;
     replyProcessing: boolean;
     composerMode: 'reply' | 'comment';
@@ -108,9 +108,9 @@ export function ThreadPanel({
     focusMode: boolean;
     onToggleFocus: () => void;
     onReplyBodyChange: (body: string) => void;
-    onReplyImageChange: (image: File | null) => void;
+    onReplyImagesChange: (images: File[]) => void;
     onSubmitReply: (event: FormEvent) => void;
-    onTransferToChange: (agentId: string) => void;
+    onTransferToChange: (userId: string) => void;
     onSubmitTransfer: (userId?: string) => void;
     onCloseConversation: () => void;
     onReopenConversation: () => void;
@@ -305,20 +305,30 @@ export function ThreadPanel({
     const [showEmoji, setShowEmoji] = useState(false);
     const [showTemplates, setShowTemplates] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    // Object URL for the pending image preview; revoked on change.
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+// Object URLs for the pending image previews. A ref (not state) keeps the
+    // render cheap — the URLs only feed <img src=...> on existing DOM. The
+    // cleanup pass revokes the PREVIOUS batch's URLs before swapping in the
+    // new ones so we don't leak object URLs.
+    const previousPreviewUrlsRef = useRef<string[]>([]);
+    const imagePreviews = useMemo(
+        () => replyImages.map((file) => URL.createObjectURL(file)),
+        [replyImages],
+    );
     useEffect(() => {
-        if (!replyImage) {
-            setImagePreview(null);
+        const previous = previousPreviewUrlsRef.current;
 
-            return;
+        for (const url of previous) {
+            URL.revokeObjectURL(url);
         }
 
-        const url = URL.createObjectURL(replyImage);
-        setImagePreview(url);
+        previousPreviewUrlsRef.current = imagePreviews;
 
-        return () => URL.revokeObjectURL(url);
-    }, [replyImage]);
+        return () => {
+            for (const url of imagePreviews) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [imagePreviews]);
     useEffect(() => {
         setSearch('');
         setShowSearch(false);
@@ -786,31 +796,67 @@ export function ThreadPanel({
                             ref={fileInputRef}
                             type="file"
                             accept="image/*"
+                            multiple
                             hidden
                             onChange={(event) => {
-                                onReplyImageChange(
-                                    event.target.files?.[0] ?? null,
-                                );
+                                const picked = event.target.files;
+
+                                if (picked && picked.length > 0) {
+                                    // Append to existing selection rather than
+                                    // replace, so an agent can pick from two
+                                    // folders in a row without losing the first
+                                    // batch.
+                                    onReplyImagesChange([
+                                        ...replyImages,
+                                        ...Array.from(picked),
+                                    ]);
+                                }
+
                                 event.target.value = ''; // allow re-picking same file
                             }}
                         />
-                        {imagePreview && (
-                            <div className="relative mb-2 inline-block">
-                                <img
-                                    src={imagePreview}
-                                    alt="Ảnh đính kèm"
-                                    className="max-h-32 rounded-lg border object-cover"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="icon"
-                                    className="absolute -top-2 -right-2 size-6 rounded-full shadow"
-                                    onClick={() => onReplyImageChange(null)}
-                                    aria-label="Bỏ ảnh"
-                                >
-                                    <X />
-                                </Button>
+                        {imagePreviews.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-2">
+                                {imagePreviews.map((src, index) => (
+                                    <div
+                                        key={`${index}-${src}`}
+                                        className="group relative"
+                                    >
+                                        <img
+                                            src={src}
+                                            alt={`Ảnh ${index + 1}`}
+                                            className="size-20 rounded-lg border object-cover"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="icon"
+                                            className="absolute -top-2 -right-2 size-6 rounded-full shadow"
+                                            onClick={() =>
+                                                onReplyImagesChange(
+                                                    replyImages.filter(
+                                                        (_, i) => i !== index,
+                                                    ),
+                                                )
+                                            }
+                                            aria-label={`Bỏ ảnh ${index + 1}`}
+                                        >
+                                            <X />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {imagePreviews.length < 9 && (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            fileInputRef.current?.click()
+                                        }
+                                        className="flex size-20 items-center justify-center rounded-lg border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                                        aria-label="Thêm ảnh"
+                                    >
+                                        <ImagePlus className="size-5" />
+                                    </button>
+                                )}
                             </div>
                         )}
                         <FieldGroup className="gap-3">
@@ -921,7 +967,7 @@ export function ThreadPanel({
                                             replyProcessing ||
                                             (!replyBody.trim() &&
                                                 (composerMode === 'comment' ||
-                                                    !replyImage))
+                                                    replyImages.length === 0))
                                         }
                                     >
                                         {replyProcessing ? (

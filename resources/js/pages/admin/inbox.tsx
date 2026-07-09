@@ -7,10 +7,12 @@ import {
     Search,
     UserRoundX,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {  useEffect, useMemo, useRef, useState } from 'react';
+import type {FormEvent} from 'react';
 import { toast } from 'sonner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
 import {
     Command,
     CommandEmpty,
@@ -20,8 +22,6 @@ import {
     CommandList,
 } from '@/components/ui/command';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
     Empty,
     EmptyDescription,
@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { compressImage } from '@/lib/imageCompress';
 import { cn } from '@/lib/utils';
 import { close, reply, transfer } from '@/routes/admin/conversations';
 import type {
@@ -43,22 +45,23 @@ import type {
     AgentOption,
     ConversationSummary,
 } from '@/types';
+import { CustomerPanel } from './inbox/CustomerPanel';
+import { InboxBottomNav } from './inbox/InboxBottomNav';
 import {
-    type InboxStats,
+    
     providerClass,
     providerLabel,
-    type QueueTab,
-    queueTabValue,
+    
+    queueTabValue
 } from './inbox/lib';
+import type {InboxStats, QueueTab} from './inbox/lib';
 import {
     ConversationRow,
     QueueSkeleton,
     QueueTabTrigger,
     StatPill,
 } from './inbox/QueueParts';
-import { InboxBottomNav } from './inbox/InboxBottomNav';
 import { ThreadPanel } from './inbox/ThreadPanel';
-import { CustomerPanel } from './inbox/CustomerPanel';
 
 type InboxProps = {
     stats: InboxStats;
@@ -86,9 +89,9 @@ export default function Inbox({
     const [isRefreshing, setIsRefreshing] = useState(false);
     // Focus mode hides the queue + side panel so the thread gets the full width.
     const [focusMode, setFocusMode] = useState(false);
-    const replyForm = useForm<{ body: string; image: File | null }>({
+    const replyForm = useForm<{ body: string; images: File[] }>({
         body: '',
-        image: null,
+        images: [],
     });
     // 'reply' = sent to the customer; 'comment' = internal note between agents.
     const [composerMode, setComposerMode] = useState<'reply' | 'comment'>(
@@ -116,24 +119,32 @@ export default function Inbox({
     );
     // Sync mobileView when user taps a conversation (URL changes).
     useEffect(() => {
-        if (isMobile && showThread) setMobileView('thread');
-        if (isMobile && !showThread && mobileView === 'thread')
-            setMobileView('queue');
+        if (isMobile && showThread) {
+setMobileView('thread');
+}
+
+        if (isMobile && !showThread && mobileView === 'thread') {
+setMobileView('queue');
+}
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showThread, isMobile]);
     // Reset to queue when growing past the breakpoint so we don't strand
     // the user on a mobile-only view.
     useEffect(() => {
-        if (!isMobile) setMobileView('queue');
+        if (!isMobile) {
+setMobileView('queue');
+}
     }, [isMobile]);
 
     const setView = (v: MobileView) => {
         setMobileView(v);
+
         // Switching to customer on mobile closes the thread so the
         // sheet sits over the queue.
         if (v === 'customer') {
             setMobileView('customer');
         }
+
         if (v === 'queue') {
             router.visit('/admin/inbox', { preserveScroll: true });
         }
@@ -147,6 +158,7 @@ export default function Inbox({
     // page reload doesn't re-open it.
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
+
         if (params.get('openPalette') === '1') {
             setPaletteOpen(true);
             params.delete('openPalette');
@@ -166,15 +178,20 @@ export default function Inbox({
             }
         };
         window.addEventListener('keydown', onKey);
+
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
     // Esc exits focus mode.
     useEffect(() => {
-        if (!focusMode) return;
+        if (!focusMode) {
+return;
+}
+
         const onKey = (e: KeyboardEvent) =>
             e.key === 'Escape' && setFocusMode(false);
         window.addEventListener('keydown', onKey);
+
         return () => window.removeEventListener('keydown', onKey);
     }, [focusMode]);
 
@@ -185,6 +202,7 @@ export default function Inbox({
                 only: ['stats', 'conversations', 'activeConversation'],
             });
         }, 3000);
+
         return () => window.clearInterval(interval);
     }, []);
 
@@ -195,6 +213,7 @@ export default function Inbox({
     const seenInbound = useRef<Map<string, string> | null>(null);
     useEffect(() => {
         const snapshot = new Map<string, string>();
+
         for (const c of conversations) {
             if (c.lastDirection === 'INBOUND') {
                 snapshot.set(c.id, c.lastMessage ?? '');
@@ -203,14 +222,21 @@ export default function Inbox({
 
         const prev = seenInbound.current;
         seenInbound.current = snapshot;
-        if (prev === null) return; // seed only, no ping on first load
+
+        if (prev === null) {
+return;
+} // seed only, no ping on first load
 
         const hasNew = [...snapshot].some(
             ([id, text]) => prev.get(id) !== text,
         );
-        if (!hasNew) return;
+
+        if (!hasNew) {
+return;
+}
 
         toast('Tin nhắn mới');
+
         try {
             const AudioCtx =
                 window.AudioContext ??
@@ -254,6 +280,7 @@ export default function Inbox({
         const goOffline = () =>
             navigator.sendBeacon?.('/api/admin/presence/offline');
         window.addEventListener('beforeunload', goOffline);
+
         return () => {
             window.clearInterval(interval);
             window.removeEventListener('beforeunload', goOffline);
@@ -268,6 +295,7 @@ export default function Inbox({
 
     const filteredConversations = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase();
+
         return conversations.filter((conversation) => {
             const tabState = queueTabValue(conversation, currentOwnerId);
             const matchesTab =
@@ -275,14 +303,22 @@ export default function Inbox({
                 (tab === 'mine' && tabState.mine) ||
                 (tab === 'waiting' && tabState.waiting) ||
                 (tab === 'priority' && tabState.priority);
-            if (!matchesTab) return false;
+
+            if (!matchesTab) {
+return false;
+}
+
             // Stat-pill drill-down filter (orthogonal to tab).
             // 'failed' requires per-conversation outbox data not yet wired
             // to the queue — clicking it shows a toast instead of filtering.
             if (statFilter === 'unassigned' && conversation.owner) {
                 return false;
             }
-            if (!normalizedQuery) return true;
+
+            if (!normalizedQuery) {
+return true;
+}
+
             return [
                 conversation.contact?.name,
                 conversation.contact?.phone,
@@ -306,19 +342,34 @@ export default function Inbox({
                 counts.mine += tabState.mine ? 1 : 0;
                 counts.waiting += tabState.waiting ? 1 : 0;
                 counts.priority += tabState.priority ? 1 : 0;
+
                 return counts;
             },
             { all: 0, mine: 0, waiting: 0, priority: 0 },
         );
     }, [conversations, currentOwnerId]);
 
-    function submitReply(event: FormEvent) {
+function submitReply(event: FormEvent) {
         event.preventDefault();
-        if (!activeConversation) return;
+
+        if (!activeConversation) {
+            return;
+        }
+
+        void submitReplyAsync();
+    }
+
+    async function submitReplyAsync() {
+        if (!activeConversation) {
+            return;
+        }
 
         // Comment mode = internal note (no image, not sent to the customer).
         if (composerMode === 'comment') {
-            if (!replyForm.data.body.trim()) return;
+            if (!replyForm.data.body.trim()) {
+return;
+}
+
             router.post(
                 `/api/admin/conversations/${activeConversation.id}/comment`,
                 { body: replyForm.data.body },
@@ -331,16 +382,31 @@ export default function Inbox({
                     onError: () => toast.error('Lỗi thêm ghi chú'),
                 },
             );
+
             return;
         }
 
-        if (!replyForm.data.body.trim() && !replyForm.data.image) return;
+        if (!replyForm.data.body.trim() && replyForm.data.images.length === 0) {
+            return;
+        }
+
+        // Compress before submit so a 9-image reply from a phone (~50 MB raw)
+        // drops to ~3-5 MB — well under nginx 100M / PHP 100M and fast over
+        // slow links. compressImage is a no-op for files < 500 KB.
+        const files = await Promise.all(
+            replyForm.data.images.map((file) => compressImage(file)),
+        );
+        replyForm.setData('images', files);
         replyForm.post(reply.url(activeConversation.id), {
             preserveScroll: true,
             forceFormData: true, // multipart for the image upload
             onSuccess: () => {
                 replyForm.reset();
-                toast.success('Đã gửi tin');
+                toast.success(
+                    files.length > 1
+                        ? `Đã gửi ${files.length} ảnh`
+                        : 'Đã gửi tin',
+                );
             },
             onError: () => toast.error('Gửi lỗi'),
         });
@@ -348,7 +414,11 @@ export default function Inbox({
 
     function submitTransfer(userId?: string) {
         const target = userId ?? transferTo;
-        if (!activeConversation || !target) return;
+
+        if (!activeConversation || !target) {
+return;
+}
+
         router.post(
             transfer.url(activeConversation.id),
             { user_id: target },
@@ -364,7 +434,10 @@ export default function Inbox({
     }
 
     function closeConversation() {
-        if (!activeConversation) return;
+        if (!activeConversation) {
+return;
+}
+
         router.post(
             close.url(activeConversation.id),
             {},
@@ -377,7 +450,10 @@ export default function Inbox({
     }
 
     function reopenConversation() {
-        if (!activeConversation) return;
+        if (!activeConversation) {
+return;
+}
+
         router.post(
             `/api/admin/conversations/${activeConversation.id}/reopen`,
             {},
@@ -715,7 +791,7 @@ export default function Inbox({
                                     activeConversation={activeConversation}
                                     agents={agents}
                                     replyBody={replyForm.data.body}
-                                    replyImage={replyForm.data.image}
+                                    replyImages={replyForm.data.images}
                                     replyError={replyForm.errors.body}
                                     replyProcessing={replyForm.processing}
                                     composerMode={composerMode}
@@ -723,8 +799,8 @@ export default function Inbox({
                                     onReplyBodyChange={(body) =>
                                         replyForm.setData('body', body)
                                     }
-                                    onReplyImageChange={(image) =>
-                                        replyForm.setData('image', image)
+                                    onReplyImagesChange={(images) =>
+                                        replyForm.setData('images', images)
                                     }
                                     onSubmitReply={submitReply}
                                     onTransferToChange={setTransferTo}
