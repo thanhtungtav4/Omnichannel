@@ -174,9 +174,40 @@ export type ContactSummary = {
     email?: string | null;
     source: string;
     status: string;
+    tags?: string[];
     owner?: string | null;
+    ownerId?: number | null;
     identities: number;
+    /** OPEN leads count (NEW / QUALIFYING / OPEN). 0 = no active lead. */
+    openLeadsCount?: number;
     lastInboundAt?: string | null;
+};
+
+/**
+ * Inertia's serialization of a Laravel LengthAwarePaginator. We hand-roll
+ * the shape instead of importing a type from Laravel because the frontend
+ * has no PHP toolchain — keep it self-describing.
+ */
+export type Paginated<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    links: { url: string | null; label: string; active: boolean }[];
+};
+
+export type ContactFilters = {
+    q: string;
+    status: string;
+    source: string;
+    owner_id: string;
+    tag: string;
+    sort: string;
+    dir: 'asc' | 'desc' | string;
+    per_page: number;
 };
 
 export type LeadSummary = {
@@ -186,6 +217,7 @@ export type LeadSummary = {
     source: string;
     valueAmount?: string | number | null;
     contact?: string | null;
+    contactId?: string | null;
     owner?: string | null;
     lastActivityAt?: string | null;
 };

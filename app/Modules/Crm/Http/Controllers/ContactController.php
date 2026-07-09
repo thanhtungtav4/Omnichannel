@@ -3,6 +3,7 @@
 namespace App\Modules\Crm\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Crm\Models\ExternalIdentity;
@@ -194,6 +195,80 @@ class ContactController extends Controller
         $note->delete();
 
         return back()->with('success', 'Đã xoá ghi chú.');
+    }
+
+    /** Edit a contact note (author or owner/admin/support_lead). */
+    public function updateNote(Request $request, ContactNote $note): RedirectResponse
+    {
+        abort_unless($note->workspace_id === $this->workspaceId($request), 403);
+        abort_unless(
+            $note->author_id === $request->user()->id
+                || in_array($request->user()->role, ['owner', 'admin', 'support_lead'], true),
+            403,
+        );
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:4000'],
+            'pinned' => ['sometimes', 'boolean'],
+        ]);
+
+        $note->forceFill([
+            'body' => $data['body'],
+            'pinned' => (bool) ($data['pinned'] ?? false),
+        ])->save();
+
+        return back()->with('success', 'Đã cập nhật ghi chú.');
+    }
+
+    /**
+     * Change contact status (ACTIVE / ARCHIVED / BLOCKED). Operators archive
+     * spam; owners flip to BLOCKED. Anyone with view+update perm can change.
+     */
+    public function updateStatus(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['ACTIVE', 'ARCHIVED', 'BLOCKED'])],
+        ]);
+
+        $contact->forceFill(['status' => $data['status']])->save();
+
+        return back()->with('success', 'Đã cập nhật trạng thái.');
+    }
+
+    /**
+     * Reassign owner. Requires the owner-target user to actually be a member
+     * of the same workspace and ACTIVE — otherwise an attacker who guessed a
+     * user id could plant contacts on someone outside the tenant.
+     */
+    public function updateOwner(Request $request, Contact $contact): RedirectResponse
+    {
+        abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
+
+        $data = $request->validate([
+            'owner_id' => ['nullable', 'integer'],
+        ]);
+
+        if ($data['owner_id'] !== null) {
+            $exists = User::query()
+                ->where('workspace_id', $contact->workspace_id)
+                ->where('id', $data['owner_id'])
+                ->where('status', 'ACTIVE')
+                ->exists();
+            if (! $exists) {
+                // ValidationException handles both JSON 422 (XHR) and
+                // redirect-back-with-errors (Inertia form) for free — no
+                // need to branch on request type.
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'owner_id' => 'Owner không hợp lệ hoặc không ở workspace này.',
+                ]);
+            }
+        }
+
+        $contact->forceFill(['owner_id' => $data['owner_id']])->save();
+
+        return back()->with('success', 'Đã cập nhật owner.');
     }
 
     /**

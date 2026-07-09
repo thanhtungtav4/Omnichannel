@@ -240,24 +240,124 @@ class AdminController extends Controller
     {
         $workspaceId = $this->workspaceId($request);
 
+        // Per-page: 25/50/100. Anything else snaps back to 25 so a tampered
+        // query string can't request all rows.
+        $perPage = (int) $request->query('per_page', 25);
+        if (! in_array($perPage, [25, 50, 100], true)) {
+            $perPage = 25;
+        }
+
+        // Sort whitelist — keep column set tight, never user-controlled raw.
+        $sort = (string) $request->query('sort', 'last_inbound_at');
+        if (! in_array($sort, ['last_inbound_at', 'full_name', 'created_at'], true)) {
+            $sort = 'last_inbound_at';
+        }
+
+        $dir = strtolower((string) $request->query('dir', 'desc'));
+        if (! in_array($dir, ['asc', 'desc'], true)) {
+            $dir = 'desc';
+        }
+
+        $query = Contact::query()
+            ->where('workspace_id', $workspaceId)
+            ->with('owner')
+            ->withCount([
+                'identities',
+                // "Active lead" is an OPEN lead; show its count so the column
+                // is a one-glance health signal without loading full rows.
+                'leads as open_leads_count' => fn ($q) => $q->whereIn('status', ['NEW', 'QUALIFYING', 'OPEN']),
+            ]);
+
+        // Free-text search across name/phone/email. ILIKE keeps the index
+        // usable for prefix searches; we escape % and _ so users can't widen
+        // the scan by accident.
+        if ($raw = trim((string) $request->query('q'))) {
+            $needle = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $raw).'%';
+            $query->where(function ($w) use ($needle) {
+                $w->where('full_name', 'ILIKE', $needle)
+                    ->orWhere('phone', 'ILIKE', $needle)
+                    ->orWhere('email', 'ILIKE', $needle);
+            });
+        }
+
+        // Status / source / owner / tag — comma-separated multi + exact match.
+        // Owner accepts literal "null" for unassigned (otherwise the empty
+        // string would be ambiguous with "no filter").
+        if ($statusParam = $request->query('status')) {
+            $statuses = array_values(array_filter(array_map('trim', explode(',', $statusParam))));
+            if ($statuses) {
+                $query->whereIn('status', $statuses);
+            }
+        }
+
+        if ($sourceParam = $request->query('source')) {
+            $sources = array_values(array_filter(array_map('trim', explode(',', $sourceParam))));
+            if ($sources) {
+                $query->whereIn('source', $sources);
+            }
+        }
+
+        if ($ownerParam = $request->query('owner_id')) {
+            if ($ownerParam === 'null') {
+                $query->whereNull('owner_id');
+            } elseif (ctype_digit((string) $ownerParam)) {
+                $query->where('owner_id', (int) $ownerParam);
+            }
+        }
+
+        if ($tag = trim((string) $request->query('tag'))) {
+            // JSONB containment — case-sensitive on the stored tag value. The
+            // tag editor dedups case-insensitively on write, so this matches
+            // the visual dedup behaviour.
+            $query->whereJsonContains('tags', [$tag]);
+        }
+
+        $query->orderBy($sort, $dir);
+
+        // withQueryString so the pagination links preserve filter state.
+        $page = $query->paginate($perPage)->withQueryString();
+
+        $items = $page->through(fn (Contact $contact) => [
+            'id' => $contact->id,
+            'name' => $contact->full_name,
+            'phone' => $contact->phone,
+            'email' => $contact->email,
+            'source' => $contact->source,
+            'status' => $contact->status,
+            'tags' => $contact->tags ?? [],
+            'owner' => $contact->owner?->display_name ?: $contact->owner?->name,
+            'ownerId' => $contact->owner_id,
+            'identities' => $contact->identities_count,
+            'openLeadsCount' => $contact->open_leads_count,
+            'lastInboundAt' => $contact->last_inbound_at?->diffForHumans(),
+        ]);
+
+        // Owner filter dropdown: workspace agents that can own contacts.
+        // Limited to ACTIVE so a disabled agent doesn't show up as a target.
+        $agents = User::query()
+            ->where('workspace_id', $workspaceId)
+            ->whereIn('role', ['owner', 'admin', 'support_lead', 'support_agent', 'sales'])
+            ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get(['id', 'name', 'display_name'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->display_name ?: $u->name,
+            ]);
+
         return Inertia::render('admin/contacts', [
-            'contacts' => Contact::query()
-                ->where('workspace_id', $workspaceId)
-                ->with('owner')
-                ->withCount('identities')
-                ->latest('last_inbound_at')
-                ->get()
-                ->map(fn (Contact $contact) => [
-                    'id' => $contact->id,
-                    'name' => $contact->full_name,
-                    'phone' => $contact->phone,
-                    'email' => $contact->email,
-                    'source' => $contact->source,
-                    'status' => $contact->status,
-                    'owner' => $contact->owner?->display_name ?: $contact->owner?->name,
-                    'identities' => $contact->identities_count,
-                    'lastInboundAt' => $contact->last_inbound_at?->diffForHumans(),
-                ]),
+            'contacts' => $items,
+            'filters' => [
+                'q' => (string) $request->query('q', ''),
+                'status' => (string) $request->query('status', ''),
+                'source' => (string) $request->query('source', ''),
+                'owner_id' => (string) $request->query('owner_id', ''),
+                'tag' => (string) $request->query('tag', ''),
+                'sort' => $sort,
+                'dir' => $dir,
+                'per_page' => $perPage,
+            ],
+            'agents' => $agents,
             'leads' => Lead::query()
                 ->where('workspace_id', $workspaceId)
                 ->with('contact', 'owner')
@@ -374,7 +474,21 @@ class AdminController extends Controller
 
         $contact->load(['owner', 'identities', 'notes.author']);
 
+        // Agents for the owner picker (parity with inbox transfer dropdown).
+        // Limited to roles that can own contacts.
+        $agents = User::query()
+            ->where('workspace_id', $workspaceId)
+            ->whereIn('role', ['owner', 'admin', 'support_lead', 'support_agent', 'sales'])
+            ->where('status', 'ACTIVE')
+            ->orderBy('name')
+            ->get(['id', 'name', 'display_name'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->display_name ?: $u->name,
+            ]);
+
         return Inertia::render('admin/contact-show', [
+            'agents' => $agents,
             'notes' => $contact->notes
                 ->sortByDesc(fn ($n) => [$n->pinned, $n->created_at])
                 ->values()
@@ -395,6 +509,7 @@ class AdminController extends Controller
                 'status' => $contact->status,
                 'tags' => $contact->tags ?? [],
                 'owner' => $contact->owner?->display_name ?: $contact->owner?->name,
+                'ownerId' => $contact->owner_id,
                 'lastInboundAt' => $contact->last_inbound_at?->diffForHumans(),
                 // Whether a Zalo identity exists — the "refresh Zalo profile" button.
                 'hasZalo' => $contact->identities->contains('provider', 'ZALO_PERSONAL'),

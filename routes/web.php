@@ -56,7 +56,14 @@ Route::middleware(['workspace.required', 'auth', 'verified', 'workspace.member']
         Route::put('api/admin/contacts/{contact}/tags', [ContactController::class, 'updateTags'])->name('admin.contacts.tags');
         Route::get('api/admin/workspaces/{workspace}/tag-vocabulary', [ContactController::class, 'vocabulary'])->name('admin.workspaces.tag-vocabulary');
         Route::post('api/admin/contacts/{contact}/notes', [ContactController::class, 'storeNote'])->name('admin.contacts.notes.store');
+        Route::put('api/admin/contact-notes/{note}', [ContactController::class, 'updateNote'])->name('admin.contacts.notes.update');
         Route::delete('api/admin/contact-notes/{note}', [ContactController::class, 'destroyNote'])->name('admin.contacts.notes.destroy');
+        // Status + owner are sub-resources of contact; intentionally split
+        // from PUT /contacts/{id} so the contact-show UI can update them
+        // granularly without resending the whole contact payload.
+        Route::put('api/admin/contacts/{contact}/status', [ContactController::class, 'updateStatus'])->name('admin.contacts.status');
+        Route::put('api/admin/contacts/{contact}/owner', [ContactController::class, 'updateOwner'])->name('admin.contacts.owner');
+        Route::post('api/admin/contacts/{contact}/leads', [LeadController::class, 'createFromContact'])->name('admin.contacts.leads.store');
         Route::get('admin/leads', [AdminController::class, 'leads'])->name('admin.leads');
         Route::put('api/admin/leads/{lead}/status', [LeadController::class, 'updateStatus'])->name('admin.leads.status');
         Route::get('admin/channels', [AdminController::class, 'channels'])->name('admin.channels');
