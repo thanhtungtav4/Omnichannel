@@ -23,6 +23,10 @@ class Contact extends Model
             'last_contacted_at' => 'datetime',
             'last_inbound_at' => 'datetime',
             'tags' => 'array',
+            // `attributes` is the free-form per-source payload (UTM, referrer,
+            // Mini App event fields, consent page text…). JSONB → array.
+            'attributes' => 'array',
+            'consent_given_at' => 'datetime',
         ];
     }
 

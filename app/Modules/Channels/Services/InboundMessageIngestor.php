@@ -4,12 +4,12 @@ namespace App\Modules\Channels\Services;
 
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\WebhookEvent;
-use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\ExternalIdentity;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\Pipeline;
 use App\Modules\Crm\Models\Stage;
 use App\Modules\Crm\Models\TimelineActivity;
+use App\Modules\Crm\Services\ContactIngestor;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Inbox\Models\MessageAttachment;
@@ -36,6 +36,7 @@ class InboundMessageIngestor
     public function __construct(
         private readonly AssignmentService $assignmentService,
         private readonly ChannelAdapterRegistry $adapterRegistry,
+        private readonly ContactIngestor $contactIngestor,
         private readonly PresenceService $presence,
     ) {}
 
@@ -105,37 +106,44 @@ class InboundMessageIngestor
                 default => $normalized['sender_display_name'],
             };
 
+            // Find-or-create via ContactIngestor (C2 refactor). The ingestor
+            // handles identity match, contact match, create, identity attach,
+            // dedup, owner resolution, and timeline record. The post-match
+            // updates below are channel-specific (group name upgrade, etc.)
+            // and stay here.
+            //
+            // ponytail: this call participates in the surrounding DB::transaction
+            // — if anything later in this closure fails, the contact row rolls
+            // back too. ContactIngestor doesn't open its own transaction.
+            $contact = $this->contactIngestor->ingest([
+                'workspace_id' => $account->workspace_id,
+                'source' => $account->provider,
+                'full_name' => $displayName,
+                'avatar_url' => $isGroup ? null : $normalized['sender_avatar_url'],
+                'external_identity' => [
+                    'provider' => $account->provider,
+                    'provider_account_id' => $account->id,
+                    'provider_user_id' => $identityKey,
+                    'display_name' => $displayName,
+                    'avatar_url' => $isGroup ? null : $normalized['sender_avatar_url'],
+                ],
+                'last_inbound_at' => $normalized['provider_timestamp'],
+                // Use the provider idempotency key as the ingest event id
+                // so a redelivered webhook doesn't double-write the contact.
+                'ingest_event_id' => $normalized['idempotency_key'] ?? null,
+            ]);
+
+            // The ingestor attached the identity (or reused an existing one).
+            // Reload it for the post-match updates below — the ingestor's
+            // returned Contact is fresh, but we still need the identity row
+            // for fields not surfaced on Contact (provider_chat_id,
+            // raw_profile).
             $identity = ExternalIdentity::query()
                 ->where('workspace_id', $account->workspace_id)
                 ->where('provider', $account->provider)
                 ->where('provider_account_id', $account->id)
                 ->where('provider_user_id', $identityKey)
-                ->first();
-
-            $contact = $identity?->contact;
-
-            if (! $contact) {
-                $contact = Contact::create([
-                    'workspace_id' => $account->workspace_id,
-                    'full_name' => $displayName,
-                    'avatar_url' => $isGroup ? null : $normalized['sender_avatar_url'],
-                    'source' => $account->provider,
-                    'last_inbound_at' => $normalized['provider_timestamp'],
-                ]);
-
-                $identity = ExternalIdentity::create([
-                    'workspace_id' => $account->workspace_id,
-                    'contact_id' => $contact->id,
-                    'provider' => $account->provider,
-                    'provider_account_id' => $account->id,
-                    'provider_user_id' => $identityKey,
-                    'provider_chat_id' => $normalized['provider_chat_id'],
-                    'display_name' => $displayName,
-                    'avatar_url' => $isGroup ? null : $normalized['sender_avatar_url'],
-                    'raw_profile' => $normalized['raw_profile'],
-                    'last_seen_at' => $normalized['provider_timestamp'],
-                ]);
-            }
+                ->firstOrFail();
 
             // Only refresh the identity's name/avatar from a REAL customer message
             // (normal inbound). A self message carries our nick's name, and a group
