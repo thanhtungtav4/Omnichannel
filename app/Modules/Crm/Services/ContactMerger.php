@@ -2,6 +2,7 @@
 
 namespace App\Modules\Crm\Services;
 
+use App\Modules\Crm\Events\ContactsMerged;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\ContactNote;
 use App\Modules\Crm\Models\ExternalIdentity;
@@ -167,6 +168,16 @@ final class ContactMerger
                     'diffs' => $diffs,
                 ],
             ]);
+
+            // Domain event fires AFTER the audit row so listeners (e.g.
+            // Mini App re-engagement) can rely on the audit being
+            // visible when they read it. Best-effort — the merge
+            // already committed; notify failures must not surface.
+            ContactsMerged::dispatch(
+                $winnerId,
+                (string) $winner->workspace_id,
+                $loserIds,
+            );
 
             return $winner->fresh();
         });

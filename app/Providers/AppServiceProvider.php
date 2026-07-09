@@ -6,8 +6,10 @@ use App\Http\Middleware\AppFrameGuard;
 use App\Modules\Channels\Events\OutboundMessageDelivered;
 use App\Modules\Channels\Events\OutboundMessageFailed;
 use App\Modules\Crm\Events\ContactArchived;
+use App\Modules\Crm\Events\ContactsMerged;
 use App\Modules\Crm\Events\LeadStatusChanged;
 use App\Modules\Crm\Listeners\NotifyContactOnContactArchived;
+use App\Modules\Crm\Listeners\NotifyContactOnContactsMerged;
 use App\Modules\Crm\Listeners\NotifyContactOnLeadStatusChanged;
 use App\Modules\Inbox\Listeners\SyncOutboundMessageResult;
 use App\Modules\Platform\Tenancy\CurrentWorkspace;
@@ -58,6 +60,10 @@ class AppServiceProvider extends ServiceProvider
         // OA identity, so the cost is one extra dispatch per lead move.
         Event::listen(LeadStatusChanged::class, [NotifyContactOnLeadStatusChanged::class, 'handle']);
         Event::listen(ContactArchived::class, [NotifyContactOnContactArchived::class, 'handle']);
+        // Merge follow-through (spec 15 § C5). Tells the surviving
+        // contact "your accounts have been combined" — same best-effort
+        // posture as the others.
+        Event::listen(ContactsMerged::class, [NotifyContactOnContactsMerged::class, 'handle']);
     }
 
     /**
@@ -139,5 +145,22 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(1000)->by($key);
         });
+    }
+
+    /**
+     * Programmatic limiter for Mini App template-send attempts (spec 15 §
+     * C4 outbound safety). Keyed by workspace id so a misbehaving
+     * listener (or a runaway script) can't drown Zalo's API quota. 60
+     * sends/min/workspace is generous for our trigger surfaces
+     * (LeadStatusChanged + ContactArchived) but blocks floods.
+     *
+     * The limiter is checked from MiniAppOutboundNotifier (in-process,
+     * not a middleware) because the call is fire-and-forget — we don't
+     * want a 429 response to surface; we want a silent drop with a
+     * FAILED audit row so ops sees the trail.
+     */
+    public static function miniappOutboundLimit(): int
+    {
+        return 60;
     }
 }

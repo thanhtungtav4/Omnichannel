@@ -8,7 +8,9 @@ use App\Modules\Channels\Models\OutboundMiniAppNotification;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Platform\Models\Workspace;
 use App\Modules\Platform\Services\WorkspaceSettings;
+use App\Providers\AppServiceProvider;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * CRM → Mini App re-engagement chokepoint (spec 15 § C4).
@@ -72,6 +74,20 @@ class MiniAppOutboundNotifier
 
             return null;
         }
+
+        // 4. Per-workspace rate limit (spec 15 § C4 outbound safety).
+        //    Keyed by workspace_id, not contact_id, because a misbehaving
+        //    trigger surface (e.g. a script firing LeadStatusChanged in a
+        //    loop) would otherwise burn through the bucket per-contact.
+        //    Runs LAST so a workspace without a configured OA isn't
+        //    punished for its first N attempts.
+        $rateKey = 'miniapp:outbound:'.$contact->workspace_id;
+        if (RateLimiter::tooManyAttempts($rateKey, AppServiceProvider::miniappOutboundLimit())) {
+            $this->auditNoOp($contact, $templateCode, 'rate_limited');
+
+            return null;
+        }
+        RateLimiter::hit($rateKey, 60);
 
         // 4. Queue the audit row + dispatch the job.
         $row = OutboundMiniAppNotification::create([
