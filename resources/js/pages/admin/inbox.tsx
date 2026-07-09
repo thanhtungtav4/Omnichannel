@@ -581,7 +581,7 @@ export default function Inbox({
                             </div>
 
                             <div className="flex flex-col gap-3 border-b p-3">
-                                <InputGroup>
+                                <InputGroup className="bg-background">
                                     <InputGroupInput
                                         value={query}
                                         onChange={(event) =>
