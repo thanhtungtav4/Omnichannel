@@ -1,6 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
-    AlertTriangle,
     InboxIcon,
     LoaderCircle,
     MessageCircleX,
@@ -579,40 +578,6 @@ export default function Inbox({
                                     )}
                                 </Button>
                             </div>
-
-                            {/* Blockers banner (mockup §3.5): pinned at the
-                                top of the queue so failed / unassigned counts
-                                are the first thing the operator sees. Hidden
-                                when both counters are 0. */}
-                            {(stats.failedOutbox > 0 ||
-                                stats.unassigned > 0) && (
-                                <div
-                                    data-test="queue-alert"
-                                    className="flex flex-col gap-1 border-b bg-[var(--status-danger-bg)] px-3 py-2 text-xs text-[var(--status-danger-fg)]"
-                                >
-                                    <div className="flex items-center gap-1.5 font-semibold">
-                                        <AlertTriangle className="size-3.5" />
-                                        <span>Cản xử lý</span>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">
-                                        {stats.failedOutbox > 0 && (
-                                            <span>
-                                                {stats.failedOutbox} tin gửi đi
-                                                lỗi
-                                            </span>
-                                        )}
-                                        {stats.failedOutbox > 0 &&
-                                            stats.unassigned > 0 && (
-                                                <span aria-hidden>·</span>
-                                            )}
-                                        {stats.unassigned > 0 && (
-                                            <span>
-                                                {stats.unassigned} cuộc chưa gán
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
 
                             <div className="flex flex-col gap-3 border-b p-3">
                                 <InputGroup className="bg-background">
