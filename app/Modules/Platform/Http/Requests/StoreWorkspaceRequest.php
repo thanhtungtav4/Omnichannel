@@ -15,6 +15,15 @@ class StoreWorkspaceRequest extends FormRequest
         return (bool) $this->user()?->is_platform_admin;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('owner_email')) {
+            $this->merge([
+                'owner_email' => strtolower(trim((string) $this->input('owner_email'))),
+            ]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
