@@ -9,9 +9,7 @@ use App\Modules\Crm\Services\Ingest\IdentityMatcher;
 use App\Modules\Crm\Services\Ingest\OwnerResolver;
 use App\Modules\Crm\Services\Ingest\TimelineWriter;
 use App\Modules\Platform\Models\Workspace;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Single chokepoint for creating or matching a Contact across every
@@ -31,6 +29,16 @@ use Illuminate\Support\Facades\Log;
  */
 final class ContactIngestor
 {
+    /** Public-source constants — used for per-source validation rules. */
+    public const SOURCE_WEBSITE_FORM = 'WEBSITE_FORM';
+
+    public const SOURCE_ZALO_MINIAPP = 'ZALO_MINIAPP';
+
+    public const ALLOWED_PUBLIC_SOURCES = [
+        self::SOURCE_WEBSITE_FORM,
+        self::SOURCE_ZALO_MINIAPP,
+    ];
+
     public function __construct(
         private readonly IdentityMatcher $identities,
         private readonly OwnerResolver $owners,
@@ -58,6 +66,19 @@ final class ContactIngestor
      */
     public function ingest(array $payload): Contact
     {
+        return $this->ingestWithStatus($payload)['contact'];
+    }
+
+    /**
+     * Same flow as ingest() but exposes the outcome flags so callers can
+     * tell dedup-hit / matched-update / new-create apart (the public
+     * ingest endpoint uses this to return 201 vs 200).
+     *
+     * @param  array<string, mixed>  $payload  same shape as ingest()
+     * @return array{contact: Contact, created: bool, dedup_hit: bool}
+     */
+    public function ingestWithStatus(array $payload): array
+    {
         // ---- 1. dedup ----------------------------------------------------
         // If the same (source, source_event_id) was already ingested, return
         // the contact that owns it. We deliberately do NOT throw — callers
@@ -65,7 +86,7 @@ final class ContactIngestor
         // writing the message/conversation against the same row.
         $dedup = $this->dedupHit($payload);
         if ($dedup !== null) {
-            return $dedup;
+            return ['contact' => $dedup, 'created' => false, 'dedup_hit' => true];
         }
 
         // ---- 2. match ----------------------------------------------------
@@ -132,7 +153,7 @@ final class ContactIngestor
             $this->timeline->recordIngest($contact, $payload);
         }
 
-        return $contact->fresh();
+        return ['contact' => $contact->fresh(), 'created' => $isNew, 'dedup_hit' => false];
     }
 
     /**
@@ -249,9 +270,11 @@ final class ContactIngestor
      */
     private function recordIngestEvent(Contact $contact, array $payload): void
     {
-        // sha256 of the canonical payload. Only the keys that influence
-        // contact creation, not headers/IP/UA which can legitimately vary
-        // across retries.
+        // sha256 of the canonical payload. Public ingest callers (Cut 3) pass
+        // `client_attributes` separately from server-augmented `attributes`
+        // so retries with the same client payload hash identically. Older
+        // paths (Zalo/Telegram webhook) only carry `attributes` — we hash
+        // on whatever's in `client_attributes`, falling back to `attributes`.
         $hashable = [
             'source' => $payload['source'],
             'source_detail' => $payload['source_detail'] ?? null,
@@ -259,7 +282,7 @@ final class ContactIngestor
             'phone' => $payload['phone'] ?? null,
             'email' => $payload['email'] ?? null,
             'external_identity' => $payload['external_identity'] ?? null,
-            'attributes' => $payload['attributes'] ?? [],
+            'attributes' => $payload['client_attributes'] ?? ($payload['attributes'] ?? []),
         ];
         $hash = hash('sha256', json_encode($hashable, JSON_THROW_ON_ERROR));
 

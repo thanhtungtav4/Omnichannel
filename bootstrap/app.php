@@ -46,6 +46,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.admin' => EnsurePlatformAdmin::class,
             'shopee.signature' => \App\Modules\Channels\Http\Middleware\VerifyShopeeSignature::class,
             'tiktok.signature' => \App\Modules\Channels\Http\Middleware\VerifyTikTokSignature::class,
+            // Public contact-ingest auth + signature (spec 15 § C3).
+            'ingest.token' => \App\Modules\Crm\Http\Middleware\PinWorkspaceFromToken::class,
+            'ingest.source' => \App\Modules\Crm\Http\Middleware\EnsureIngestSourceAllowed::class,
+            'ingest.signature' => \App\Modules\Crm\Http\Middleware\VerifyIngestSignature::class,
         ]);
 
         // Runs before auth on every web request. Tenant hosts get pinned (or
@@ -66,8 +70,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Provider webhooks come from external servers/the sidecar and carry no
-        // CSRF token; they authenticate via secret header instead.
-        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+        // CSRF token; they authenticate via secret header instead. Same
+        // exception applies to the public contact-ingest endpoint — it
+        // authenticates via X-Workspace-Key (form) or HMAC (Mini App).
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'api/public/*']);
 
         // Behind nginx on the VPS: trust the reverse proxy so Laravel sees the
         // real client IP and https scheme (needed for correct webhook URLs).

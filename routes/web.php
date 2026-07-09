@@ -7,7 +7,9 @@ use App\Modules\Channels\Http\Controllers\ProviderWebhookController;
 use App\Modules\Channels\Http\Controllers\ShopeeOAuthController;
 use App\Modules\Channels\Http\Controllers\TikTokOAuthController;
 use App\Modules\Crm\Http\Controllers\ContactController;
+use App\Modules\Crm\Http\Controllers\IngestTokenAdminController;
 use App\Modules\Crm\Http\Controllers\LeadController;
+use App\Modules\Crm\Http\Controllers\PublicIngestController;
 use App\Modules\Inbox\Http\Controllers\ConversationActionController;
 use App\Modules\Platform\Http\Controllers\PlatformAdminController;
 use App\Modules\Routing\Http\Controllers\PresenceController;
@@ -68,6 +70,25 @@ Route::middleware(['workspace.required', 'auth', 'verified', 'workspace.member']
         Route::put('api/admin/leads/{lead}/status', [LeadController::class, 'updateStatus'])->name('admin.leads.status');
         Route::get('admin/channels', [AdminController::class, 'channels'])->name('admin.channels');
         Route::get('admin/routing', [AdminController::class, 'routing'])->name('admin.routing');
+
+        // Contact ingest token management (spec 15 § C3). Same RBAC as channel
+        // accounts — owner/admin only. Settings page is the Inertia route;
+        // the JSON endpoints back the buttons (mint/revoke/rotate).
+        //
+        // The {tokenId} routes use a raw UUID segment (NOT route-model
+        // binding) because the WorkspaceScope would 404 a cross-workspace
+        // token lookup. The controller resolves the token explicitly with
+        // withoutWorkspaceScope() and 403s on workspace mismatch.
+        Route::get('admin/settings/integrations', [IngestTokenAdminController::class, 'index'])
+            ->name('admin.settings.integrations');
+        Route::get('api/admin/ingest-tokens', [IngestTokenAdminController::class, 'list'])
+            ->name('admin.ingest-tokens.index');
+        Route::post('api/admin/ingest-tokens', [IngestTokenAdminController::class, 'store'])
+            ->name('admin.ingest-tokens.store');
+        Route::delete('api/admin/ingest-tokens/{tokenId}', [IngestTokenAdminController::class, 'destroy'])
+            ->name('admin.ingest-tokens.destroy');
+        Route::post('api/admin/ingest-tokens/{tokenId}/rotate', [IngestTokenAdminController::class, 'rotate'])
+            ->name('admin.ingest-tokens.rotate');
 
         Route::post('api/admin/mock/inbound', MockInboundController::class)->name('admin.mock-inbound');
 
@@ -138,5 +159,27 @@ if (config('tenant.webhook_host')) {
 } else {
     $webhookRoutes();
 }
+
+// Public contact-ingest endpoint (specs/15 § C3). OUTSIDE the tenant auth
+// stack — no workspace.member, no auth middleware. The workspace is
+// resolved from X-Workspace-Key by the ingest.token middleware. CSRF is
+// already exempted for this path in bootstrap/app.php.
+//
+// Middleware order matters:
+//   1. ingest.token         — authenticate + pin workspace
+//   2. throttle:ingest.token — per-token rate limit (uses the resolved token)
+//   3. throttle:ingest.workspace — per-workspace total rate limit (defense in depth)
+//   4. ingest.source        — verify X-Source is in token.allowed_sources (403)
+//   5. ingest.signature     — HMAC verify (only enforced when source = ZALO_MINIAPP)
+Route::middleware([
+    'ingest.token',
+    'throttle:ingest.token',
+    'throttle:ingest.workspace',
+    'ingest.source',
+    'ingest.signature',
+])->group(function () {
+    Route::post('api/public/ingest/contact', [PublicIngestController::class, 'ingest'])
+        ->name('public.ingest.contact');
+});
 
 require __DIR__.'/settings.php';

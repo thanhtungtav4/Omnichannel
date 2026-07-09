@@ -60,6 +60,7 @@ const navSections: NavSection[] = [
                 icon: Plug,
                 badge: { count: 0, tone: 'warn' },
             },
+            { title: 'Tích hợp', href: '/admin/settings/integrations', icon: Plug },
         ],
     },
     {
