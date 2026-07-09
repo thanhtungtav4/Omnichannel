@@ -323,7 +323,7 @@ export function ThreadPanel({
     return (
         <section className="flex min-h-0 flex-col overflow-hidden">
             <header className="flex shrink-0 items-center justify-between gap-2 border-b p-3">
-                <div className="flex min-w-0 items-center gap-3">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                     <Link
                         href="/admin/inbox"
                         preserveScroll={false}
@@ -333,7 +333,7 @@ export function ThreadPanel({
                     >
                         <ArrowLeft className="size-5" />
                     </Link>
-                    <Avatar className="size-10">
+                    <Avatar className="size-8 shrink-0 sm:size-10">
                         {activeConversation.contact?.avatarUrl && (
                             <AvatarImage
                                 src={activeConversation.contact.avatarUrl}
@@ -342,11 +342,11 @@ export function ThreadPanel({
                         )}
                         <AvatarFallback>{initials(name)}</AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
-                        <h2 className="truncate text-base font-semibold">
+                    <div className="min-w-0 flex-1">
+                        <h2 className="truncate text-sm font-semibold sm:text-base">
                             {name}
                         </h2>
-                        <div className="flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground">
+                        <div className="flex min-w-0 flex-col gap-0.5 text-[11px] text-muted-foreground sm:text-xs">
                             {/* Row 1: channel dot + label. */}
                             <div className="flex min-w-0 items-center gap-1.5">
                                 {/* Compact channel dot (mockup). Hover shows full name. */}
