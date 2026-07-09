@@ -10,6 +10,7 @@ use App\Modules\Crm\Services\ContactIngestor;
 use App\Modules\Platform\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -51,7 +52,18 @@ class PublicIngestController extends Controller
         // Origin / Referer whitelist. Empty = no check.
         if (! empty($token->domain_whitelist)) {
             $origin = (string) ($request->header('Origin') ?? $request->header('Referer') ?? '');
-            if (! $this->originMatches($origin, (string) $token->domain_whitelist)) {
+            if ($origin === '') {
+                // Whitelist set but caller sent no Origin / Referer —
+                // common for server-to-server Mini App calls. We allow
+                // it through (the token secret + HMAC are the real auth)
+                // but log a warning so ops can spot misconfigured
+                // browser forms.
+                Log::warning('Ingest: token has domain_whitelist but caller sent no Origin/Referer', [
+                    'token_id' => $token->id,
+                    'source' => $source,
+                    'ip' => $request->ip(),
+                ]);
+            } elseif (! $this->originMatches($origin, (string) $token->domain_whitelist)) {
                 $this->recordFailure($request, $token, $source, ['origin' => $origin], 'Origin not in whitelist');
 
                 return $this->errorJson(403, 'ORIGIN_NOT_ALLOWED', 'Origin not in token whitelist.');
@@ -79,7 +91,7 @@ class PublicIngestController extends Controller
             ], 422);
         }
 
-// Build the canonical attribute shape BEFORE collision check —
+        // Build the canonical attribute shape BEFORE collision check —
         // payloadHash must mirror what ContactIngestor stores, otherwise a
         // retry of the exact same payload looks like a collision (409).
         $clientAttributes = $data['attributes'] ?? [];
