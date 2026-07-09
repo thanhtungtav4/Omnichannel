@@ -65,6 +65,11 @@ import {
     SheetTrigger,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, AgentOption } from '@/types';
 import {
@@ -445,7 +450,7 @@ export function ThreadPanel({
                 {/* Actions: mockup splits header-right into a context-group
                     (SLA + priority signals) and an action-group (buttons),
                     separated by a divider. */}
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5">
                     <div className="flex items-center gap-1.5">
                         {/* SLA countdown pill — visible on every open conversation
                             so the operator can see at a glance whether they're
@@ -460,20 +465,27 @@ export function ThreadPanel({
                         <PriorityDot priority={activeConversation.priority} />
                     </div>
 
-                    <div className="flex items-center gap-1 border-l pl-2">
+                    <div className="flex items-center gap-0.5 border-l pl-2">
                         {/* Transfer — opens the assign sheet (mockup header "Chuyển").
                         Replaces the wide inline owner Select to keep the header
                         on a single compact row. */}
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 px-2 text-xs"
-                            onClick={() => setTransferOpen(true)}
-                        >
-                            <UserRoundCheck data-icon="inline-start" />
-                            Chuyển
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-9"
+                                    onClick={() => setTransferOpen(true)}
+                                    aria-label="Chuyển hội thoại"
+                                >
+                                    <UserRoundCheck className="size-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                                Chuyển hội thoại
+                            </TooltipContent>
+                        </Tooltip>
 
                         {/* Mobile-only customer info sheet trigger. */}
                         <Sheet>
@@ -582,27 +594,41 @@ export function ThreadPanel({
                         />
 
                         {activeConversation.status === 'CLOSED' ? (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5 px-2 text-xs"
-                                onClick={onReopenConversation}
-                            >
-                                <RotateCcw data-icon="inline-start" />
-                                Mở lại
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-9"
+                                        onClick={onReopenConversation}
+                                        aria-label="Mở lại hội thoại"
+                                    >
+                                        <RotateCcw className="size-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    Mở lại hội thoại
+                                </TooltipContent>
+                            </Tooltip>
                         ) : (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5 px-2 text-xs"
-                                onClick={onCloseConversation}
-                            >
-                                <CheckCircle2 data-icon="inline-start" />
-                                Đóng
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-9"
+                                        onClick={onCloseConversation}
+                                        aria-label="Đóng hội thoại"
+                                    >
+                                        <CheckCircle2 className="size-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    Đóng hội thoại
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                     </div>
                 </div>
@@ -1113,12 +1139,12 @@ function SlaPill({
         <span
             title="Phản hồi đầu tiên SLA"
             className={cn(
-                'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 [font-family:var(--font-mono)] text-[11px] font-semibold [font-variant-numeric:tabular-nums]',
+                'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5 [font-family:var(--font-mono)] text-[11px] font-semibold [font-variant-numeric:tabular-nums]',
                 toneCls,
             )}
         >
-            <Timer className="size-2.5" />
-            {text}
+            <Timer className="size-2.5 shrink-0" />
+            <span>{text}</span>
         </span>
     );
 }
@@ -1140,6 +1166,10 @@ function slaText(state: string, secs: number): string {
 }
 
 /* ── Priority dot (compact version of StatusBadge — mockup) ───────────────── */
+// Mockup: priority shows as a single colored dot (no label text in the header
+// strip — the label would compete with the SLA pill + action buttons for the
+// already-crowded header at 1024px). Label is preserved in the tooltip so
+// agents still get the meaning on hover.
 function PriorityDot({ priority }: { priority: string }) {
     const map: Record<
         string,
@@ -1158,16 +1188,23 @@ function PriorityDot({ priority }: { priority: string }) {
     }[entry.tone];
 
     return (
-        <span
-            title={`Ưu tiên: ${entry.label}`}
-            className={cn(
-                'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-semibold',
-                toneCls,
-            )}
-        >
-            <span className="size-1.5 rounded-full bg-current" />
-            {entry.label}
-        </span>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span
+                    aria-label={`Ưu tiên: ${entry.label}`}
+                    className={cn(
+                        'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] font-semibold',
+                        toneCls,
+                    )}
+                >
+                    <span className="size-1.5 rounded-full bg-current" />
+                    <span className="hidden xl:inline">{entry.label}</span>
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+                Ưu tiên: {entry.label}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 
