@@ -121,28 +121,50 @@ export function ThreadPanel({
     const activeId = activeConversation?.id;
     const prevCountRef = useRef(messageCount);
 
-    // Auto-scroll to the newest message. On opening a conversation jump
-    // instantly (auto); a later new message glides (smooth). rAF waits for the
-    // messages to paint so the scroll lands at the true bottom.
+    // Auto-scroll behaviour:
+    //  - Opening a conversation: always jump to the newest message (instant).
+    //  - A later new message: only glide down if the user is already at the
+    //    bottom (i.e. reading live). If they've scrolled up to read history we
+    //    leave them there and surface the "Xuống cuối" button instead.
+    // atBottomRef mirrors the atBottom state so this effect reads the latest
+    // value without re-subscribing.
     const justOpenedRef = useRef(true);
+    const atBottomRef = useRef(true);
     useEffect(() => {
         justOpenedRef.current = true;
     }, [activeId]);
     useEffect(() => {
-        const behavior = justOpenedRef.current ? 'auto' : 'smooth';
+        const opened = justOpenedRef.current;
         justOpenedRef.current = false;
+
+        // Skip live-scroll when the user is reading older messages.
+        if (!opened && !atBottomRef.current) {
+            return;
+        }
+
+        const behavior = opened ? 'auto' : 'smooth';
         requestAnimationFrame(() => {
             threadEndRef.current?.scrollIntoView({ behavior, block: 'end' });
         });
     }, [messageCount, activeId]);
 
-    // Toast when a new inbound message arrives.
+    // Count of new messages that arrived while the user was scrolled up, so
+    // the "Xuống cuối" button can show a badge. Reset to 0 whenever we're back
+    // at the bottom.
+    const [unseenCount, setUnseenCount] = useState(0);
+
+    // Toast when a new inbound message arrives; track unseen if scrolled up.
     useEffect(() => {
         if (messageCount > prevCountRef.current) {
+            const added = messageCount - prevCountRef.current;
             const last = activeConversation?.messages[messageCount - 1];
 
             if (last?.direction === 'INBOUND') {
                 toast(`Tin mới: ${last.body ?? ''}`.slice(0, 80));
+            }
+
+            if (!atBottomRef.current) {
+                setUnseenCount((c) => c + added);
             }
         }
 
@@ -162,13 +184,23 @@ export function ThreadPanel({
 
         const root = el.closest('[data-radix-scroll-area-viewport]');
         const io = new IntersectionObserver(
-            ([entry]) => setAtBottom(entry.isIntersecting),
+            ([entry]) => {
+                atBottomRef.current = entry.isIntersecting;
+                setAtBottom(entry.isIntersecting);
+            },
             { root, threshold: 0.1 },
         );
         io.observe(el);
 
         return () => io.disconnect();
     }, [activeId]);
+
+    // Clear the unseen badge once the user returns to the bottom.
+    useEffect(() => {
+        if (atBottom) {
+            setUnseenCount(0);
+        }
+    }, [atBottom]);
 
     // Older messages loaded on scroll-up, kept in local state and prepended to
     // the server-provided page. Reset when the conversation changes.
@@ -614,17 +646,20 @@ export function ThreadPanel({
                     {!atBottom && (
                         <Button
                             type="button"
-                            variant="outline"
+                            variant={unseenCount > 0 ? 'default' : 'outline'}
                             size="sm"
                             className="absolute bottom-24 left-1/2 z-10 min-h-11 -translate-x-1/2 rounded-full shadow-md sm:min-h-8"
-                            onClick={() =>
+                            onClick={() => {
+                                setUnseenCount(0);
                                 threadEndRef.current?.scrollIntoView({
                                     behavior: 'smooth',
-                                })
-                            }
+                                });
+                            }}
                         >
                             <ChevronDown data-icon="inline-start" />
-                            Xuống cuối
+                            {unseenCount > 0
+                                ? `${unseenCount} tin mới`
+                                : 'Xuống cuối'}
                         </Button>
                     )}
                     <ScrollArea className="min-h-0 w-full min-w-0 flex-1 p-4">
