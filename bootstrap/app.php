@@ -2,6 +2,12 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Modules\Channels\Http\Middleware\EnsureLoopbackSidecarWebhook;
+use App\Modules\Channels\Http\Middleware\VerifyShopeeSignature;
+use App\Modules\Channels\Http\Middleware\VerifyTikTokSignature;
+use App\Modules\Crm\Http\Middleware\EnsureIngestSourceAllowed;
+use App\Modules\Crm\Http\Middleware\PinWorkspaceFromToken;
+use App\Modules\Crm\Http\Middleware\VerifyIngestSignature;
 use App\Modules\Platform\Http\Middleware\EnsurePlatformAdmin;
 use App\Modules\Platform\Http\Middleware\EnsureUserBelongsToWorkspace;
 use App\Modules\Platform\Http\Middleware\RequireWorkspace;
@@ -14,6 +20,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -38,18 +45,32 @@ return Application::configure(basePath: dirname(__DIR__))
             prepend: ResolveWorkspaceFromChannel::class,
         );
 
+        // PinWorkspaceFromToken must run BEFORE ThrottleRequests. ThrottleRequests
+        // is in the default priority list, so the named `throttle:ingest.token`
+        // limiter on the public ingest route resolves the limit BEFORE the
+        // `ingest.token` middleware sets the request attribute, falling back to
+        // the 60/IP cap and ignoring each token's `rate_limit_per_minute`. By
+        // putting PinWorkspaceFromToken at the top of the priority list we
+        // guarantee the token (and therefore the per-token limit) is resolved
+        // first.
+        $middleware->prependToPriorityList(
+            before: ThrottleRequests::class,
+            prepend: PinWorkspaceFromToken::class,
+        );
+
         $middleware->alias([
             'workspace' => ResolveWorkspace::class,
             'workspace.member' => EnsureUserBelongsToWorkspace::class,
             'workspace.required' => RequireWorkspace::class,
             'workspace.channel' => ResolveWorkspaceFromChannel::class,
+            'sidecar.loopback' => EnsureLoopbackSidecarWebhook::class,
             'platform.admin' => EnsurePlatformAdmin::class,
-            'shopee.signature' => \App\Modules\Channels\Http\Middleware\VerifyShopeeSignature::class,
-            'tiktok.signature' => \App\Modules\Channels\Http\Middleware\VerifyTikTokSignature::class,
+            'shopee.signature' => VerifyShopeeSignature::class,
+            'tiktok.signature' => VerifyTikTokSignature::class,
             // Public contact-ingest auth + signature (spec 15 § C3).
-            'ingest.token' => \App\Modules\Crm\Http\Middleware\PinWorkspaceFromToken::class,
-            'ingest.source' => \App\Modules\Crm\Http\Middleware\EnsureIngestSourceAllowed::class,
-            'ingest.signature' => \App\Modules\Crm\Http\Middleware\VerifyIngestSignature::class,
+            'ingest.token' => PinWorkspaceFromToken::class,
+            'ingest.source' => EnsureIngestSourceAllowed::class,
+            'ingest.signature' => VerifyIngestSignature::class,
         ]);
 
         // Runs before auth on every web request. Tenant hosts get pinned (or
