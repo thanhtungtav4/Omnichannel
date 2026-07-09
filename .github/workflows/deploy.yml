@@ -52,3 +52,10 @@ jobs:
             sudo -u www-data php8.4 artisan cache:clear
             sudo -u www-data php8.4 artisan route:clear
             sudo -u www-data php8.4 artisan view:clear
+
+            # Reload the queue worker so it picks up the new code. Outbound
+            # message delivery (SendChannelMessageJob) runs on the queue, so a
+            # stale/absent worker means replies stay QUEUED and never reach the
+            # provider. The worker itself must be supervised (see
+            # deploy/supervisor/crm-queue.conf).
+            sudo -u www-data php8.4 artisan queue:restart

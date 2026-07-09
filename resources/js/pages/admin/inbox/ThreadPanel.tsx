@@ -872,14 +872,6 @@ export function ThreadPanel({
                                         <Zap />
                                     </Button>
                                     <div className="flex-1" />
-                                    <span className="hidden items-center gap-1 [font-family:var(--font-mono)] text-[11px] text-muted-foreground sm:flex">
-                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                                            ⌘
-                                        </kbd>
-                                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                                            Enter
-                                        </kbd>
-                                    </span>
                                     <Button
                                         type="submit"
                                         disabled={
