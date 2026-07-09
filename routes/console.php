@@ -2,7 +2,9 @@
 
 use App\Modules\Channels\Jobs\RefreshZaloAccessTokenJob;
 use App\Modules\Channels\Models\ChannelAccount;
+use App\Modules\Channels\Services\RefreshShopeeAccessTokenScheduler;
 use App\Modules\Channels\Services\TelegramWebhookRegistrar;
+use App\Modules\Crm\Jobs\AggregateDailyStatsJob;
 use App\Modules\Inbox\Services\ConversationSlaMonitor;
 use App\Modules\Routing\Models\AgentPresence;
 use Illuminate\Foundation\Inspiring;
@@ -34,12 +36,29 @@ Schedule::call(function () {
         });
 })->everyFifteenMinutes();
 
+// Refresh Shopee Chat VN access tokens before they expire (specs/11 § Token
+// lifecycle). Shopee access_token TTL is 4h; without this scheduler the token
+// silently dies after 4h and every inbound webhook + outbound send fails with
+// 401. Logic lives in RefreshShopeeAccessTokenScheduler so it's directly
+// unit-testable without faking the scheduler.
+Schedule::call(fn () => RefreshShopeeAccessTokenScheduler::run())
+    ->everyFifteenMinutes()
+    ->name('shopee-refresh-access-tokens');
+
 // SLA sweep: flag conversations past their response target, and re-attempt
 // assignment for anyone stuck waiting for an agent (assign failed at ingest
 // because no agent was eligible, or the owner went offline since).
 Schedule::call(function () {
     app(ConversationSlaMonitor::class)->sweep();
 })->everyMinute();
+
+// Aggregate the previous UTC day's stats into workspace_daily_stats
+// (spec 15 § Cross-cutting observability). Runs at 00:05 UTC so the
+// day boundary is unambiguous; idempotent on (workspace_id, stat_date)
+// so a re-run on the same day just refreshes the row.
+Schedule::call(fn () => AggregateDailyStatsJob::forYesterday()->dispatch())
+    ->dailyAt('00:05')
+    ->name('aggregate-daily-stats');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
