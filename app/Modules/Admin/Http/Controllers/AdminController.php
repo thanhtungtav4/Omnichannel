@@ -8,6 +8,7 @@ use App\Modules\Admin\Services\AdminDashboardService;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
 use App\Modules\Channels\Models\WebhookEvent;
+use App\Modules\Channels\Services\ZaloThreadHistorySyncService;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Inbox\Models\Conversation;
@@ -91,7 +92,7 @@ class AdminController extends Controller
             // latest thread doesn't burst-sync on every page load.
             // See ZaloThreadHistorySyncService for the heuristic.
             if ($request->query('conversation') !== null) {
-                app(\App\Modules\Channels\Services\ZaloThreadHistorySyncService::class)
+                app(ZaloThreadHistorySyncService::class)
                     ->maybeTrigger($conversation);
             }
 
@@ -210,7 +211,6 @@ class AdminController extends Controller
                         ->where('last_seen_at', '>=', now()->subSeconds(90))
                         ->exists(),
                 ] : null,
-                'isGroup' => (bool) $conversation->is_group,
                 'hasMoreMessages' => $hasMore,
                 'messages' => $threadMessages->map(fn ($message) => [
                     'id' => $message->id,

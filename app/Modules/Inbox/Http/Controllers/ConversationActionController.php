@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ConversationActionController extends Controller
 {
@@ -88,107 +89,126 @@ class ConversationActionController extends Controller
         $lastMessageId = null;
         $queuedOutboxIds = [];
 
-        DB::transaction(function () use (
-            $conversation,
-            $request,
-            $imageFiles,
-            $body,
-            $recipient,
-            &$lastMessageId,
-            &$queuedOutboxIds,
-        ) {
-            $totalImages = count($imageFiles);
-            $provider = $conversation->channelAccount->provider;
+        // Persist uploads to disk BEFORE the DB transaction. Writing files
+        // inside the transaction leaks them on rollback (the DB unwinds, the
+        // disk doesn't). We stage them here, keep the relative paths, and clean
+        // up on any failure below.
+        $storedImages = [];
+        foreach ($imageFiles as $index => $file) {
+            $relative = $file->store('outbound/'.now()->format('Y/m/d'), 'public');
+            $storedImages[] = [
+                'relative' => $relative,
+                'url' => asset('storage/'.$relative),
+                'path' => storage_path('app/public/'.$relative),
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'caption' => $index === 0 ? $body : '',
+            ];
+        }
 
-            // If there are no images, keep the legacy single-message path so
-            // existing tests/contracts for text-only replies stay intact.
-            if ($totalImages === 0) {
-                $message = Message::create([
-                    'workspace_id' => $conversation->workspace_id,
-                    'conversation_id' => $conversation->id,
-                    'channel_account_id' => $conversation->channel_account_id,
-                    'direction' => 'OUTBOUND',
-                    'sender_type' => 'AGENT',
-                    'sender_id' => (string) $request->user()->id,
-                    'body_text' => $body,
-                    'message_type' => 'TEXT',
-                    'status' => 'QUEUED',
-                ]);
-                $outbox = OutboxMessage::create([
-                    'workspace_id' => $conversation->workspace_id,
-                    'channel_account_id' => $conversation->channel_account_id,
-                    'conversation_id' => $conversation->id,
-                    'message_id' => $message->id,
-                    'provider' => $provider,
-                    'recipient_external_id' => $recipient,
-                    'payload' => [
-                        'text' => $body,
-                        'is_group' => (bool) $conversation->is_group,
-                        'provider_thread_id' => $conversation->provider_thread_id,
-                    ],
-                    'status' => 'QUEUED',
-                    'next_attempt_at' => now(),
-                ]);
-                $lastMessageId = $message->id;
-                $queuedOutboxIds[] = $outbox->id;
+        try {
+            DB::transaction(function () use (
+                $conversation,
+                $request,
+                $storedImages,
+                $body,
+                $recipient,
+                &$lastMessageId,
+                &$queuedOutboxIds,
+            ) {
+                $totalImages = count($storedImages);
+                $provider = $conversation->channelAccount->provider;
 
-                return;
+                // If there are no images, keep the legacy single-message path so
+                // existing tests/contracts for text-only replies stay intact.
+                if ($totalImages === 0) {
+                    $message = Message::create([
+                        'workspace_id' => $conversation->workspace_id,
+                        'conversation_id' => $conversation->id,
+                        'channel_account_id' => $conversation->channel_account_id,
+                        'direction' => 'OUTBOUND',
+                        'sender_type' => 'AGENT',
+                        'sender_id' => (string) $request->user()->id,
+                        'body_text' => $body,
+                        'message_type' => 'TEXT',
+                        'status' => 'QUEUED',
+                    ]);
+                    $outbox = OutboxMessage::create([
+                        'workspace_id' => $conversation->workspace_id,
+                        'channel_account_id' => $conversation->channel_account_id,
+                        'conversation_id' => $conversation->id,
+                        'message_id' => $message->id,
+                        'provider' => $provider,
+                        'recipient_external_id' => $recipient,
+                        'payload' => [
+                            'text' => $body,
+                            'is_group' => (bool) $conversation->is_group,
+                            'provider_thread_id' => $conversation->provider_thread_id,
+                        ],
+                        'status' => 'QUEUED',
+                        'next_attempt_at' => now(),
+                    ]);
+                    $lastMessageId = $message->id;
+                    $queuedOutboxIds[] = $outbox->id;
+
+                    return;
+                }
+
+                foreach ($storedImages as $stored) {
+                    $imageUrl = $stored['url'];
+                    $imagePath = $stored['path'];
+                    $caption = $stored['caption'];
+
+                    $message = Message::create([
+                        'workspace_id' => $conversation->workspace_id,
+                        'conversation_id' => $conversation->id,
+                        'channel_account_id' => $conversation->channel_account_id,
+                        'direction' => 'OUTBOUND',
+                        'sender_type' => 'AGENT',
+                        'sender_id' => (string) $request->user()->id,
+                        'body_text' => $caption,
+                        'message_type' => 'IMAGE',
+                        'status' => 'QUEUED',
+                    ]);
+
+                    MessageAttachment::create([
+                        'workspace_id' => $conversation->workspace_id,
+                        'message_id' => $message->id,
+                        'mime_type' => $stored['mime'],
+                        'size_bytes' => $stored['size'],
+                        'metadata' => ['url' => $imageUrl, 'type' => 'IMAGE'],
+                    ]);
+
+                    $outbox = OutboxMessage::create([
+                        'workspace_id' => $conversation->workspace_id,
+                        'channel_account_id' => $conversation->channel_account_id,
+                        'conversation_id' => $conversation->id,
+                        'message_id' => $message->id,
+                        'provider' => $provider,
+                        'recipient_external_id' => $recipient,
+                        'payload' => [
+                            'text' => $caption,
+                            'is_group' => (bool) $conversation->is_group,
+                            'provider_thread_id' => $conversation->provider_thread_id,
+                            'image_url' => $imageUrl,   // public URL — Telegram sendPhoto, UI
+                            'image_path' => $imagePath, // local abs path — Zalo sidecar
+                        ],
+                        'status' => 'QUEUED',
+                        'next_attempt_at' => now(),
+                    ]);
+
+                    $lastMessageId = $message->id;
+                    $queuedOutboxIds[] = $outbox->id;
+                }
+            });
+        } catch (\Throwable $e) {
+            // DB rolled back — drop the staged files so they don't linger.
+            foreach ($storedImages as $stored) {
+                Storage::disk('public')->delete($stored['relative']);
             }
 
-            foreach ($imageFiles as $index => $file) {
-                // Sharded by date so a busy day's outbound folder doesn't end
-                // up with thousands of files in one directory (ext4 max-links
-                // / S3 list cost).
-                $stored = $file->store('outbound/'.now()->format('Y/m/d'), 'public');
-                $imageUrl = asset('storage/'.$stored);
-                $imagePath = storage_path('app/public/'.$stored);
-
-                // Caption only on the first image so the same body isn't
-                // stamped onto every photo in the customer's thread.
-                $caption = $index === 0 ? $body : '';
-
-                $message = Message::create([
-                    'workspace_id' => $conversation->workspace_id,
-                    'conversation_id' => $conversation->id,
-                    'channel_account_id' => $conversation->channel_account_id,
-                    'direction' => 'OUTBOUND',
-                    'sender_type' => 'AGENT',
-                    'sender_id' => (string) $request->user()->id,
-                    'body_text' => $caption,
-                    'message_type' => 'IMAGE',
-                    'status' => 'QUEUED',
-                ]);
-
-                MessageAttachment::create([
-                    'workspace_id' => $conversation->workspace_id,
-                    'message_id' => $message->id,
-                    'mime_type' => $file->getMimeType(),
-                    'size_bytes' => $file->getSize(),
-                    'metadata' => ['url' => $imageUrl, 'type' => 'IMAGE'],
-                ]);
-
-                $outbox = OutboxMessage::create([
-                    'workspace_id' => $conversation->workspace_id,
-                    'channel_account_id' => $conversation->channel_account_id,
-                    'conversation_id' => $conversation->id,
-                    'message_id' => $message->id,
-                    'provider' => $provider,
-                    'recipient_external_id' => $recipient,
-                    'payload' => [
-                        'text' => $caption,
-                        'is_group' => (bool) $conversation->is_group,
-                        'provider_thread_id' => $conversation->provider_thread_id,
-                        'image_url' => $imageUrl,   // public URL — Telegram sendPhoto, UI
-                        'image_path' => $imagePath, // local abs path — Zalo sidecar
-                    ],
-                    'status' => 'QUEUED',
-                    'next_attempt_at' => now(),
-                ]);
-
-                $lastMessageId = $message->id;
-                $queuedOutboxIds[] = $outbox->id;
-            }
-        });
+            throw $e;
+        }
 
         $conversation->forceFill([
             'status' => 'WAITING_CUSTOMER',

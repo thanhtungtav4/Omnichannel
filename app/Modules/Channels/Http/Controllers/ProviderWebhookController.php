@@ -19,9 +19,14 @@ class ProviderWebhookController extends Controller
     {
         $secret = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
 
-        // hash_equals: constant-time compare so the secret can't be guessed by
-        // measuring response timing.
-        if ($channelAccount->webhook_secret && ! hash_equals((string) $channelAccount->webhook_secret, $secret)) {
+        // Fail closed: an account with no configured secret must not accept
+        // unauthenticated webhooks (that would let anyone forge inbound
+        // messages). hash_equals is a constant-time compare so the secret
+        // can't be guessed by measuring response timing.
+        if (! $channelAccount->webhook_secret) {
+            return response()->json(['error' => ['code' => 'WEBHOOK_SECRET_NOT_CONFIGURED', 'message' => 'Webhook secret not configured.']], 401);
+        }
+        if (! hash_equals((string) $channelAccount->webhook_secret, $secret)) {
             return response()->json(['error' => ['code' => 'INVALID_WEBHOOK_SECRET', 'message' => 'Invalid webhook secret.']], 401);
         }
 
@@ -60,7 +65,10 @@ class ProviderWebhookController extends Controller
             // ZALO_PERSONAL events arrive from the Node sidecar, authenticated by
             // a shared token stored as the channel account's webhook_secret.
             $secret = (string) $request->header('X-Sidecar-Token', '');
-            if ($channelAccount->webhook_secret && ! hash_equals((string) $channelAccount->webhook_secret, $secret)) {
+            if (! $channelAccount->webhook_secret) {
+                return response()->json(['error' => ['code' => 'WEBHOOK_SECRET_NOT_CONFIGURED', 'message' => 'Webhook secret not configured.']], 401);
+            }
+            if (! hash_equals((string) $channelAccount->webhook_secret, $secret)) {
                 return response()->json(['error' => ['code' => 'INVALID_WEBHOOK_SECRET', 'message' => 'Invalid webhook secret.']], 401);
             }
         }
@@ -82,7 +90,12 @@ class ProviderWebhookController extends Controller
         $verify = $request->query('hub_verify_token') ?? $request->query('hub.verify_token');
         $challenge = $request->query('hub_challenge') ?? $request->query('hub.challenge');
 
-        if ($mode === 'subscribe' && $verify === $channelAccount->webhook_secret) {
+        // Fail closed: no configured verify token means we can't authenticate
+        // the subscription handshake, so reject it (an empty $verify must never
+        // match an empty secret).
+        if ($mode === 'subscribe'
+            && $channelAccount->webhook_secret
+            && hash_equals((string) $channelAccount->webhook_secret, (string) $verify)) {
             return response($challenge, 200);
         }
 
@@ -95,13 +108,16 @@ class ProviderWebhookController extends Controller
      */
     public function facebook(Request $request, ChannelAccount $channelAccount, InboundMessageIngestor $ingestor): JsonResponse
     {
+        // Fail closed: an unsigned Facebook account can't verify events, so
+        // reject rather than ingest forged payloads.
         $appSecret = data_get($channelAccount->credentials, 'app_secret');
-        if ($appSecret) {
-            $sig = (string) $request->header('X-Hub-Signature-256');
-            $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $appSecret);
-            if (! hash_equals($expected, $sig)) {
-                return response()->json(['error' => ['code' => 'INVALID_SIGNATURE', 'message' => 'Invalid Facebook signature.']], 401);
-            }
+        if (! $appSecret) {
+            return response()->json(['error' => ['code' => 'APP_SECRET_NOT_CONFIGURED', 'message' => 'Facebook app secret not configured.']], 401);
+        }
+        $sig = (string) $request->header('X-Hub-Signature-256');
+        $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $appSecret);
+        if (! hash_equals($expected, $sig)) {
+            return response()->json(['error' => ['code' => 'INVALID_SIGNATURE', 'message' => 'Invalid Facebook signature.']], 401);
         }
 
         $duplicate = true;
@@ -192,6 +208,7 @@ class ProviderWebhookController extends Controller
                     'channel_account_id' => $channelAccount->id,
                     'payload' => $payload,
                 ]);
+
                 return response()->json(['ok' => true, 'ignored' => 'no_message_id'], 200);
             }
 

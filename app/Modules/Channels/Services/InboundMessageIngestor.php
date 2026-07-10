@@ -60,6 +60,51 @@ class InboundMessageIngestor
             return ['duplicate' => true, 'webhook_event' => $existing];
         }
 
+        // Second dedup axis: the same provider message can arrive under two
+        // different webhook events (e.g. a batch update that re-includes an
+        // already-seen message). The messages table has a unique index on
+        // (workspace_id, channel_account_id, provider_message_id, direction),
+        // and a violation inside the ingest transaction below would abort the
+        // whole thing and make the provider retry forever. Catch it here as a
+        // duplicate instead. Only guard when the provider gave us an id.
+        if (! empty($normalized['provider_message_id'])) {
+            $direction = (($normalized['is_self'] ?? false) === true) ? 'OUTBOUND' : 'INBOUND';
+            $priorMessage = Message::query()
+                ->where('workspace_id', $account->workspace_id)
+                ->where('channel_account_id', $account->id)
+                ->where('provider_message_id', $normalized['provider_message_id'])
+                ->where('direction', $direction)
+                ->exists();
+
+            if ($priorMessage) {
+                // Record the event as IGNORED so ops can see it was a redelivery
+                // of an already-ingested message, not a lost one. A concurrent
+                // insert on the same idempotency_key is itself a duplicate.
+                try {
+                    $event = WebhookEvent::create([
+                        'workspace_id' => $account->workspace_id,
+                        'channel_account_id' => $account->id,
+                        'provider' => $account->provider,
+                        'provider_event_id' => $normalized['provider_event_id'],
+                        'idempotency_key' => $normalized['idempotency_key'],
+                        'event_type' => $normalized['event_type'],
+                        'headers' => $headers,
+                        'payload' => $payload,
+                        'status' => 'IGNORED',
+                        'processed_at' => now(),
+                    ]);
+                } catch (UniqueConstraintViolationException) {
+                    $event = WebhookEvent::query()
+                        ->where('workspace_id', $account->workspace_id)
+                        ->where('channel_account_id', $account->id)
+                        ->where('idempotency_key', $normalized['idempotency_key'])
+                        ->firstOrFail();
+                }
+
+                return ['duplicate' => true, 'webhook_event' => $event];
+            }
+        }
+
         try {
             $webhookEvent = DB::transaction(fn () => WebhookEvent::create([
                 'workspace_id' => $account->workspace_id,
