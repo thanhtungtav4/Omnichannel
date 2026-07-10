@@ -172,6 +172,13 @@ $webhookRoutes = function (): void {
 
 if (config('tenant.webhook_host')) {
     Route::domain(config('tenant.webhook_host'))->group($webhookRoutes);
+
+    // Zalo Personal sidecar runs on the same VPS and posts to loopback to avoid
+    // public CDN/WAF hops. Keep this fallback local-only; public provider
+    // webhooks still resolve on the dedicated webhook host above.
+    Route::middleware(['throttle:600,1', 'workspace.channel', 'sidecar.loopback'])
+        ->post('webhooks/zalo/{channelAccount}', [ProviderWebhookController::class, 'zalo'])
+        ->name('webhooks.zalo.loopback');
 } else {
     $webhookRoutes();
 }

@@ -529,6 +529,46 @@ export default function ContactShow({
     notes,
     agents,
 }: Props) {
+    const [refreshingZalo, setRefreshingZalo] = useState(false);
+
+    async function refreshZaloProfile() {
+        setRefreshingZalo(true);
+
+        try {
+            const csrf =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute('content') ?? '';
+            const res = await fetch(
+                `/api/admin/contacts/${contact.id}/refresh-profile`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                },
+            );
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok || data.ok !== true) {
+                throw new Error(data.message ?? 'Không cập nhật được hồ sơ Zalo.');
+            }
+
+            toast.success(data.message ?? 'Đã cập nhật hồ sơ Zalo.');
+            router.reload({ only: ['contact'] });
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Không cập nhật được hồ sơ Zalo.',
+            );
+        } finally {
+            setRefreshingZalo(false);
+        }
+    }
+
     return (
         <>
             <Head title={contact.name} />
@@ -575,21 +615,14 @@ export default function ContactShow({
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                                router.post(
-                                    `/api/admin/contacts/${contact.id}/refresh-profile`,
-                                    {},
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: () =>
-                                            toast.success('Đã cập nhật hồ sơ Zalo.'),
-                                        onError: () => toast.error('Cập nhật thất bại'),
-                                    },
-                                )
-                            }
+                            onClick={refreshZaloProfile}
+                            disabled={refreshingZalo}
                         >
-                            <RefreshCw data-icon="inline-start" />
-                            Cập nhật hồ sơ Zalo
+                            <RefreshCw
+                                data-icon="inline-start"
+                                className={refreshingZalo ? 'animate-spin' : undefined}
+                            />
+                            {refreshingZalo ? 'Đang cập nhật…' : 'Cập nhật hồ sơ Zalo'}
                         </Button>
                     )}
                     <AlertDialog>

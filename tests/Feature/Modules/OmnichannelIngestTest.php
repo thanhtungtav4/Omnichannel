@@ -5,6 +5,7 @@ namespace Tests\Feature\Modules;
 use App\Models\User;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Crm\Models\Contact;
+use App\Modules\Crm\Models\ExternalIdentity;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\Pipeline;
 use App\Modules\Crm\Models\Stage;
@@ -227,6 +228,95 @@ class OmnichannelIngestTest extends TestCase
             ->assertOk()
             ->assertJson(['duplicate' => true]);
         $this->assertDatabaseCount('messages', 1);
+    }
+
+    public function test_refresh_zalo_profile_updates_contact_and_identity_from_sidecar(): void
+    {
+        [$workspace, $agent] = $this->seedRoutingContext();
+        $account = ChannelAccount::create([
+            'workspace_id' => $workspace->id,
+            'provider' => 'ZALO_PERSONAL',
+            'name' => 'Nick refresh',
+            'status' => 'ACTIVE',
+        ]);
+        $contact = Contact::create([
+            'workspace_id' => $workspace->id,
+            'owner_id' => $agent->id,
+            'source' => 'ZALO_PERSONAL',
+            'status' => 'ACTIVE',
+            'full_name' => 'Khách zalo-user-1',
+        ]);
+        ExternalIdentity::create([
+            'workspace_id' => $workspace->id,
+            'contact_id' => $contact->id,
+            'provider' => 'ZALO_PERSONAL',
+            'provider_account_id' => $account->id,
+            'provider_user_id' => 'zalo-user-1',
+        ]);
+        config(['services.zalo_sidecar.url' => 'http://sidecar.test', 'services.zalo_sidecar.token' => 'sidecar-token']);
+        Http::fake([
+            'http://sidecar.test/accounts/*/user/*' => Http::response([
+                'ok' => true,
+                'displayName' => 'Nguyễn Zalo',
+                'avatar' => 'https://zalo.test/a.jpg',
+            ]),
+        ]);
+
+        $this->actingAs($agent)
+            ->postJson(route('admin.contacts.refresh-profile', $contact))
+            ->assertOk()
+            ->assertJson(['ok' => true, 'message' => 'Đã cập nhật hồ sơ Zalo.']);
+
+        $this->assertDatabaseHas('contacts', [
+            'id' => $contact->id,
+            'full_name' => 'Nguyễn Zalo',
+            'avatar_url' => 'https://zalo.test/a.jpg',
+        ]);
+        $this->assertDatabaseHas('external_identities', [
+            'contact_id' => $contact->id,
+            'display_name' => 'Nguyễn Zalo',
+            'avatar_url' => 'https://zalo.test/a.jpg',
+        ]);
+    }
+
+    public function test_refresh_zalo_profile_returns_error_when_sidecar_has_no_profile_fields(): void
+    {
+        [$workspace, $agent] = $this->seedRoutingContext();
+        $account = ChannelAccount::create([
+            'workspace_id' => $workspace->id,
+            'provider' => 'ZALO_PERSONAL',
+            'name' => 'Nick refresh empty',
+            'status' => 'ACTIVE',
+        ]);
+        $contact = Contact::create([
+            'workspace_id' => $workspace->id,
+            'owner_id' => $agent->id,
+            'source' => 'ZALO_PERSONAL',
+            'status' => 'ACTIVE',
+            'full_name' => 'Original Name',
+        ]);
+        ExternalIdentity::create([
+            'workspace_id' => $workspace->id,
+            'contact_id' => $contact->id,
+            'provider' => 'ZALO_PERSONAL',
+            'provider_account_id' => $account->id,
+            'provider_user_id' => 'zalo-user-empty',
+        ]);
+        config(['services.zalo_sidecar.url' => 'http://sidecar.test', 'services.zalo_sidecar.token' => 'sidecar-token']);
+        Http::fake([
+            'http://sidecar.test/accounts/*/user/*' => Http::response(['ok' => true]),
+        ]);
+
+        $this->actingAs($agent)
+            ->postJson(route('admin.contacts.refresh-profile', $contact))
+            ->assertStatus(422)
+            ->assertJson(['ok' => false, 'message' => 'Sidecar Zalo không trả về tên hoặc avatar mới.']);
+
+        $this->assertDatabaseHas('contacts', [
+            'id' => $contact->id,
+            'full_name' => 'Original Name',
+            'avatar_url' => null,
+        ]);
     }
 
     /**

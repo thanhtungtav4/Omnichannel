@@ -268,7 +268,7 @@ User=root
 WorkingDirectory=/var/www/crm/sidecar
 Environment=PORT=4501
 Environment=SIDECAR_TOKEN="YOUR_SHARED_ZALO_SIDECAR_TOKEN"
-Environment=CRM_WEBHOOK_BASE="http://127.0.0.1"
+Environment=CRM_WEBHOOK_BASE="https://webhook.qrf.vn"
 Environment=CRM_WEBHOOK_SECRET="YOUR_SHARED_ZALO_SIDECAR_TOKEN"
 Environment=ZALO_STUB=0
 ExecStart=/usr/bin/node server.js
@@ -323,7 +323,7 @@ sudo -u www-data php8.4 artisan config:clear
 command=node /var/www/crm/sidecar/server.js
 directory=/var/www/crm/sidecar
 user=www-data
-environment=PORT="4501",SIDECAR_TOKEN="YOUR_SHARED_ZALO_SIDECAR_TOKEN",CRM_WEBHOOK_BASE="http://127.0.0.1",CRM_WEBHOOK_SECRET="YOUR_SHARED_ZALO_SIDECAR_TOKEN",ZALO_STUB="0"
+environment=PORT="4501",SIDECAR_TOKEN="YOUR_SHARED_ZALO_SIDECAR_TOKEN",CRM_WEBHOOK_BASE="https://webhook.qrf.vn",CRM_WEBHOOK_SECRET="YOUR_SHARED_ZALO_SIDECAR_TOKEN",ZALO_STUB="0"
 autostart=true
 autorestart=true
 stdout_logfile=/var/log/crm-sidecar.log

@@ -69,7 +69,7 @@ class ContactController extends Controller
      * and update the contact + its Zalo identity. Fixes contacts whose name is
      * still the raw UID because the thread started with an outbound message.
      */
-    public function refreshProfile(Request $request, Contact $contact): RedirectResponse
+    public function refreshProfile(Request $request, Contact $contact): RedirectResponse|JsonResponse
     {
         abort_unless($contact->workspace_id === $this->workspaceId($request), 403);
 
@@ -80,7 +80,7 @@ class ContactController extends Controller
             ->first();
 
         if (! $identity) {
-            return back()->with('error', 'Liên hệ này không có định danh Zalo.');
+            return $this->zaloProfileResponse($request, false, 'Liên hệ này không có định danh Zalo.', 422);
         }
 
         $base = rtrim((string) config('services.zalo_sidecar.url', env('ZALO_SIDECAR_URL', 'http://127.0.0.1:4501')), '/');
@@ -92,7 +92,7 @@ class ContactController extends Controller
         $accountId = (string) $identity->provider_account_id;
         $userId = (string) $identity->provider_user_id;
         if (preg_match('#[/\\\\]#', $accountId.$userId)) {
-            return back()->with('error', 'Định danh Zalo không hợp lệ.');
+            return $this->zaloProfileResponse($request, false, 'Định danh Zalo không hợp lệ.', 422);
         }
 
         try {
@@ -100,27 +100,60 @@ class ContactController extends Controller
                 ->timeout(15)
                 ->get("{$base}/accounts/".rawurlencode($accountId).'/user/'.rawurlencode($userId));
         } catch (\Throwable $e) {
-            return back()->with('error', 'Không kết nối được sidecar Zalo.');
+            return $this->zaloProfileResponse($request, false, 'Không kết nối được sidecar Zalo.', 502);
         }
 
         if (! $res->successful() || $res->json('ok') !== true) {
-            return back()->with('error', 'Không lấy được hồ sơ Zalo: '.(string) $res->json('error'));
+            $error = (string) ($res->json('error') ?: $res->json('message') ?: 'UNKNOWN');
+
+            return $this->zaloProfileResponse($request, false, 'Không lấy được hồ sơ Zalo: '.$error, 502);
         }
 
-        $name = $res->json('displayName');
-        $avatar = $res->json('avatar');
+        $name = $res->json('displayName') ?: $res->json('profile.displayName') ?: $res->json('profile.zaloName');
+        $avatar = $res->json('avatar') ?: $res->json('profile.avatar');
 
-        $contact->forceFill(array_filter([
-            'full_name' => $name ?: null,
-            'avatar_url' => $avatar ?: null,
-        ]))->save();
+        if (blank($name) && blank($avatar)) {
+            return $this->zaloProfileResponse($request, false, 'Sidecar Zalo không trả về tên hoặc avatar mới.', 422);
+        }
 
-        $identity->forceFill(array_filter([
-            'display_name' => $name ?: null,
-            'avatar_url' => $avatar ?: null,
-        ]))->save();
+        $contactUpdate = [];
+        if (! blank($name)) {
+            $contactUpdate['full_name'] = (string) $name;
+        }
+        if (! blank($avatar)) {
+            $contactUpdate['avatar_url'] = (string) $avatar;
+        }
+        $contact->forceFill($contactUpdate)->save();
 
-        return back()->with('success', 'Đã cập nhật hồ sơ Zalo.');
+        $identityUpdate = [];
+        if (! blank($name)) {
+            $identityUpdate['display_name'] = (string) $name;
+        }
+        if (! blank($avatar)) {
+            $identityUpdate['avatar_url'] = (string) $avatar;
+        }
+        $identity->forceFill($identityUpdate)->save();
+
+        return $this->zaloProfileResponse($request, true, 'Đã cập nhật hồ sơ Zalo.', 200, [
+            'contact' => [
+                'id' => $contact->id,
+                'name' => $contact->full_name,
+                'avatarUrl' => $contact->avatar_url,
+            ],
+        ]);
+    }
+
+    private function zaloProfileResponse(Request $request, bool $ok, string $message, int $status = 200, array $extra = []): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => $ok,
+                'message' => $message,
+                ...$extra,
+            ], $ok ? 200 : $status);
+        }
+
+        return back()->with($ok ? 'success' : 'error', $message);
     }
 
     /** Set the tags on a contact (free-form, agent-controlled). */

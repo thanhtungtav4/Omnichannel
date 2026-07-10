@@ -51,8 +51,13 @@ class ResolveWorkspace
 
         $label = substr($host, 0, -strlen('.'.$root));
 
-        // Only the immediate subdomain is a tenant; reject nested/admin hosts.
-        if ($label === '' || str_contains($label, '.') || $label === config('tenant.admin_subdomain')) {
+        // Only the immediate subdomain is a tenant; reject nested/reserved hosts.
+        $reserved = array_filter([
+            config('tenant.admin_subdomain'),
+            config('tenant.webhook_subdomain'),
+        ]);
+
+        if ($label === '' || str_contains($label, '.') || in_array($label, $reserved, true)) {
             return null;
         }
 

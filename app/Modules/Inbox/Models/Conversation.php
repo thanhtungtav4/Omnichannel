@@ -28,6 +28,7 @@ class Conversation extends Model
             'next_response_due_at' => 'datetime',
             'sla_breached_at' => 'datetime',
             'closed_at' => 'datetime',
+            'last_history_sync_at' => 'datetime',
         ];
     }
 

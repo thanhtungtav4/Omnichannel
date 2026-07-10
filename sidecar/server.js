@@ -5,7 +5,7 @@
 // Config (env):
 //   PORT                 sidecar listen port (default 4501)
 //   SIDECAR_TOKEN        shared secret; every request must send X-Sidecar-Token
-//   CRM_WEBHOOK_BASE     e.g. http://127.0.0.1:8001  (Laravel base URL)
+//   CRM_WEBHOOK_BASE     e.g. https://webhook.qrf.vn (map host to 127.0.0.1 on VPS)
 //   CRM_WEBHOOK_SECRET   sent as X-Sidecar-Token to the CRM zalo webhook
 //   ZALO_STUB=1          skip real zca-js; simulate QR/login/send (dev default)
 //
@@ -33,7 +33,12 @@ async function pushToCrm(channelAccountId, payload) {
       },
       body: JSON.stringify(payload),
     });
-    return res.ok;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error(`[push] ${channelAccountId} HTTP ${res.status}: ${body.slice(0, 500)}`);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.error(`[push] ${channelAccountId} failed:`, err.message);
     return false;

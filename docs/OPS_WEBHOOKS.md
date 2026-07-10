@@ -118,9 +118,11 @@ The sidecar calls the CRM, not Zalo directly. No URL to register.
 
 1. Workspace admin -> Channels -> Add channel -> Zalo Personal.
 2. Click "Login QR" — the sidecar returns a QR code; scan with the Zalo app.
-3. The sidecar's webhook URL is `http://127.0.0.1/webhooks/zalo/<uuid>` and
-   its shared token matches the channel account's `webhook_secret`. The
-   sidecar runs on the VPS only; nothing is exposed to the public internet.
+3. The sidecar posts to `https://webhook.qrf.vn/webhooks/zalo/<uuid>` with
+   `/etc/hosts` mapping `webhook.qrf.vn` to `127.0.0.1` on the VPS, so the
+   request stays local while still matching Laravel's webhook-host routes. Its
+   shared token matches the channel account's `webhook_secret`. The sidecar runs
+   on the VPS only; nothing is exposed on port 4501.
 
 ### Shopee (VN region)
 

@@ -7,16 +7,19 @@ use App\Models\User;
 use App\Modules\Admin\Services\AdminDashboardService;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
+use App\Modules\Channels\Models\WebhookEvent;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Platform\Models\Workspace;
+use App\Modules\Platform\Services\WorkspaceSettings;
 use App\Modules\Platform\Tenancy\CurrentWorkspace;
 use App\Modules\Routing\Models\AgentPresence;
 use App\Modules\Routing\Models\RoutingQueue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -79,6 +82,18 @@ class AdminController extends Controller
                 ->whereIn('message_id', $threadMessages->pluck('id'))
                 ->get()
                 ->keyBy('message_id');
+
+            // Auto-pull older Zalo messages when an agent explicitly opens a
+            // stale thread. Fire-and-forget — the Inbox renders immediately
+            // while the sidecar pulls any gap-window messages and feeds them
+            // back through the normal webhook → ingest path. Only triggered
+            // when ?conversation= is set so dashboard auto-select of the
+            // latest thread doesn't burst-sync on every page load.
+            // See ZaloThreadHistorySyncService for the heuristic.
+            if ($request->query('conversation') !== null) {
+                app(\App\Modules\Channels\Services\ZaloThreadHistorySyncService::class)
+                    ->maybeTrigger($conversation);
+            }
 
         }
 
@@ -557,19 +572,22 @@ class AdminController extends Controller
             ->pluck('cnt', 'channel_account_id');
 
         // Last inbound webhook timestamp per account (for the health card).
-        $lastInboundByAccount = \App\Modules\Channels\Models\WebhookEvent::query()
+        $lastInboundByAccount = WebhookEvent::query()
             ->where('workspace_id', $workspaceId)
             ->where('status', 'PROCESSED')
-            ->whereIn('event_type', ['message', 'message_edit'])
             ->selectRaw('channel_account_id, MAX(processed_at) as last_at')
             ->groupBy('channel_account_id')
             ->pluck('last_at', 'channel_account_id');
 
+        $webhookBase = config('tenant.webhook_host')
+            ? 'https://'.config('tenant.webhook_host').'/webhooks'
+            : url('/webhooks');
+
         return Inertia::render('admin/channels', [
             'canManage' => in_array($request->user()->role, ['owner', 'admin'], true),
             'canDelete' => $request->user()->role === 'owner',
-            'webhookBase' => url('/webhooks'),
-            'channels' => ChannelAccount::query()->where('workspace_id', $workspaceId)->latest()->get()->map(function (ChannelAccount $account) use ($pendingByAccount, $lastInboundByAccount) {
+            'webhookBase' => $webhookBase,
+            'channels' => ChannelAccount::query()->where('workspace_id', $workspaceId)->latest()->get()->map(function (ChannelAccount $account) use ($pendingByAccount, $lastInboundByAccount, $webhookBase) {
                 $creds = $account->credentials ?? [];
 
                 return [
@@ -579,13 +597,13 @@ class AdminController extends Controller
                     'status' => $account->status,
                     'webhookUrl' => $account->webhook_url,
                     // The public callback URL to paste into the provider dashboard.
-                    'callbackUrl' => url('/webhooks/'.match ($account->provider) {
+                    'callbackUrl' => $webhookBase.'/'.match ($account->provider) {
                         'FACEBOOK' => 'facebook',
                         'TELEGRAM' => 'telegram',
                         'SHOPEE' => 'shopee',
                         'TIKTOK_SHOP' => 'tiktok-shop',
                         default => 'zalo',
-                    }.'/'.$account->id),
+                    }.'/'.$account->id,
                     'verifyToken' => $account->webhook_secret,
                     'hasReceivedWebhook' => $account->last_webhook_at !== null,
                     'lastWebhookAt' => $account->last_webhook_at?->diffForHumans(),
@@ -597,21 +615,21 @@ class AdminController extends Controller
                     // ---- Health card (generic across providers) ----
                     'pendingOutboxCount' => (int) ($pendingByAccount[$account->id] ?? 0),
                     'lastInboundAt' => isset($lastInboundByAccount[$account->id])
-                        ? \Illuminate\Support\Carbon::parse($lastInboundByAccount[$account->id])->diffForHumans()
+                        ? Carbon::parse($lastInboundByAccount[$account->id])->diffForHumans()
                         : null,
 
                     // ---- Shopee-specific (spec 11 W4) ----
                     'shopId' => $account->provider === 'SHOPEE' ? ($creds['shop_id'] ?? null) : null,
                     'merchantId' => $account->provider === 'SHOPEE' ? ($creds['merchant_id'] ?? null) : null,
                     'accessTokenExpiresAt' => $account->provider === 'SHOPEE'
-                        ? (isset($creds['access_token_expires_at']) ? \Illuminate\Support\Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
+                        ? (isset($creds['access_token_expires_at']) ? Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
                         : null,
 
                     // ---- TikTok Shop-specific (spec 13 W4) ----
                     'tiktokShopId' => $account->provider === 'TIKTOK_SHOP' ? ($creds['shop_id'] ?? null) : null,
                     'tiktokShopCipher' => $account->provider === 'TIKTOK_SHOP' ? ($creds['shop_cipher'] ?? null) : null,
                     'tiktokAccessTokenExpiresAt' => $account->provider === 'TIKTOK_SHOP'
-                        ? (isset($creds['access_token_expires_at']) ? \Illuminate\Support\Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
+                        ? (isset($creds['access_token_expires_at']) ? Carbon::parse($creds['access_token_expires_at'])->diffForHumans() : null)
                         : null,
                 ];
             }),
@@ -647,9 +665,9 @@ class AdminController extends Controller
 
     private function tagVocabulary(string $workspaceId): array
     {
-        $settings = app(\App\Modules\Platform\Services\WorkspaceSettings::class);
+        $settings = app(WorkspaceSettings::class);
         $vocab = $settings->get(
-            \App\Modules\Platform\Models\Workspace::query()->whereKey($workspaceId)->first(),
+            Workspace::query()->whereKey($workspaceId)->first(),
             'tags.vocabulary',
             [],
         );

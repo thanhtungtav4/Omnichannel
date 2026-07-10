@@ -2,13 +2,13 @@
 
 namespace Tests\Feature\Modules;
 
+use App\Models\User;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
 use App\Modules\Channels\Models\WebhookEvent;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Platform\Models\Workspace;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -115,7 +115,7 @@ class AdminChannelsHealthTest extends TestCase
                 'message_id' => $message->id,
                 'channel_account_id' => $channel->id,
                 'recipient_external_id' => 'open-uid-1',
-            'provider' => $channel->provider,
+                'provider' => $channel->provider,
                 'payload' => [],
                 'status' => 'QUEUED',
                 'attempts' => 0,
@@ -156,7 +156,7 @@ class AdminChannelsHealthTest extends TestCase
                 'message_id' => $message->id,
                 'channel_account_id' => $channel->id,
                 'recipient_external_id' => 'open-uid-1',
-            'provider' => $channel->provider,
+                'provider' => $channel->provider,
                 'payload' => [],
                 'status' => $status,
                 'attempts' => 0,
@@ -179,7 +179,7 @@ class AdminChannelsHealthTest extends TestCase
                 'message_id' => $message->id,
                 'channel_account_id' => $channel->id,
                 'recipient_external_id' => 'open-uid-1',
-            'provider' => $channel->provider,
+                'provider' => $channel->provider,
                 'payload' => [],
                 'status' => $status,
                 'attempts' => 1,
@@ -263,6 +263,19 @@ class AdminChannelsHealthTest extends TestCase
         $response = $this->actingAs($this->user)->get('/admin/channels');
         $response->assertInertia(fn ($page) => $page
             ->where('channels.0.callbackUrl', url('/webhooks/tiktok-shop/'.$channel->id))
+        );
+    }
+
+    public function test_callback_url_uses_dedicated_webhook_host_when_configured(): void
+    {
+        config(['tenant.webhook_host' => 'webhook.qrf.vn']);
+        $channel = $this->makeChannel('ZALO_OA');
+
+        $response = $this->actingAs($this->user)->get('/admin/channels');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('webhookBase', 'https://webhook.qrf.vn/webhooks')
+            ->where('channels.0.callbackUrl', 'https://webhook.qrf.vn/webhooks/zalo/'.$channel->id)
         );
     }
 }
