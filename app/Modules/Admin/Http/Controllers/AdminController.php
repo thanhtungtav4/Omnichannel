@@ -13,6 +13,8 @@ use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
+use App\Modules\Inbox\Models\MessageAttachment;
+use App\Modules\Inbox\Models\QuickReply;
 use App\Modules\Platform\Models\Workspace;
 use App\Modules\Platform\Services\WorkspaceSettings;
 use App\Modules\Platform\Tenancy\CurrentWorkspace;
@@ -21,12 +23,33 @@ use App\Modules\Routing\Models\RoutingQueue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminController extends Controller
 {
     public function __construct(private readonly AdminDashboardService $dashboard) {}
+
+    /**
+     * URL an agent's browser can render an attachment from. Outbound images we
+     * store live on the private disk (metadata.path) and get a short-lived
+     * signed URL; inbound media keeps the provider CDN URL (metadata.url).
+     */
+    private function attachmentUrl(?MessageAttachment $attachment): ?string
+    {
+        if ($attachment === null) {
+            return null;
+        }
+
+        $metadata = $attachment->metadata ?? [];
+
+        if (! empty($metadata['path'])) {
+            return URL::temporarySignedRoute('media.outbound', now()->addHours(6), ['attachment' => $attachment->id]);
+        }
+
+        return $metadata['url'] ?? null;
+    }
 
     public function overview(Request $request): Response
     {
@@ -235,7 +258,7 @@ class AdminController extends Controller
                     'senderId' => $message->sender_id,
                     'body' => $message->body_text,
                     'messageType' => $message->message_type,
-                    'attachmentUrl' => $message->attachments->first()?->metadata['url'] ?? null,
+                    'attachmentUrl' => $this->attachmentUrl($message->attachments->first()),
                     'status' => $message->status,
                     'outboxStatus' => $outboxByMessageId->get($message->id)?->status,
                     'outboxError' => $outboxByMessageId->get($message->id)?->last_error_message,
@@ -248,6 +271,17 @@ class AdminController extends Controller
                 ->whereIn('role', ['support_lead', 'support_agent', 'admin', 'owner'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'display_name', 'role']),
+            // Canned responses for the composer "/" picker. Edited in
+            // admin/settings/quick-replies; WorkspaceScope keeps them tenant-local.
+            'quickReplies' => QuickReply::query()
+                ->orderBy('sort_order')
+                ->orderBy('label')
+                ->get()
+                ->map(fn (QuickReply $q) => [
+                    'key' => $q->shortcut,
+                    'label' => $q->label,
+                    'text' => $q->text,
+                ])->values(),
         ]);
     }
 
@@ -443,7 +477,7 @@ class AdminController extends Controller
                     'senderId' => $m->sender_id,
                     'body' => $m->body_text,
                     'messageType' => $m->message_type,
-                    'attachmentUrl' => $m->attachments->first()?->metadata['url'] ?? null,
+                    'attachmentUrl' => $this->attachmentUrl($m->attachments->first()),
                     'status' => $m->status,
                     'outboxStatus' => $outbox->get($m->id)?->status,
                     'outboxError' => $outbox->get($m->id)?->last_error_message,

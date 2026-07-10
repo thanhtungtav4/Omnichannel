@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 class ConversationActionController extends Controller
 {
@@ -95,11 +96,12 @@ class ConversationActionController extends Controller
         // up on any failure below.
         $storedImages = [];
         foreach ($imageFiles as $index => $file) {
-            $relative = $file->store('outbound/'.now()->format('Y/m/d'), 'public');
+            // PRIVATE disk: never world-readable via /storage. The provider and
+            // the UI both fetch it through a signed, expiring media route.
+            $relative = $file->store('outbound/'.now()->format('Y/m/d'), 'local');
             $storedImages[] = [
                 'relative' => $relative,
-                'url' => asset('storage/'.$relative),
-                'path' => storage_path('app/public/'.$relative),
+                'path' => Storage::disk('local')->path($relative), // local abs path — Zalo sidecar
                 'mime' => $file->getMimeType(),
                 'size' => $file->getSize(),
                 'caption' => $index === 0 ? $body : '',
@@ -155,7 +157,6 @@ class ConversationActionController extends Controller
                 }
 
                 foreach ($storedImages as $stored) {
-                    $imageUrl = $stored['url'];
                     $imagePath = $stored['path'];
                     $caption = $stored['caption'];
 
@@ -171,13 +172,20 @@ class ConversationActionController extends Controller
                         'status' => 'QUEUED',
                     ]);
 
-                    MessageAttachment::create([
+                    // Store only the private relative path — the public URL is
+                    // a signed, expiring link minted from the attachment id.
+                    $attachment = MessageAttachment::create([
                         'workspace_id' => $conversation->workspace_id,
                         'message_id' => $message->id,
                         'mime_type' => $stored['mime'],
                         'size_bytes' => $stored['size'],
-                        'metadata' => ['url' => $imageUrl, 'type' => 'IMAGE'],
+                        'metadata' => ['path' => $stored['relative'], 'type' => 'IMAGE'],
                     ]);
+
+                    // Signed URL the provider fetches at send time. 24h is ample
+                    // for queue backlog + provider retries, and expires long
+                    // before a leaked link could be abused.
+                    $imageUrl = $this->signedMediaUrl($attachment);
 
                     $outbox = OutboxMessage::create([
                         'workspace_id' => $conversation->workspace_id,
@@ -190,7 +198,7 @@ class ConversationActionController extends Controller
                             'text' => $caption,
                             'is_group' => (bool) $conversation->is_group,
                             'provider_thread_id' => $conversation->provider_thread_id,
-                            'image_url' => $imageUrl,   // public URL — Telegram sendPhoto, UI
+                            'image_url' => $imageUrl,   // signed URL — Telegram sendPhoto, UI
                             'image_path' => $imagePath, // local abs path — Zalo sidecar
                         ],
                         'status' => 'QUEUED',
@@ -204,7 +212,7 @@ class ConversationActionController extends Controller
         } catch (\Throwable $e) {
             // DB rolled back — drop the staged files so they don't linger.
             foreach ($storedImages as $stored) {
-                Storage::disk('public')->delete($stored['relative']);
+                Storage::disk('local')->delete($stored['relative']);
             }
 
             throw $e;
@@ -359,6 +367,16 @@ class ConversationActionController extends Controller
      *
      * @return array<int, UploadedFile>
      */
+    /**
+     * Signed, expiring public URL for an outbound image. The provider fetches
+     * this at send time and the agent UI renders it; the signature both fences
+     * access and time-boxes any leak (24h).
+     */
+    private function signedMediaUrl(MessageAttachment $attachment): string
+    {
+        return URL::temporarySignedRoute('media.outbound', now()->addHours(24), ['attachment' => $attachment->id]);
+    }
+
     private function collectUploadedImages(Request $request): array
     {
         if ($request->hasFile('images')) {

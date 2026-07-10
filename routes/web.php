@@ -12,6 +12,8 @@ use App\Modules\Crm\Http\Controllers\IngestTokenAdminController;
 use App\Modules\Crm\Http\Controllers\LeadController;
 use App\Modules\Crm\Http\Controllers\PublicIngestController;
 use App\Modules\Inbox\Http\Controllers\ConversationActionController;
+use App\Modules\Inbox\Http\Controllers\OutboundMediaController;
+use App\Modules\Inbox\Http\Controllers\QuickReplyController;
 use App\Modules\Platform\Http\Controllers\PlatformAdminController;
 use App\Modules\Routing\Http\Controllers\PresenceController;
 use Illuminate\Http\Request;
@@ -105,6 +107,18 @@ Route::middleware(['workspace.required', 'auth', 'verified', 'workspace.member']
             ->name('admin.ingest-tokens.destroy');
         Route::post('api/admin/ingest-tokens/{tokenId}/rotate', [IngestTokenAdminController::class, 'rotate'])
             ->name('admin.ingest-tokens.rotate');
+
+        // Quick replies (canned responses). Owner/admin only — gated in the
+        // controller / QuickReplyRequest. Route-model binding is workspace-safe
+        // because QuickReply uses the WorkspaceScope global scope.
+        Route::get('admin/settings/quick-replies', [QuickReplyController::class, 'index'])
+            ->name('admin.settings.quick-replies');
+        Route::post('api/admin/quick-replies', [QuickReplyController::class, 'store'])
+            ->name('admin.quick-replies.store');
+        Route::put('api/admin/quick-replies/{quickReply}', [QuickReplyController::class, 'update'])
+            ->name('admin.quick-replies.update');
+        Route::delete('api/admin/quick-replies/{quickReply}', [QuickReplyController::class, 'destroy'])
+            ->name('admin.quick-replies.destroy');
 
         Route::post('api/admin/mock/inbound', MockInboundController::class)->name('admin.mock-inbound');
 
@@ -204,5 +218,13 @@ Route::middleware([
     Route::post('api/public/ingest/contact', [PublicIngestController::class, 'ingest'])
         ->name('public.ingest.contact');
 });
+
+// Outbound message images: served from the PRIVATE disk behind a signed,
+// expiring URL. No auth — the signature is the credential — but tenant-scoped
+// (workspace.required 404s off-tenant hosts) so providers (Telegram/Shopee/
+// TikTok fetch the URL at send time) and agents both go through one gate.
+Route::middleware(['workspace.required', 'signed'])
+    ->get('media/outbound/{attachment}', OutboundMediaController::class)
+    ->name('media.outbound');
 
 require __DIR__.'/settings.php';

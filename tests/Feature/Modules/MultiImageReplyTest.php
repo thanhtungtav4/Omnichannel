@@ -17,6 +17,7 @@ use Illuminate\Http\Testing\File;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -52,7 +53,7 @@ class MultiImageReplyTest extends TestCase
             'last_seen_at' => now(),
         ]);
 
-        Storage::fake('public');
+        Storage::fake('local');
         Bus::fake([SendChannelMessageJob::class]);
 
         $files = [
@@ -135,7 +136,7 @@ class MultiImageReplyTest extends TestCase
             'last_seen_at' => now(),
         ]);
 
-        Storage::fake('public');
+        Storage::fake('local');
         Bus::fake([SendChannelMessageJob::class]);
 
         $this->actingAs($agent)
@@ -200,7 +201,7 @@ class MultiImageReplyTest extends TestCase
             'last_seen_at' => now(),
         ]);
 
-        Storage::fake('public');
+        Storage::fake('local');
         Http::fake();
 
         $files = [
@@ -228,6 +229,46 @@ class MultiImageReplyTest extends TestCase
     /**
      * @return array{Workspace, User, ChannelAccount, Contact, Conversation}
      */
+    public function test_outbound_image_uses_private_path_and_signed_route(): void
+    {
+        [$workspace, $agent, $telegram, $contact, $conversation] = $this->seedConversation('TELEGRAM');
+
+        ExternalIdentity::create([
+            'workspace_id' => $workspace->id,
+            'contact_id' => $contact->id,
+            'provider' => 'TELEGRAM',
+            'provider_account_id' => $telegram->id,
+            'provider_user_id' => '5001',
+            'provider_chat_id' => '5001',
+            'display_name' => 'Customer',
+            'last_seen_at' => now(),
+        ]);
+
+        Storage::fake('local');
+        Bus::fake();
+
+        $this->actingAs($agent)
+            ->post(route('admin.conversations.reply', $conversation), [
+                'body' => 'here you go',
+                'images' => [File::image('a.jpg', 40, 40)],
+            ])
+            ->assertRedirect();
+
+        $attachment = MessageAttachment::query()->firstOrFail();
+
+        // Stored privately: relative path, no public URL baked in.
+        $this->assertArrayHasKey('path', $attachment->metadata);
+        $this->assertArrayNotHasKey('url', $attachment->metadata);
+        Storage::disk('local')->assertExists($attachment->metadata['path']);
+
+        // A valid signed URL streams the file.
+        $signed = URL::temporarySignedRoute('media.outbound', now()->addHour(), ['attachment' => $attachment->id]);
+        $this->get($signed)->assertOk();
+
+        // Same route without a signature is rejected.
+        $this->get(route('media.outbound', ['attachment' => $attachment->id]))->assertForbidden();
+    }
+
     private function seedConversation(string $provider = 'TELEGRAM'): array
     {
         $workspace = Workspace::create([

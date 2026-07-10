@@ -87,15 +87,9 @@ export function dayLabel(iso?: string | null): string {
 }
 
 // Quick-reply templates. Type "/" in the composer to insert one.
-// ponytail: static list for now; move to a DB table when agents need to edit them.
-export const QUICK_TEMPLATES: { key: string; label: string; text: string }[] = [
-    { key: 'chao', label: 'Chào hỏi', text: 'Dạ em chào anh/chị, em có thể hỗ trợ gì cho mình ạ?' },
-    { key: 'cam-on', label: 'Cảm ơn', text: 'Dạ em cảm ơn anh/chị đã liên hệ ạ!' },
-    { key: 'cho', label: 'Chờ chút', text: 'Dạ anh/chị chờ em một chút, em kiểm tra thông tin ngay ạ.' },
-    { key: 'gia', label: 'Báo giá', text: 'Dạ về mức giá, em xin phép gửi anh/chị bảng giá chi tiết ạ.' },
-    { key: 'hen', label: 'Hẹn lịch', text: 'Dạ mình muốn đặt lịch vào thời gian nào để em sắp xếp ạ?' },
-    { key: 'ket', label: 'Kết thúc', text: 'Dạ em cảm ơn anh/chị, chúc anh/chị một ngày tốt lành ạ!' },
-];
+// Now DB-backed (quick_replies table) and edited in admin/settings/quick-replies;
+// passed to the inbox page as the `quickReplies` prop.
+export type QuickReply = { key: string; label: string; text: string };
 
 // ponytail: static common set; swap for a picker lib only if agents ask for search/skin-tones.
 export const EMOJIS = [

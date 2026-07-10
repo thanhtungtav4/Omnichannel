@@ -6,13 +6,16 @@ use App\Models\User;
 use App\Modules\Channels\Jobs\SendChannelMessageJob;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
+use App\Modules\Channels\Services\ChannelAdapterRegistry;
 use App\Modules\Crm\Models\Contact;
 use App\Modules\Crm\Models\ExternalIdentity;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Platform\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Testing\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class OutboundTelegramTest extends TestCase
@@ -64,7 +67,7 @@ class OutboundTelegramTest extends TestCase
         $this->assertNotNull($message->sent_at);
     }
 
-    public function test_agent_can_reply_with_an_image_via_sendPhoto(): void
+    public function test_agent_can_reply_with_an_image_via_send_photo(): void
     {
         [$workspace, $agent, $telegram, $contact, $conversation] = $this->seedConversation();
 
@@ -79,7 +82,7 @@ class OutboundTelegramTest extends TestCase
             'last_seen_at' => now(),
         ]);
 
-        \Illuminate\Support\Facades\Storage::fake('public');
+        Storage::fake('local');
         Http::fake([
             'https://api.telegram.org/bottest-token/sendPhoto' => Http::response([
                 'ok' => true,
@@ -87,7 +90,7 @@ class OutboundTelegramTest extends TestCase
             ]),
         ]);
 
-        $file = \Illuminate\Http\Testing\File::image('promo.jpg', 200, 200);
+        $file = File::image('promo.jpg', 200, 200);
 
         $this->actingAs($agent)
             ->post(route('admin.conversations.reply', $conversation), [
@@ -99,7 +102,8 @@ class OutboundTelegramTest extends TestCase
         Http::assertSent(fn ($request) => str_contains($request->url(), '/sendPhoto')
             && $request['chat_id'] === '7001'
             && $request['caption'] === 'Bảng giá đây ạ'
-            && str_contains((string) $request['photo'], '/storage/outbound/'));
+            && str_contains((string) $request['photo'], '/media/outbound/')
+            && str_contains((string) $request['photo'], 'signature='));
 
         $message = Message::query()->where('direction', 'OUTBOUND')->firstOrFail();
         $this->assertSame('IMAGE', $message->message_type);
@@ -150,7 +154,7 @@ class OutboundTelegramTest extends TestCase
         ]);
 
         app(SendChannelMessageJob::class, ['outboxMessageId' => $outbox->id])
-            ->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+            ->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $message->refresh();

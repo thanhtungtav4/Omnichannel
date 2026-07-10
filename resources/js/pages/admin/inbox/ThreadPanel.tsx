@@ -78,14 +78,15 @@ import {
     providerClass,
     providerLabel,
     EMOJIS,
-    QUICK_TEMPLATES,
 } from './lib';
+import type { QuickReply } from './lib';
 import { MessageList } from './MessageBubble';
 import { TransferSheet, CloseSheet } from './TransferSheet';
 
 export function ThreadPanel({
     activeConversation,
     agents,
+    quickReplies,
     replyBody,
     replyImages,
     replyError,
@@ -104,6 +105,7 @@ export function ThreadPanel({
 }: {
     activeConversation: ActiveConversation | null;
     agents: AgentOption[];
+    quickReplies: QuickReply[];
     replyBody: string;
     replyImages: File[];
     replyError?: string;
@@ -787,7 +789,20 @@ export function ThreadPanel({
                         {/* Quick-reply picker: shows when the composer starts with "/". */}
                         {replyBody.startsWith('/') && (
                             <div className="absolute right-3 bottom-full left-3 z-10 mb-1 max-h-56 overflow-auto rounded-lg border bg-popover p-1 shadow-md">
-                                {QUICK_TEMPLATES.filter(
+                                {quickReplies.length === 0 && (
+                                    <a
+                                        href="/admin/settings/quick-replies"
+                                        className="flex flex-col gap-0.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                                    >
+                                        <span className="font-medium">
+                                            Chưa có tin nhắn nhanh
+                                        </span>
+                                        <span className="text-xs">
+                                            Bấm để thêm trong Cài đặt · Tin nhắn nhanh
+                                        </span>
+                                    </a>
+                                )}
+                                {quickReplies.filter(
                                     (t) =>
                                         t.key.includes(
                                             replyBody.slice(1).toLowerCase(),

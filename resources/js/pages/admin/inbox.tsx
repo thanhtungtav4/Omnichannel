@@ -54,7 +54,7 @@ import {
     
     queueTabValue
 } from './inbox/lib';
-import type {InboxStats, QueueTab} from './inbox/lib';
+import type {InboxStats, QueueTab, QuickReply} from './inbox/lib';
 import {
     ConversationRow,
     QueueSkeleton,
@@ -68,6 +68,7 @@ type InboxProps = {
     conversations: ConversationSummary[];
     activeConversation: ActiveConversation | null;
     agents: AgentOption[];
+    quickReplies: QuickReply[];
 };
 
 export default function Inbox({
@@ -75,6 +76,7 @@ export default function Inbox({
     conversations,
     activeConversation,
     agents,
+    quickReplies,
 }: InboxProps) {
     const [transferTo, setTransferTo] = useState<string>('');
     const [query, setQuery] = useState('');
@@ -790,6 +792,7 @@ return;
                                     }
                                     activeConversation={activeConversation}
                                     agents={agents}
+                                    quickReplies={quickReplies}
                                     replyBody={replyForm.data.body}
                                     replyImages={replyForm.data.images}
                                     replyError={replyForm.errors.body}
