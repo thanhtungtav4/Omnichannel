@@ -2,17 +2,16 @@
 
 namespace Tests\Feature\Modules;
 
-use App\Modules\Channels\Adapters\ShopeeAdapter;
-use App\Modules\Channels\Adapters\TikTokShopAdapter;
 use App\Modules\Channels\Jobs\SendChannelMessageJob;
 use App\Modules\Channels\Models\ChannelAccount;
 use App\Modules\Channels\Models\OutboxMessage;
+use App\Modules\Channels\Services\ChannelAdapterRegistry;
 use App\Modules\Inbox\Models\Conversation;
 use App\Modules\Inbox\Models\Message;
 use App\Modules\Platform\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -87,13 +86,13 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('SHOPEE');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'partner.shopeemobile.com/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'partner.shopeemobile.com/*' => Http::response([
                 'message_id' => 'SHP-OUT-1',
             ], 200),
         ]);
 
-        (new SendChannelMessageJob($outbox->id))->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        (new SendChannelMessageJob($outbox->id))->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('SENT', $outbox->status);
@@ -107,15 +106,15 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('TIKTOK_SHOP');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => Http::response([
                 'code' => 0,
                 'message' => 'success',
                 'data' => ['message_id' => 'TT-OUT-1'],
             ], 200),
         ]);
 
-        (new SendChannelMessageJob($outbox->id))->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        (new SendChannelMessageJob($outbox->id))->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('SENT', $outbox->status);
@@ -129,8 +128,8 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('SHOPEE');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'partner.shopeemobile.com/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'partner.shopeemobile.com/*' => Http::response([
                 'error' => 'too_many_requests',
                 'message' => 'too many requests',
             ], 429, ['Retry-After' => '120']),
@@ -141,7 +140,7 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('RETRYING', $outbox->status);
@@ -160,8 +159,8 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('TIKTOK_SHOP');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => Http::response([
                 'code' => 429,
                 'error' => 'rate_limited',
                 'message' => 'too many',
@@ -171,7 +170,7 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('RETRYING', $outbox->status);
@@ -189,8 +188,8 @@ class SendChannelMessageJobTest extends TestCase
         $outbox = $this->makeOutbox($channel);
 
         // Provider returns absurd retry_after = 86400 (24h). We cap at 1h.
-        \Illuminate\Support\Facades\Http::fake([
-            'partner.shopeemobile.com/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'partner.shopeemobile.com/*' => Http::response([
                 'error' => 'too_many_requests',
             ], 429, ['Retry-After' => '86400']),
         ]);
@@ -198,7 +197,7 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $expectedAt = now()->addSeconds(3600);
@@ -215,8 +214,8 @@ class SendChannelMessageJobTest extends TestCase
         $outbox = $this->makeOutbox($channel);
 
         // Provider returns 1s. Floor at 5s.
-        \Illuminate\Support\Facades\Http::fake([
-            'partner.shopeemobile.com/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'partner.shopeemobile.com/*' => Http::response([
                 'error' => 'too_many_requests',
             ], 429, ['Retry-After' => '1']),
         ]);
@@ -224,7 +223,7 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $expectedAt = now()->addSeconds(5);
@@ -242,8 +241,8 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('TIKTOK_SHOP');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => Http::response([
                 'code' => 400,
                 'error' => 'recipient_blocked',
                 'message' => 'blocked',
@@ -253,7 +252,7 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('FAILED', $outbox->status);
@@ -266,8 +265,8 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('SHOPEE');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'partner.shopeemobile.com/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'partner.shopeemobile.com/*' => Http::response([
                 'error' => 'unauthorized',
                 'message' => 'token invalid',
             ], 401),
@@ -276,7 +275,7 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('FAILED', $outbox->status);
@@ -294,18 +293,18 @@ class SendChannelMessageJobTest extends TestCase
         $channel = $this->makeChannel('SHOPEE');
         $outbox = $this->makeOutbox($channel);
 
-        \Illuminate\Support\Facades\Http::fake([
-            'partner.shopeemobile.com/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'partner.shopeemobile.com/*' => Http::response([
                 'message_id' => 'SHP-OUT-1',
             ], 200),
         ]);
 
-        (new SendChannelMessageJob($outbox->id))->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        (new SendChannelMessageJob($outbox->id))->handle(app(ChannelAdapterRegistry::class));
         $outbox->refresh();
         $this->assertSame(1, $outbox->attempts);
 
         // Run again on a SENT row — should be a no-op (returns early).
-        (new SendChannelMessageJob($outbox->id))->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        (new SendChannelMessageJob($outbox->id))->handle(app(ChannelAdapterRegistry::class));
         $outbox->refresh();
         $this->assertSame(1, $outbox->attempts); // not incremented because SENT
     }
@@ -318,8 +317,8 @@ class SendChannelMessageJobTest extends TestCase
         $outbox = $this->makeOutbox($channel);
         $outbox->forceFill(['attempts' => 5])->save();
 
-        \Illuminate\Support\Facades\Http::fake([
-            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            '*open.tiktokglobalshop.com/api/im/202412/send_message*' => Http::response([
                 'code' => 500,
                 'error' => 'server_error',
             ], 500),
@@ -328,10 +327,45 @@ class SendChannelMessageJobTest extends TestCase
         Queue::fake();
 
         $job = new SendChannelMessageJob($outbox->id);
-        $job->handle(app(\App\Modules\Channels\Services\ChannelAdapterRegistry::class));
+        $job->handle(app(ChannelAdapterRegistry::class));
 
         $outbox->refresh();
         $this->assertSame('FAILED', $outbox->status);
         $this->assertNull($outbox->next_attempt_at);
+    }
+
+    // ---------- concurrency claim ----------
+
+    public function test_outbox_already_sending_is_a_noop(): void
+    {
+        $channel = $this->makeChannel('SHOPEE');
+        $outbox = $this->makeOutbox($channel);
+        // Simulate another worker mid-send: status SENDING, attempts already 1.
+        $outbox->forceFill(['status' => 'SENDING', 'attempts' => 1])->save();
+
+        // No HTTP fake registered: if the job tried to send, the fake would fail.
+        Http::preventStrayRequests();
+
+        (new SendChannelMessageJob($outbox->id))->handle(app(ChannelAdapterRegistry::class));
+
+        $outbox->refresh();
+        // Untouched: no second send, no attempt bump.
+        $this->assertSame('SENDING', $outbox->status);
+        $this->assertSame(1, $outbox->attempts);
+    }
+
+    public function test_outbox_already_sent_is_a_noop(): void
+    {
+        $channel = $this->makeChannel('SHOPEE');
+        $outbox = $this->makeOutbox($channel);
+        $outbox->forceFill(['status' => 'SENT', 'attempts' => 1])->save();
+
+        Http::preventStrayRequests();
+
+        (new SendChannelMessageJob($outbox->id))->handle(app(ChannelAdapterRegistry::class));
+
+        $outbox->refresh();
+        $this->assertSame('SENT', $outbox->status);
+        $this->assertSame(1, $outbox->attempts);
     }
 }

@@ -10,14 +10,28 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class SendChannelMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 5;
+    // Total send attempts before giving up (the retry budget). Kept separate
+    // from $tries so the framework's single attempt and our own release()-based
+    // retry don't fight over the same number.
+    private const MAX_ATTEMPTS = 5;
+
+    // One framework attempt. All retry/backoff is driven by our own release()
+    // in markFailedOrRetrying(), keyed off the outbox row's attempts counter —
+    // so there is exactly ONE retry mechanism, not two competing ones.
+    public int $tries = 1;
+
+    // Cap total lifetime so a permanently stuck job can't live forever even if
+    // release() keeps rescheduling (defense in depth alongside the attempts cap).
+    public int $maxExceptions = 1;
 
     /**
      * @var list<int>
@@ -26,22 +40,52 @@ class SendChannelMessageJob implements ShouldQueue
 
     public function __construct(public readonly string $outboxMessageId) {}
 
+    /**
+     * Serialize sends per outbox row: two workers can never process the same
+     * message at once (double-send guard on top of the DB claim below).
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [(new WithoutOverlapping($this->outboxMessageId))->expireAfter(180)->dontRelease()];
+    }
+
     public function handle(ChannelAdapterRegistry $registry): void
     {
-        $outbox = OutboxMessage::query()
-            ->with(['channelAccount'])
-            ->findOrFail($this->outboxMessageId);
+        // Atomically claim the row: lock it, bail if another worker/attempt
+        // already finished or is mid-send, then flip to SENDING and bump the
+        // attempt counter in one transaction. This is the cross-server guard
+        // (WithoutOverlapping only covers a single worker process).
+        $outbox = DB::transaction(function () {
+            $row = OutboxMessage::query()
+                ->lockForUpdate()
+                ->find($this->outboxMessageId);
 
-        if (in_array($outbox->status, ['SENT', 'CANCELLED'], true)) {
+            if ($row === null) {
+                return null;
+            }
+
+            if (in_array($row->status, ['SENT', 'CANCELLED', 'SENDING'], true)) {
+                return null;
+            }
+
+            $row->forceFill([
+                'status' => 'SENDING',
+                'attempts' => $row->attempts + 1,
+                'last_error_code' => null,
+                'last_error_message' => null,
+            ])->save();
+
+            return $row;
+        });
+
+        // Nothing to do: already delivered, cancelled, or being sent elsewhere.
+        if ($outbox === null) {
             return;
         }
 
-        $outbox->forceFill([
-            'status' => 'SENDING',
-            'attempts' => $outbox->attempts + 1,
-            'last_error_code' => null,
-            'last_error_message' => null,
-        ])->save();
+        $outbox->loadMissing('channelAccount');
 
         try {
             $adapter = $registry->for($outbox->channelAccount);
@@ -115,7 +159,7 @@ class SendChannelMessageJob implements ShouldQueue
         ?array $providerResponse,
         ?int $customRetryAfterSeconds = null,
     ): void {
-        $shouldRetry = $retryable && $outbox->attempts < $this->tries;
+        $shouldRetry = $retryable && $outbox->attempts < self::MAX_ATTEMPTS;
         $backoffIndex = min($outbox->attempts - 1, count($this->backoff) - 1);
         $staticDelay = $this->backoff[$backoffIndex] ?? 3600;
 
